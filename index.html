@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Sistem Informasi Manajemen Tim Humas & Protokoler 2026</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        stats: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                            950: '#082f49',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .sidebar-link.active {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-link:hover:not(.active) {
+            background-color: #f0f9ff;
+            color: #0c4a6e;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .toast {
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-top: 0.5rem;
+            border-left: 4px solid #0ea5e9;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            animation: slideIn 0.3s ease-out;
+            max-width: 350px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 0, 0, .1);
+            border-radius: 50%;
+            border-top-color: #0ea5e9;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 20px -12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        input,
+        select,
+        textarea {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            transition: all 0.2s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        }
+
+        /* Mobile Sidebar */
+        .mobile-sidebar {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100%;
+            background: white;
+            z-index: 1002;
+            transition: left 0.3s ease;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .mobile-sidebar.open {
+            left: 0;
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            display: none;
+        }
+
+        .sidebar-overlay.open {
+            display: block;
+        }
+    </style>
+</head>
+
+<body class="text-slate-800 antialiased h-screen flex overflow-hidden">
+
+    <div id="toast-container"></div>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+    <!-- Mobile Sidebar -->
+    <div id="mobile-sidebar" class="mobile-sidebar flex flex-col">
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 bg-gradient-to-br from-stats-500 to-stats-700 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                    <i class="fa-solid fa-chart-pie"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg text-stats-900 leading-tight">SIM Humas</h1>
+                    <p class="text-xs text-slate-500">BPS Prov. Kalbar</p>
+                </div>
+            </div>
+            <button onclick="closeMobileSidebar()" class="text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-times text-xl"></i>
+            </button>
+        </div>
+        <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+            <button onclick="router('dashboard'); closeMobileSidebar();" id="mobile-nav-dashboard"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                <i class="fa-solid fa-gauge-high w-5"></i> Dashboard
+            </button>
+            <button onclick="router('planner'); closeMobileSidebar();" id="mobile-nav-planner"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                <i class="fa-solid fa-list-check w-5"></i> Content Planner
+            </button>
+            <button onclick="router('schedule'); closeMobileSidebar();" id="mobile-nav-schedule"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                <i class="fa-regular fa-calendar-days w-5"></i> Jadwal Rilis (BRS)
+            </button>
+            <button onclick="router('protocol'); closeMobileSidebar();" id="mobile-nav-protocol"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                <i class="fa-solid fa-user-tie w-5"></i> Protokoler & MC
+            </button>
+            <button onclick="router('team'); closeMobileSidebar();" id="mobile-nav-team"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                <i class="fa-solid fa-users w-5"></i> Direktori Tim
+            </button>
+        </nav>
+        <div class="p-4 border-t border-slate-100">
+            <div class="bg-gradient-to-br from-stats-50 to-stats-100 rounded-lg p-4">
+                <p class="text-xs font-semibold text-stats-800 mb-2">Status Data</p>
+                <div class="flex items-center justify-between text-xs text-stats-700 mb-1">
+                    <span><i class="fa-regular fa-clock mr-1"></i> Terakhir:</span>
+                    <span id="mobile-last-sync-date" class="font-medium">-</span>
+                </div>
+                <button onclick="syncData(); closeMobileSidebar();"
+                    class="mt-3 w-full bg-white border border-stats-200 hover:bg-stats-50 text-stats-700 text-xs py-2 rounded-lg shadow-sm transition-all flex justify-center items-center gap-2 font-medium">
+                    <i class="fa-solid fa-rotate"></i> Sinkron Database
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Desktop Sidebar -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10 hidden md:flex">
+        <div class="p-6 border-b border-slate-100 flex items-center gap-3">
+            <div
+                class="w-10 h-10 bg-gradient-to-br from-stats-500 to-stats-700 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                <i class="fa-solid fa-chart-pie"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg text-stats-900 leading-tight">SIM Humas</h1>
+                <p class="text-xs text-slate-500">Tim Protokoler 2026</p>
+            </div>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+            <button onclick="router('dashboard')" id="nav-dashboard"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                <i class="fa-solid fa-gauge-high w-5"></i> Dashboard
+            </button>
+            <button onclick="router('planner')" id="nav-planner"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                <i class="fa-solid fa-list-check w-5"></i> Content Planner
+            </button>
+            <button onclick="router('schedule')" id="nav-schedule"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                <i class="fa-regular fa-calendar-days w-5"></i> Jadwal Rilis (BRS)
+            </button>
+            <button onclick="router('protocol')" id="nav-protocol"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                <i class="fa-solid fa-user-tie w-5"></i> Protokoler & MC
+            </button>
+            <button onclick="router('team')" id="nav-team"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                <i class="fa-solid fa-users w-5"></i> Direktori Tim
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-slate-100">
+            <div class="bg-gradient-to-br from-stats-50 to-stats-100 rounded-lg p-4">
+                <p class="text-xs font-semibold text-stats-800 mb-2">Status Data</p>
+                <div class="flex items-center justify-between text-xs text-stats-700 mb-1">
+                    <span><i class="fa-regular fa-clock mr-1"></i> Terakhir:</span>
+                    <span id="last-sync-date" class="font-medium">-</span>
+                </div>
+                <button onclick="syncData()"
+                    class="mt-3 w-full bg-white border border-stats-200 hover:bg-stats-50 text-stats-700 text-xs py-2 rounded-lg shadow-sm transition-all flex justify-center items-center gap-2 font-medium">
+                    <i class="fa-solid fa-rotate"></i> Sinkron Database
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 relative">
+        <header class="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center shadow-sm">
+            <div class="font-bold text-stats-900 text-lg">SIM Humas 2026</div>
+            <button onclick="openMobileSidebar()" class="text-slate-600 focus:outline-none">
+                <i class="fa-solid fa-bars text-2xl"></i>
+            </button>
+        </header>
+
+        <div id="app-content" class="flex-1 overflow-y-auto p-4 md:p-8 fade-in">
+            <div class="flex justify-center items-center h-64">
+                <div class="loading-spinner"></div>
+                <span class="ml-3 text-slate-600 font-medium">Memuat data dari server...</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // KONFIGURASI - GANTI DENGAN URL WEB APP ANDA
+        const GOOGLE_SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzqG9cQMjnpv-bOyifs4kfdpPYdEB5A5a7lw64Yod7GtfFKN4kcwN3BhYyeTQ90n4p7/exec';
+
+        // State management
+        let db = {
+            contentPlanner: [],
+            brsSchedule: [],
+            protocol: [],
+            team: []
+        };
+        let currentState = 'dashboard';
+        let isLoading = false;
+        let currentEditItem = null;
+        let currentModalType = null;
+        let chartInstance = null;
+
+        // Fungsi khusus untuk mengirim data ke Google Apps Script
+        async function sendDataToServer(action, sheetName, item) {
+            try {
+                const payload = {
+                    action: action,
+                    sheet: sheetName,
+                    item: item
+                };
+
+                const response = await fetch(GOOGLE_SHEETS_API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (!result.success) throw new Error('Gagal sync ke server');
+
+                // Jika sukses sinkron, panggil fetch ulang data agar web update
+                await fetchDataFromSheets();
+
+            } catch (error) {
+                console.error('Sync Error:', error);
+                showToast('Gagal menyimpan ke Spreadsheet (Cek Console)', 'error');
+            }
+        }
+
+        // Mobile sidebar functions
+        function openMobileSidebar() {
+            document.getElementById('mobile-sidebar').classList.add('open');
+            document.getElementById('sidebar-overlay').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobileSidebar() {
+            document.getElementById('mobile-sidebar').classList.remove('open');
+            document.getElementById('sidebar-overlay').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        // Helper functions
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            const icon = type === 'success' ? '<i class="fa-solid fa-circle-check text-green-500 text-lg"></i>' :
+                type === 'error' ? '<i class="fa-solid fa-circle-exclamation text-red-500 text-lg"></i>' :
+                    '<i class="fa-solid fa-circle-info text-blue-500 text-lg"></i>';
+            toast.innerHTML = `${icon} <span class="text-sm font-medium">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            try {
+                const options = { day: 'numeric', month: 'long', year: 'numeric' };
+                return new Date(dateString).toLocaleDateString('id-ID', options);
+            } catch (e) {
+                return dateString;
+            }
+        }
+
+        function formatDateInput(dateString) {
+            if (!dateString) return '';
+            try {
+                return new Date(dateString).toISOString().split('T')[0];
+            } catch (e) {
+                return '';
+            }
+        }
+
+        // Fetch data dari Google Sheets
+        async function fetchDataFromSheets() {
+            if (isLoading) return;
+            isLoading = true;
+
+            try {
+                const response = await fetch(GOOGLE_SHEETS_API_URL);
+                if (!response.ok) throw new Error('Gagal mengambil data');
+
+                const data = await response.json();
+
+                db.contentPlanner = data.contentPlanner || [];
+                db.brsSchedule = data.brsSchedule || [];
+                db.protocol = data.protocol || [];
+                db.team = data.team || [];
+
+                const now = new Date();
+                const dateStr = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                document.getElementById('last-sync-date').textContent = dateStr;
+                const mobileSync = document.getElementById('mobile-last-sync-date');
+                if (mobileSync) mobileSync.textContent = dateStr;
+
+                showToast('Data berhasil disinkronkan dari Google Sheets!');
+                router(currentState);
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                showToast('Gagal sinkron data: ' + error.message, 'error');
+                useDefaultData();
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        // CRUD Operations
+        function openModal(type, item = null) {
+            currentModalType = type;
+            currentEditItem = item;
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.id = 'dynamic-modal';
+
+            let title = '';
+            let fields = '';
+
+            if (type === 'content') {
+                title = item ? 'Edit Konten' : 'Tambah Konten Baru';
+                fields = `
+                    <div class="space-y-4">
+                        <div><label class="block text-sm font-medium mb-1">Judul</label><input type="text" id="judul" value="${item?.judul || ''}" class="w-full" required></div>
+                        <div><label class="block text-sm font-medium mb-1">Konsep</label><input type="text" id="konsep" value="${item?.konsep || ''}" class="w-full"></div>
+                        <div><label class="block text-sm font-medium mb-1">Jenis</label>
+                            <select id="jenis" class="w-full"><option ${item?.jenis === 'Hard Selling' ? 'selected' : ''}>Hard Selling</option><option ${item?.jenis === 'Soft Selling' ? 'selected' : ''}>Soft Selling</option><option ${item?.jenis === 'Trend' ? 'selected' : ''}>Trend</option></select>
+                        </div>
+                        <div><label class="block text-sm font-medium mb-1">Post Type</label>
+                            <select id="postType" class="w-full"><option ${item?.postType === 'Carousel' ? 'selected' : ''}>Carousel</option><option ${item?.postType === 'Reels' ? 'selected' : ''}>Reels</option><option ${item?.postType === 'Single Image' ? 'selected' : ''}>Single Image</option><option ${item?.postType === 'Video' ? 'selected' : ''}>Video</option></select>
+                        </div>
+                        <div><label class="block text-sm font-medium mb-1">Progres (%)</label><input type="number" id="progres" value="${item?.progres || 0}" min="0" max="100" class="w-full"></div>
+                        <div><label class="block text-sm font-medium mb-1">Jadwal</label><input type="date" id="jadwal" value="${formatDateInput(item?.jadwal)}" class="w-full"></div>
+                        <div><label class="block text-sm font-medium mb-1">Status</label>
+                            <select id="status" class="w-full"><option ${item?.status === 'Draft' ? 'selected' : ''}>Draft</option><option ${item?.status === 'In Progress' ? 'selected' : ''}>In Progress</option><option ${item?.status === 'Posted' ? 'selected' : ''}>Posted</option><option ${item?.status === 'Done' ? 'selected' : ''}>Done</option></select>
+                        </div>
+                        <div><label class="block text-sm font-medium mb-1">Ditugaskan ke</label>
+                            <select id="assignedTo" class="w-full">${db.team.map(m => `<option ${item?.assignedTo === m.nama ? 'selected' : ''}>${m.nama}</option>`).join('')}</select>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'schedule') {
+                title = item ? 'Edit Jadwal Rilis' : 'Tambah Jadwal Rilis';
+                fields = `
+                    <div class="space-y-4">
+                        <div><label class="block text-sm font-medium mb-1">Judul</label><input type="text" id="judul" value="${item?.judul || ''}" class="w-full" required></div>
+                        <div><label class="block text-sm font-medium mb-1">Tanggal</label><input type="date" id="tanggal" value="${formatDateInput(item?.tanggal)}" class="w-full"></div>
+                        <div><label class="block text-sm font-medium mb-1">PIC Poster</label><input type="text" id="pic_poster" value="${item?.pic_poster || ''}" class="w-full"></div>
+                        <div><label class="block text-sm font-medium mb-1">PIC Info</label><input type="text" id="pic_info" value="${item?.pic_info || ''}" class="w-full"></div>
+                        <div><label class="block text-sm font-medium mb-1">PIC Doc</label><input type="text" id="pic_doc" value="${item?.pic_doc || ''}" class="w-full"></div>
+                        <div><label class="block text-sm font-medium mb-1">PIC Highlight</label><input type="text" id="pic_high" value="${item?.pic_high || ''}" class="w-full"></div>
+                    </div>
+                `;
+            } else if (type === 'protocol') {
+                title = item ? 'Edit Kegiatan Protokol' : 'Tambah Kegiatan Protokol';
+                fields = `
+                    <div class="space-y-4">
+                        <div><label class="block text-sm font-medium mb-1">Kegiatan</label><input type="text" id="kegiatan" value="${item?.kegiatan || ''}" class="w-full" required></div>
+                        <div><label class="block text-sm font-medium mb-1">Pimpinan</label><input type="text" id="pimpinan" value="${item?.pimpinan || ''}" class="w-full"></div>
+                        <div><label class="block text-sm font-medium mb-1">Level</label>
+                            <select id="level" class="w-full"><option ${item?.level === 'Formal' ? 'selected' : ''}>Formal</option><option ${item?.level === 'Non-Formal' ? 'selected' : ''}>Non-Formal</option></select>
+                        </div>
+                        <div><label class="block text-sm font-medium mb-1">Lokasi</label><input type="text" id="lokasi" value="${item?.lokasi || ''}" class="w-full"></div>
+                        <div><label class="block text-sm font-medium mb-1">Petugas</label><input type="text" id="petugas" value="${item?.petugas || ''}" class="w-full" placeholder="Pisahkan dengan koma"></div>
+                        <div><label class="block text-sm font-medium mb-1">Tanggal</label><input type="date" id="tanggal" value="${formatDateInput(item?.tanggal)}" class="w-full"></div>
+                    </div>
+                `;
+            } else if (type === 'team') {
+                title = item ? 'Edit Anggota Tim' : 'Tambah Anggota Tim';
+                fields = `
+                    <div class="space-y-4">
+                        <div><label class="block text-sm font-medium mb-1">Nama</label><input type="text" id="nama" value="${item?.nama || ''}" class="w-full" required></div>
+                        <div><label class="block text-sm font-medium mb-1">Jabatan</label><input type="text" id="jabatan" value="${item?.jabatan || ''}" class="w-full"></div>
+                        <div><label class="block text-sm font-medium mb-1">Bidang</label><input type="text" id="bidang" value="${item?.bidang || ''}" class="w-full"></div>
+                        <div><label class="block text-sm font-medium mb-1">Uraian Tugas</label><textarea id="tugas" rows="3" class="w-full">${item?.tugas || ''}</textarea></div>
+                        <div><label class="block text-sm font-medium mb-1">Kontak</label><input type="number" id="kontak" value="${item?.kontak || ''}" class="w-full"></div>
+                    </div>
+                `;
+            }
+
+            modal.innerHTML = `
+                <div class="modal-content p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-slate-800">${title}</h3>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-times text-xl"></i></button>
+                    </div>
+                    <form onsubmit="saveData(event)">
+                        ${fields}
+                        <div class="flex gap-3 mt-6">
+                            <button type="submit" class="btn-primary flex-1"><i class="fa-solid fa-save mr-2"></i> Simpan</button>
+                            <button type="button" onclick="closeModal()" class="btn-secondary flex-1">Batal</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('dynamic-modal');
+            if (modal) modal.remove();
+            currentEditItem = null;
+            currentModalType = null;
+        }
+
+        function saveData(event) {
+            event.preventDefault();
+
+            // Tentukan nama sheet berdasarkan modal type
+            let sheetName = '';
+            if (currentModalType === 'content') sheetName = 'content_planner';
+            else if (currentModalType === 'schedule') sheetName = 'brs_schedule';
+            else if (currentModalType === 'protocol') sheetName = 'protocol';
+            else if (currentModalType === 'team') sheetName = 'team';
+
+            if (currentModalType === 'content') {
+                const newItem = {
+                    id: currentEditItem?.id || Date.now(), // Jika add baru, pakai timestamp sebagai ID
+                    judul: document.getElementById('judul').value,
+                    konsep: document.getElementById('konsep').value,
+                    jenis: document.getElementById('jenis').value,
+                    postType: document.getElementById('postType').value,
+                    progres: parseInt(document.getElementById('progres').value),
+                    jadwal: document.getElementById('jadwal').value,
+                    status: document.getElementById('status').value,
+                    assignedTo: document.getElementById('assignedTo').value
+                };
+
+                // Tentukan action: 'add' atau 'update'
+                const action = currentEditItem ? 'update' : 'add';
+
+                // 1. Update Tampilan Sementara (Optimistic UI)
+                if (currentEditItem) {
+                    const index = db.contentPlanner.findIndex(i => i.id === currentEditItem.id);
+                    if (index !== -1) db.contentPlanner[index] = newItem;
+                    showToast('Menyimpan perubahan...');
+                } else {
+                    db.contentPlanner.push(newItem);
+                    showToast('Menambahkan data...');
+                }
+
+                // 2. Kirim ke Spreadsheet (Async)
+                sendDataToServer(action, sheetName, newItem);
+
+            }
+            // --- ULANGI LOGIKA DI ATAS UNTUK schedule, protocol, DAN team ---
+            // Contoh singkat untuk schedule:
+            else if (currentModalType === 'schedule') {
+                const newItem = {
+                    id: currentEditItem?.id || Date.now(),
+                    judul: document.getElementById('judul').value,
+                    tanggal: document.getElementById('tanggal').value,
+                    pic_poster: document.getElementById('pic_poster').value,
+                    pic_info: document.getElementById('pic_info').value,
+                    pic_doc: document.getElementById('pic_doc').value,
+                    pic_high: document.getElementById('pic_high').value
+                };
+                const action = currentEditItem ? 'update' : 'add';
+
+                if (currentEditItem) {
+                    const index = db.brsSchedule.findIndex(i => i.id === currentEditItem.id);
+                    if (index !== -1) db.brsSchedule[index] = newItem;
+                    showToast('Menyimpan...');
+                } else {
+                    db.brsSchedule.push(newItem);
+                    showToast('Menambahkan...');
+                }
+
+                sendDataToServer(action, 'brs_schedule', newItem);
+            }
+            // (Lakukan hal yang sama untuk protocol dan team...)
+
+            // Protocol & Team logic disesuaikan dengan pola di atas...
+            else if (currentModalType === 'protocol') {
+                const newItem = {
+                    id: currentEditItem?.id || Date.now(),
+                    kegiatan: document.getElementById('kegiatan').value,
+                    pimpinan: document.getElementById('pimpinan').value,
+                    level: document.getElementById('level').value,
+                    lokasi: document.getElementById('lokasi').value,
+                    petugas: document.getElementById('petugas').value,
+                    tanggal: document.getElementById('tanggal').value
+                };
+                const action = currentEditItem ? 'update' : 'add';
+                if (currentEditItem) {
+                    const index = db.protocol.findIndex(i => i.id === currentEditItem.id);
+                    if (index !== -1) db.protocol[index] = newItem;
+                } else {
+                    db.protocol.push(newItem);
+                }
+                sendDataToServer(action, 'protocol', newItem);
+            }
+            else if (currentModalType === 'team') {
+                const newItem = {
+                    id: currentEditItem?.id || Date.now(),
+                    nama: document.getElementById('nama').value,
+                    jabatan: document.getElementById('jabatan').value,
+                    bidang: document.getElementById('bidang').value,
+                    tugas: document.getElementById('tugas').value,
+                    kontak: document.getElementById('kontak').value
+                };
+                const action = currentEditItem ? 'update' : 'add';
+                if (currentEditItem) {
+                    const index = db.team.findIndex(i => i.id === currentEditItem.id);
+                    if (index !== -1) db.team[index] = newItem;
+                } else {
+                    db.team.push(newItem);
+                }
+                sendDataToServer(action, 'team', newItem);
+            }
+
+            closeModal();
+            router(currentState);
+        }
+
+        function deleteItem(type, id) {
+            if (confirm('Apakah Anda yakin ingin menghapus data ini?')) {
+                let sheetName = '';
+                let itemToDelete = null;
+
+                // Tentukan sheet dan cari item yang akan dihapus (untuk dikirim ke server)
+                if (type === 'content') {
+                    sheetName = 'content_planner';
+                    itemToDelete = db.contentPlanner.find(i => i.id === id);
+                    db.contentPlanner = db.contentPlanner.filter(i => i.id !== id);
+                } else if (type === 'schedule') {
+                    sheetName = 'brs_schedule';
+                    itemToDelete = db.brsSchedule.find(i => i.id === id);
+                    db.brsSchedule = db.brsSchedule.filter(i => i.id !== id);
+                } else if (type === 'protocol') {
+                    sheetName = 'protocol';
+                    itemToDelete = db.protocol.find(i => i.id === id);
+                    db.protocol = db.protocol.filter(i => i.id !== id);
+                } else if (type === 'team') {
+                    sheetName = 'team';
+                    itemToDelete = db.team.find(i => i.id === id);
+                    db.team = db.team.filter(i => i.id !== id);
+                }
+
+                if (itemToDelete) {
+                    // Hapus dari tampilan dulu
+                    router(currentState);
+                    showToast('Menghapus data...');
+
+                    // Kirim perintah delete ke server
+                    sendDataToServer('delete', sheetName, itemToDelete);
+                }
+            }
+        }
+
+        function showDetail(type, item) {
+            let content = '';
+            if (type === 'content') {
+                content = `
+                    <div class="space-y-3">
+                        <div class="bg-stats-50 p-4 rounded-lg"><p class="text-xs text-stats-600 font-semibold">JUDUL</p><p class="font-bold text-lg">${item.judul}</p></div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Konsep</p><p class="font-medium">${item.konsep}</p></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Jenis</p><p class="font-medium">${item.jenis}</p></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Post Type</p><p class="font-medium">${item.postType}</p></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Progres</p><div class="w-full bg-slate-200 rounded-full h-2 mt-2"><div class="bg-stats-500 h-2 rounded-full" style="width: ${item.progres}%"></div></div><p class="text-xs mt-1">${item.progres}%</p></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Jadwal</p><p class="font-medium">${formatDate(item.jadwal)}</p></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Status</p><span class="inline-block px-2 py-1 rounded text-xs font-bold ${item.status === 'Posted' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${item.status}</span></div>
+                            <div class="bg-slate-50 p-3 rounded col-span-2"><p class="text-xs text-slate-500">Ditugaskan ke</p><p class="font-medium"><i class="fa-solid fa-user mr-2"></i>${item.assignedTo}</p></div>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'schedule') {
+                content = `
+                    <div class="space-y-3">
+                        <div class="bg-stats-50 p-4 rounded-lg"><p class="text-xs text-stats-600 font-semibold">JUDUL RILIS</p><p class="font-bold text-lg">${item.judul}</p></div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Tanggal</p><p class="font-medium"><i class="fa-regular fa-calendar mr-2"></i>${formatDate(item.tanggal)}</p></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">PIC Poster</p><p class="font-medium"><i class="fa-solid fa-palette mr-2"></i>${item.pic_poster}</p></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">PIC Info</p><p class="font-medium"><i class="fa-solid fa-info-circle mr-2"></i>${item.pic_info}</p></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">PIC Doc</p><p class="font-medium"><i class="fa-solid fa-camera mr-2"></i>${item.pic_doc}</p></div>
+                            <div class="bg-slate-50 p-3 rounded col-span-2"><p class="text-xs text-slate-500">PIC Highlight</p><p class="font-medium"><i class="fa-solid fa-star mr-2"></i>${item.pic_high}</p></div>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'protocol') {
+                content = `
+                    <div class="space-y-3">
+                        <div class="bg-stats-50 p-4 rounded-lg"><p class="text-xs text-stats-600 font-semibold">KEGIATAN</p><p class="font-bold text-lg">${item.kegiatan}</p></div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Pimpinan</p><p class="font-medium"><i class="fa-solid fa-user-tie mr-2"></i>${item.pimpinan}</p></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Level</p><span class="inline-block px-2 py-1 rounded text-xs font-bold ${item.level === 'Formal' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}">${item.level}</span></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Lokasi</p><p class="font-medium"><i class="fa-solid fa-location-dot mr-2"></i>${item.lokasi}</p></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Tanggal</p><p class="font-medium"><i class="fa-regular fa-calendar mr-2"></i>${formatDate(item.tanggal)}</p></div>
+                            <div class="bg-slate-50 p-3 rounded col-span-2"><p class="text-xs text-slate-500">Petugas</p><p class="font-medium"><i class="fa-solid fa-users mr-2"></i>${item.petugas}</p></div>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'team') {
+                const taskCount = db.contentPlanner.filter(c => c.assignedTo === item.nama).length;
+                content = `
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-4">
+                            <div class="w-20 h-20 bg-gradient-to-br from-stats-500 to-stats-700 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg">${item.nama.charAt(0)}</div>
+                            <div><h3 class="text-xl font-bold text-slate-800">${item.nama}</h3><p class="text-stats-600 font-medium">${item.jabatan}</p></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Bidang</p><p class="font-medium"><i class="fa-solid fa-diagram-project mr-2"></i>${item.bidang}</p></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Jumlah Tugas</p><p class="font-medium text-2xl font-bold text-stats-600">${taskCount}</p></div>
+                            <div class="bg-slate-50 p-3 rounded"><p class="text-xs text-slate-500">Kontak</p><p class="font-medium"><i class="fa-solid fa-envelope mr-2"></i>${item.kontak}</p></div>
+                            <div class="bg-slate-50 p-3 rounded col-span-2"><p class="text-xs text-slate-500">Uraian Tugas</p><p class="font-medium">${item.tugas}</p></div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content p-6 max-w-2xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-circle-info text-stats-500 mr-2"></i>Detail Informasi</h3>
+                        <button onclick="this.closest('.modal').remove()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-times text-xl"></i></button>
+                    </div>
+                    ${content}
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="this.closest('.modal').remove()" class="btn-primary px-6">Tutup</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        async function syncData() {
+            await fetchDataFromSheets();
+        }
+
+        // Navigation
+        function router(page) {
+            currentState = page;
+
+            // Update desktop sidebar
+            document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+            const activeLink = document.getElementById(`nav-${page}`);
+            if (activeLink) activeLink.classList.add('active');
+
+            // Update mobile sidebar
+            const mobileActiveLink = document.getElementById(`mobile-nav-${page}`);
+            if (mobileActiveLink) {
+                document.querySelectorAll('#mobile-sidebar .sidebar-link').forEach(el => el.classList.remove('active'));
+                mobileActiveLink.classList.add('active');
+            }
+
+            const contentDiv = document.getElementById('app-content');
+            contentDiv.innerHTML = '';
+            contentDiv.classList.remove('fade-in');
+            void contentDiv.offsetWidth;
+            contentDiv.classList.add('fade-in');
+
+            switch (page) {
+                case 'dashboard': renderDashboard(contentDiv); break;
+                case 'planner': renderPlanner(contentDiv); break;
+                case 'schedule': renderSchedule(contentDiv); break;
+                case 'protocol': renderProtocol(contentDiv); break;
+                case 'team': renderTeam(contentDiv); break;
+            }
+        }
+
+        // Dashboard dengan Stacked Bar Chart
+        function renderDashboard(container) {
+            const totalContent = db.contentPlanner.length;
+            const postedContent = db.contentPlanner.filter(c => c.status === 'Posted').length;
+            const upcomingProtocol = db.protocol.filter(p => p.level === 'Formal').length;
+            const totalSchedule = db.brsSchedule.length;
+
+            // Hitung distribusi tugas per anggota tim untuk stacked bar chart
+            const memberTaskDetails = db.team.map(member => {
+                // Hitung tugas Content Planner
+                const contentTasks = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
+
+                // Hitung tugas Jadwal Rilis (sebagai PIC)
+                const scheduleTasks = db.brsSchedule.filter(s =>
+                    s.pic_poster === member.nama ||
+                    s.pic_info === member.nama ||
+                    s.pic_doc === member.nama ||
+                    s.pic_high === member.nama
+                ).length;
+
+                // Hitung tugas Protokol (sebagai petugas)
+                const protocolTasks = db.protocol.filter(p =>
+                    p.petugas && p.petugas.includes(member.nama.split(' ')[0])
+                ).length;
+
+                return {
+                    name: member.nama.split(' ')[0],
+                    fullName: member.nama,
+                    contentTasks,
+                    scheduleTasks,
+                    protocolTasks,
+                    total: contentTasks + scheduleTasks + protocolTasks
+                };
+            });
+
+            // Siapkan data untuk chart
+            const labels = memberTaskDetails.map(m => m.name);
+            const contentData = memberTaskDetails.map(m => m.contentTasks);
+            const scheduleData = memberTaskDetails.map(m => m.scheduleTasks);
+            const protocolData = memberTaskDetails.map(m => m.protocolTasks);
+
+            container.innerHTML = `
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-slate-800">Dashboard Overview</h2>
+                    <p class="text-slate-500 mt-1">Ringkasan aktivitas Tim Humas & Protokoler 2026</p>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
+                    <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 card-hover">
+                        <div class="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600"><i class="fa-solid fa-newspaper text-lg md:text-xl"></i></div>
+                        <div class="mt-2"><p class="text-xs md:text-sm text-slate-500">Total Konten</p><p class="text-xl md:text-2xl font-bold text-slate-800">${totalContent}</p></div>
+                    </div>
+                    <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 card-hover">
+                        <div class="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-lg flex items-center justify-center text-green-600"><i class="fa-solid fa-check-circle text-lg md:text-xl"></i></div>
+                        <div class="mt-2"><p class="text-xs md:text-sm text-slate-500">Konten Posted</p><p class="text-xl md:text-2xl font-bold text-slate-800">${postedContent}</p></div>
+                    </div>
+                    <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 card-hover">
+                        <div class="w-10 h-10 md:w-12 md:h-12 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600"><i class="fa-solid fa-user-tie text-lg md:text-xl"></i></div>
+                        <div class="mt-2"><p class="text-xs md:text-sm text-slate-500">Kegiatan Protokol</p><p class="text-xl md:text-2xl font-bold text-slate-800">${upcomingProtocol}</p></div>
+                    </div>
+                    <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 card-hover">
+                        <div class="w-10 h-10 md:w-12 md:h-12 bg-orange-100 rounded-lg flex items-center justify-center text-orange-600"><i class="fa-solid fa-calendar-alt text-lg md:text-xl"></i></div>
+                        <div class="mt-2"><p class="text-xs md:text-sm text-slate-500">Jadwal Rilis</p><p class="text-xl md:text-2xl font-bold text-slate-800">${totalSchedule}</p></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 md:p-6">
+                        <h3 class="font-bold text-base md:text-lg mb-4">Distribusi Tugas per Anggota Tim</h3>
+                        <div class="text-xs text-slate-500 mb-3 flex flex-wrap gap-3 justify-center">
+                            <span class="inline-flex items-center"><span class="w-3 h-3 bg-blue-500 rounded-full mr-1"></span> Content Planner</span>
+                            <span class="inline-flex items-center"><span class="w-3 h-3 bg-green-500 rounded-full mr-1"></span> Jadwal Rilis</span>
+                            <span class="inline-flex items-center"><span class="w-3 h-3 bg-purple-500 rounded-full mr-1"></span> Protokol & MC</span>
+                        </div>
+                        <canvas id="stackedTasksChart" width="400" height="300"></canvas>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 md:p-6">
+                        <h3 class="font-bold text-base md:text-lg mb-4 flex justify-between items-center">
+                            Progress Konten Terbaru
+                            <button onclick="router('planner')" class="text-xs md:text-sm text-stats-500 hover:underline">Lihat Semua →</button>
+                        </h3>
+                        <div class="space-y-4 max-h-96 overflow-y-auto">
+                            ${db.contentPlanner.slice(0, 5).map(item => `
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-50 pb-3">
+                                    <div class="flex-1 mb-2 sm:mb-0">
+                                        <p class="font-medium text-sm md:text-base text-slate-700">${item.judul}</p>
+                                        <p class="text-xs text-slate-400">${item.postType} • ${formatDate(item.jadwal)}</p>
+                                        <div class="w-full bg-slate-200 rounded-full h-1.5 mt-2"><div class="bg-stats-500 h-1.5 rounded-full" style="width: ${item.progres}%"></div></div>
+                                    </div>
+                                    <span class="px-2 py-1 rounded-full text-xs font-medium text-center ${item.status === 'Posted' ? 'bg-green-100 text-green-700' : item.status === 'Done' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}">${item.status}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 md:p-6">
+                        <h3 class="font-bold text-base md:text-lg mb-4">Jadwal Rilis Terdekat</h3>
+                        <div class="space-y-3">
+                            ${db.brsSchedule.slice(0, 3).map(item => `
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                    <div class="mb-2 sm:mb-0"><p class="font-medium text-sm md:text-base text-slate-700">${item.judul}</p><p class="text-xs text-slate-400"><i class="fa-regular fa-calendar mr-1"></i>${formatDate(item.tanggal)}</p></div>
+                                    <span class="text-xs bg-stats-100 text-stats-700 px-2 py-1 rounded text-center">PIC: ${item.pic_poster}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 md:p-6">
+                        <h3 class="font-bold text-base md:text-lg mb-4">Kegiatan Protokol Mendatang</h3>
+                        <div class="space-y-3">
+                            ${db.protocol.slice(0, 3).map(item => `
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                    <div class="mb-2 sm:mb-0"><p class="font-medium text-sm md:text-base text-slate-700">${item.kegiatan}</p><p class="text-xs text-slate-400"><i class="fa-solid fa-location-dot mr-1"></i>${item.lokasi}</p></div>
+                                    <span class="text-xs ${item.level === 'Formal' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'} px-2 py-1 rounded text-center">${item.level}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Render stacked bar chart setelah container terisi
+            setTimeout(() => {
+                const ctx = document.getElementById('stackedTasksChart')?.getContext('2d');
+                if (ctx) {
+                    if (chartInstance) chartInstance.destroy();
+                    chartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'Content Planner',
+                                    data: contentData,
+                                    backgroundColor: '#3b82f6',
+                                    borderRadius: 4
+                                },
+                                {
+                                    label: 'Jadwal Rilis',
+                                    data: scheduleData,
+                                    backgroundColor: '#10b981',
+                                    borderRadius: 4
+                                },
+                                {
+                                    label: 'Protokol & MC',
+                                    data: protocolData,
+                                    backgroundColor: '#8b5cf6',
+                                    borderRadius: 4
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: { font: { size: 11 } }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (context) {
+                                            return `${context.dataset.label}: ${context.raw} tugas`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    stacked: true,
+                                    ticks: { font: { size: 11 } }
+                                },
+                                y: {
+                                    stacked: true,
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Jumlah Tugas',
+                                        font: { size: 11 }
+                                    },
+                                    ticks: { stepSize: 1, font: { size: 11 } }
+                                }
+                            }
+                        }
+                    });
+                }
+            }, 100);
+        }
+
+        // Content Planner
+        function renderPlanner(container) {
+            container.innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div><h2 class="text-2xl md:text-3xl font-bold text-slate-800">Content Planner</h2><p class="text-sm md:text-base text-slate-500 mt-1">Manajemen konten media sosial & publikasi</p></div>
+                    <button onclick="openModal('content')" class="btn-primary flex items-center gap-2 shadow-md text-sm md:text-base"><i class="fa-solid fa-plus"></i> Tambah Konten</button>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs md:text-sm text-left text-slate-600">
+                            <thead class="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
+                                <tr><th class="px-3 md:px-6 py-3">Judul</th><th class="px-3 md:px-6 py-3">Jenis</th><th class="px-3 md:px-6 py-3">Progres</th><th class="px-3 md:px-6 py-3 hidden sm:table-cell">Jadwal</th><th class="px-3 md:px-6 py-3">Status</th><th class="px-3 md:px-6 py-3 hidden md:table-cell">PIC</th><th class="px-3 md:px-6 py-3 text-center">Aksi</th></tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${db.contentPlanner.map(item => `
+                                    <tr class="hover:bg-slate-50 transition-colors cursor-pointer" onclick="showDetail('content', ${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                                        <td class="px-3 md:px-6 py-3 md:py-4"><div class="font-medium text-slate-800 text-xs md:text-sm">${item.judul.length > 20 ? item.judul.substring(0, 20) + '...' : item.judul}</div><div class="text-xs text-slate-400 hidden sm:block">${item.konsep}</div></td>
+                                        <td class="px-3 md:px-6 py-3 md:py-4"><span class="px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-medium ${item.jenis === 'Hard Selling' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${item.jenis}</span></td>
+                                        <td class="px-3 md:px-6 py-3 md:py-4 w-24 md:w-32"><div class="w-full bg-slate-200 rounded-full h-1.5 md:h-2"><div class="bg-stats-500 h-1.5 md:h-2 rounded-full" style="width: ${item.progres}%"></div></div><div class="text-right text-[10px] md:text-xs text-slate-400 mt-1">${item.progres}%</div></td>
+                                        <td class="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap hidden sm:table-cell">${formatDate(item.jadwal)}</td>
+                                        <td class="px-3 md:px-6 py-3 md:py-4"><span class="px-1.5 md:px-2 py-0.5 md:py-1 rounded text-[10px] md:text-xs font-bold ${item.status === 'Posted' ? 'bg-green-100 text-green-700' : item.status === 'Done' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}">${item.status}</span></td>
+                                        <td class="px-3 md:px-6 py-3 md:py-4 hidden md:table-cell"><i class="fa-solid fa-user mr-1 text-stats-400"></i>${item.assignedTo?.split(' ')[0] || '-'}</td>
+                                        <td class="px-3 md:px-6 py-3 md:py-4 text-center whitespace-nowrap" onclick="event.stopPropagation()">
+                                            <button onclick="openModal('content', ${JSON.stringify(item).replace(/"/g, '&quot;')})" class="text-stats-500 hover:text-stats-700 mx-1"><i class="fa-solid fa-pen-to-square text-sm md:text-base"></i></button>
+                                            <button onclick="deleteItem('content', ${item.id})" class="text-red-400 hover:text-red-600 mx-1"><i class="fa-solid fa-trash text-sm md:text-base"></i></button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Jadwal Rilis
+        function renderSchedule(container) {
+            container.innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div><h2 class="text-2xl md:text-3xl font-bold text-slate-800">Jadwal Rilis (BRS)</h2><p class="text-sm md:text-base text-slate-500 mt-1">Monitoring rilis BPS dan publikasi statistik</p></div>
+                    <button onclick="openModal('schedule')" class="btn-primary flex items-center gap-2 text-sm md:text-base"><i class="fa-solid fa-plus"></i> Tambah Jadwal</button>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs md:text-sm text-left text-slate-600">
+                            <thead class="text-xs text-slate-700 uppercase bg-slate-50 border-b">
+                                <tr><th class="px-3 md:px-6 py-3">Tanggal</th><th class="px-3 md:px-6 py-3">Judul Rilis</th><th class="px-3 md:px-6 py-3 hidden sm:table-cell">PIC Poster</th><th class="px-3 md:px-6 py-3 hidden md:table-cell">PIC Info</th><th class="px-3 md:px-6 py-3 text-center">Aksi</th></tr>
+                            </thead>
+                            <tbody>
+                                ${db.brsSchedule.map(item => `
+                                    <tr class="border-b hover:bg-slate-50 transition-colors cursor-pointer" onclick="showDetail('schedule', ${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                                        <td class="px-3 md:px-6 py-3 md:py-4 font-medium whitespace-nowrap">${formatDate(item.tanggal)}</td>
+                                        <td class="px-3 md:px-6 py-3 md:py-4">${item.judul.length > 25 ? item.judul.substring(0, 25) + '...' : item.judul}</td>
+                                        <td class="px-3 md:px-6 py-3 md:py-4 hidden sm:table-cell">${item.pic_poster?.split(' ')[0] || '-'}</td>
+                                        <td class="px-3 md:px-6 py-3 md:py-4 hidden md:table-cell">${item.pic_info?.split(' ')[0] || '-'}</td>
+                                        <td class="px-3 md:px-6 py-3 md:py-4 text-center whitespace-nowrap" onclick="event.stopPropagation()">
+                                            <button onclick="openModal('schedule', ${JSON.stringify(item).replace(/"/g, '&quot;')})" class="text-stats-500 hover:text-stats-700 mx-1"><i class="fa-solid fa-pen-to-square"></i></button>
+                                            <button onclick="deleteItem('schedule', ${item.id})" class="text-red-400 hover:text-red-600 mx-1"><i class="fa-solid fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Protokol & MC
+        function renderProtocol(container) {
+            container.innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div><h2 class="text-2xl md:text-3xl font-bold text-slate-800">Protokoler & MC</h2><p class="text-sm md:text-base text-slate-500 mt-1">Manajemen kegiatan keprotokolan dan MC</p></div>
+                    <button onclick="openModal('protocol')" class="btn-primary flex items-center gap-2 text-sm md:text-base"><i class="fa-solid fa-plus"></i> Tambah Kegiatan</button>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4">
+                    ${db.protocol.map(item => `
+                        <div class="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all cursor-pointer" onclick="showDetail('protocol', ${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                            <div class="flex flex-col md:flex-row justify-between md:items-center gap-3">
+                                <div class="flex items-start gap-3 md:gap-4">
+                                    <div class="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shrink-0 ${item.level === 'Formal' ? 'bg-indigo-100 text-indigo-600' : 'bg-orange-100 text-orange-600'}"><i class="fa-solid ${item.level === 'Formal' ? 'fa-user-tie' : 'fa-microphone-lines'} text-base md:text-xl"></i></div>
+                                    <div><h4 class="font-bold text-slate-800 text-sm md:text-lg">${item.kegiatan.length > 30 ? item.kegiatan.substring(0, 30) + '...' : item.kegiatan}</h4><p class="text-xs md:text-sm text-slate-500"><i class="fa-solid fa-user-clock mr-1"></i> ${item.pimpinan}</p><p class="text-xs md:text-sm text-slate-500 hidden sm:block"><i class="fa-solid fa-map-pin mr-1"></i> ${item.lokasi}</p></div>
+                                </div>
+                                <div class="flex items-center gap-2 md:gap-3" onclick="event.stopPropagation()">
+                                    <span class="px-2 md:px-3 py-0.5 md:py-1 rounded text-[10px] md:text-xs font-bold ${item.level === 'Formal' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}">${item.level}</span>
+                                    <button onclick="openModal('protocol', ${JSON.stringify(item).replace(/"/g, '&quot;')})" class="text-stats-500 hover:text-stats-700"><i class="fa-solid fa-pen-to-square"></i></button>
+                                    <button onclick="deleteItem('protocol', ${item.id})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Direktori Tim
+        function renderTeam(container) {
+            container.innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div><h2 class="text-2xl md:text-3xl font-bold text-slate-800">Direktori Tim</h2><p class="text-sm md:text-base text-slate-500 mt-1">Profil anggota dan uraian tugas</p></div>
+                    <button onclick="openModal('team')" class="btn-primary flex items-center gap-2 text-sm md:text-base"><i class="fa-solid fa-plus"></i> Tambah Anggota</button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    ${db.team.map(member => {
+                const taskCount = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
+                return `
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer card-hover" onclick="showDetail('team', ${JSON.stringify(member).replace(/"/g, '&quot;')})">
+                                <div class="h-20 md:h-28 bg-gradient-to-r from-stats-600 to-stats-800 relative">
+                                    <div class="absolute -bottom-8 md:-bottom-10 left-4 md:left-6 w-14 h-14 md:w-20 md:h-20 rounded-full border-4 border-white bg-gradient-to-br from-stats-400 to-stats-600 flex items-center justify-center text-white text-xl md:text-3xl font-bold shadow-lg">${member.nama.charAt(0)}</div>
+                                </div>
+                                <div class="pt-10 md:pt-12 pb-4 md:pb-5 px-4 md:px-5">
+                                    <h3 class="font-bold text-base md:text-xl text-slate-800">${member.nama.split(' ')[0]}</h3>
+                                    <p class="text-xs md:text-sm text-stats-600 font-semibold mb-1">${member.jabatan}</p>
+                                    <span class="inline-block px-1.5 md:px-2 py-0.5 bg-slate-100 text-slate-500 text-[8px] md:text-[10px] rounded-full uppercase font-bold mb-3">${member.bidang}</span>
+                                    <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+                                        <div><p class="text-[10px] md:text-xs text-slate-400">Total Tugas</p><p class="text-base md:text-xl font-bold text-stats-600">${taskCount}</p></div>
+                                        <div class="flex gap-2" onclick="event.stopPropagation()">
+                                            <button onclick="openModal('team', ${JSON.stringify(member).replace(/"/g, '&quot;')})" class="text-stats-500 hover:text-stats-700 p-1 md:p-2"><i class="fa-solid fa-pen-to-square text-sm md:text-base"></i></button>
+                                            <button onclick="deleteItem('team', ${member.id})" class="text-red-400 hover:text-red-600 p-1 md:p-2"><i class="fa-solid fa-trash text-sm md:text-base"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+            }).join('')}
+                </div>
+            `;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchDataFromSheets();
+        });
+    </script>
+</body>
+
+</html>
