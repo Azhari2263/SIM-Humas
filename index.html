@@ -272,7 +272,8 @@
     <div id="toast-container"></div>
 
     <!-- Login Page Wrapper -->
-    <div id="login-layout" class="h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-stats-950 to-slate-900 transition-all duration-300">
+    <div id="login-layout"
+        class="h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-stats-950 to-slate-900 transition-all duration-300">
         <!-- Will be dynamically populated by JS -->
     </div>
 
@@ -298,24 +299,27 @@
                     <i class="fa-solid fa-times text-xl"></i>
                 </button>
             </div>
-            
+
             <!-- User Profile & Simulator (Mobile) -->
             <div class="p-4 border-b border-slate-100 bg-slate-50 flex flex-col gap-2">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2 overflow-hidden">
-                        <div class="w-8 h-8 rounded-full bg-stats-600 flex items-center justify-center text-white font-bold text-xs" id="mobile-avatar">U</div>
+                        <div class="w-8 h-8 rounded-full bg-stats-600 flex items-center justify-center text-white font-bold text-xs"
+                            id="mobile-avatar">U</div>
                         <div class="overflow-hidden">
                             <p class="text-xs font-bold text-slate-800 truncate" id="mobile-username-display">-</p>
                             <p class="text-[10px] text-slate-500 capitalize" id="mobile-role-display">-</p>
                         </div>
                     </div>
-                    <button onclick="handleLogout()" class="text-slate-400 hover:text-red-600 text-sm p-1" title="Keluar">
+                    <button onclick="handleLogout()" class="text-slate-400 hover:text-red-600 text-sm p-1"
+                        title="Keluar">
                         <i class="fa-solid fa-right-from-bracket"></i>
                     </button>
                 </div>
                 <div class="flex items-center gap-1.5 pt-1 border-t border-slate-100/50">
                     <span class="text-[9px] text-slate-400 uppercase font-bold">Simulasi Peran:</span>
-                    <select id="mobile-role-simulator" onchange="simulateRole(this.value)" class="text-[10px] py-0.5 px-1 bg-white border border-slate-200 rounded text-slate-600">
+                    <select id="mobile-role-simulator" onchange="simulateRole(this.value)"
+                        class="text-[10px] py-0.5 px-1 bg-white border border-slate-200 rounded text-slate-600">
                         <option value="admin">Super Admin</option>
                         <option value="ketua">Ketua Tim</option>
                         <option value="staf">Staf Humas</option>
@@ -325,31 +329,38 @@
             </div>
 
             <nav class="flex-1 overflow-y-auto p-4 space-y-1">
-                <button onclick="router('dashboard'); closeMobileSidebar();" id="mobile-nav-dashboard" data-roles="admin,ketua,staf,internal"
+                <button onclick="router('dashboard'); closeMobileSidebar();" id="mobile-nav-dashboard"
+                    data-roles="admin,ketua,staf,internal"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
                     <i class="fa-solid fa-gauge-high w-5"></i> Dashboard
                 </button>
-                <button onclick="router('planner'); closeMobileSidebar();" id="mobile-nav-planner" data-roles="admin,ketua,staf"
+                <button onclick="router('planner'); closeMobileSidebar();" id="mobile-nav-planner"
+                    data-roles="admin,ketua,staf"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
                     <i class="fa-solid fa-list-check w-5"></i> Content Planner
                 </button>
-                <button onclick="router('schedule'); closeMobileSidebar();" id="mobile-nav-schedule" data-roles="admin,ketua,staf"
+                <button onclick="router('schedule'); closeMobileSidebar();" id="mobile-nav-schedule"
+                    data-roles="admin,ketua,staf"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
                     <i class="fa-regular fa-calendar-days w-5"></i> Jadwal Rilis (BRS)
                 </button>
-                <button onclick="router('protocol'); closeMobileSidebar();" id="mobile-nav-protocol" data-roles="admin,ketua,staf"
+                <button onclick="router('protocol'); closeMobileSidebar();" id="mobile-nav-protocol"
+                    data-roles="admin,ketua,staf"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
                     <i class="fa-solid fa-user-tie w-5"></i> Protokoler & MC
                 </button>
-                <button onclick="router('tickets'); closeMobileSidebar();" id="mobile-nav-tickets" data-roles="admin,ketua,staf,internal"
+                <button onclick="router('tickets'); closeMobileSidebar();" id="mobile-nav-tickets"
+                    data-roles="admin,ketua,staf,internal"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
                     <i class="fa-solid fa-ticket w-5"></i> Permintaan Layanan
                 </button>
-                <button onclick="router('assets'); closeMobileSidebar();" id="mobile-nav-assets" data-roles="admin,ketua,staf,internal"
+                <button onclick="router('assets'); closeMobileSidebar();" id="mobile-nav-assets"
+                    data-roles="admin,ketua,staf,internal"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
                     <i class="fa-solid fa-folder-open w-5"></i> Bank Desain
                 </button>
-                <button onclick="router('monitoring'); closeMobileSidebar();" id="mobile-nav-monitoring" data-roles="admin,ketua,staf"
+                <button onclick="router('monitoring'); closeMobileSidebar();" id="mobile-nav-monitoring"
+                    data-roles="admin,ketua,staf"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
                     <i class="fa-solid fa-magnifying-glass-chart w-5"></i> Media Monitoring
                 </button>
@@ -390,19 +401,22 @@
             <div class="p-4 border-b border-slate-100 bg-slate-50 flex flex-col gap-2">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2 overflow-hidden">
-                        <div class="w-8 h-8 rounded-full bg-stats-600 flex items-center justify-center text-white font-bold text-xs" id="desktop-avatar">U</div>
+                        <div class="w-8 h-8 rounded-full bg-stats-600 flex items-center justify-center text-white font-bold text-xs"
+                            id="desktop-avatar">U</div>
                         <div class="overflow-hidden">
                             <p class="text-xs font-bold text-slate-800 truncate" id="desktop-username-display">-</p>
                             <p class="text-[10px] text-slate-500 capitalize" id="desktop-role-display">-</p>
                         </div>
                     </div>
-                    <button onclick="handleLogout()" class="text-slate-400 hover:text-red-600 text-sm p-1" title="Keluar">
+                    <button onclick="handleLogout()" class="text-slate-400 hover:text-red-600 text-sm p-1"
+                        title="Keluar">
                         <i class="fa-solid fa-right-from-bracket"></i>
                     </button>
                 </div>
                 <div class="flex items-center gap-1.5 pt-1 border-t border-slate-100/50">
                     <span class="text-[9px] text-slate-400 uppercase font-bold">Simulasi Peran:</span>
-                    <select id="desktop-role-simulator" onchange="simulateRole(this.value)" class="text-[10px] py-0.5 px-1 bg-white border border-slate-200 rounded text-slate-600 flex-1">
+                    <select id="desktop-role-simulator" onchange="simulateRole(this.value)"
+                        class="text-[10px] py-0.5 px-1 bg-white border border-slate-200 rounded text-slate-600 flex-1">
                         <option value="admin">Super Admin</option>
                         <option value="ketua">Ketua Tim</option>
                         <option value="staf">Staf Humas</option>
@@ -462,8 +476,10 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 flex flex-col h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 relative">
-            <header class="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center shadow-sm">
+        <main
+            class="flex-1 flex flex-col h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 relative">
+            <header
+                class="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center shadow-sm">
                 <div class="font-bold text-stats-900 text-lg">SIM Humas BPS Kalbar</div>
                 <button onclick="openMobileSidebar()" class="text-slate-600 focus:outline-none">
                     <i class="fa-solid fa-bars text-2xl"></i>
@@ -481,7 +497,7 @@
 
     <script>
         // KONFIGURASI - GANTI DENGAN URL WEB APP ANDA
-        const GOOGLE_SHEETS_API_URL = 'Nanti diisi kalo sudah dideploy ke GAS';
+        const GOOGLE_SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzqG9cQMjnpv-bOyifs4kfdpPYdEB5A5a7lw64Yod7GtfFKN4kcwN3BhYyeTQ90n4p7/exec';
 
         // State management
         let db = {
@@ -612,7 +628,7 @@
             if (role === 'admin') { username = 'admin'; name = 'Admin IT'; }
             else if (role === 'ketua') { username = 'azhari'; name = 'Azhari'; }
             else if (role === 'internal') { username = 'seksi_sosial'; name = 'Seksi Sosial'; }
-            
+
             currentUser = { username, role, name };
             localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
             showToast('Masuk sebagai ' + name);
@@ -635,7 +651,7 @@
             else if (role === 'ketua') currentUser.name = 'Azhari';
             else if (role === 'staf') currentUser.name = 'Rian';
             else if (role === 'internal') currentUser.name = 'Seksi Sosial';
-            
+
             localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
             updateUserProfileUI();
             showToast('Peran disimulasikan ke: ' + getRoleLabel(role));
@@ -644,7 +660,7 @@
 
         function updateUserProfileUI() {
             if (!currentUser) return;
-            
+
             // Sync values to select elements
             const selector = document.getElementById('desktop-role-simulator');
             if (selector) selector.value = currentUser.role;
@@ -674,7 +690,7 @@
         }
 
         function getRoleLabel(role) {
-            switch(role) {
+            switch (role) {
                 case 'admin': return 'Super Admin';
                 case 'ketua': return 'Ketua Tim';
                 case 'staf': return 'Staf Humas';
@@ -821,7 +837,7 @@
                 db.brsSchedule = data.brsSchedule || [];
                 db.protocol = data.protocol || [];
                 db.team = data.team || [];
-                
+
                 // Jika sheet tambahan belum dideploy, pakai data mockup default agar modul baru tetap jalan
                 if (!data.tickets) {
                     db.tickets = db.tickets.length > 0 ? db.tickets : getInitialTickets();
@@ -1629,7 +1645,7 @@
         function renderTickets(container) {
             const isInternal = currentUser.role === 'internal';
             const isAdminOrKetua = currentUser.role === 'admin' || currentUser.role === 'ketua';
-            
+
             let filteredTickets = db.tickets;
             if (isInternal) {
                 filteredTickets = db.tickets.filter(t => t.pengaju.includes(currentUser.name) || t.pengaju.includes("Seksi"));
@@ -1706,7 +1722,7 @@
             `;
         }
 
-        window.openTicketModal = function() {
+        window.openTicketModal = function () {
             currentModalType = 'ticket_request';
             const modal = document.createElement('div');
             modal.className = 'modal';
@@ -1749,7 +1765,7 @@
             document.body.appendChild(modal);
         }
 
-        window.saveTicketRequest = function(event) {
+        window.saveTicketRequest = function (event) {
             event.preventDefault();
             const newTicket = {
                 id: Date.now(),
@@ -1768,7 +1784,7 @@
             router('tickets');
         }
 
-        window.approveTicket = function(id) {
+        window.approveTicket = function (id) {
             const ticket = db.tickets.find(t => t.id === id);
             if (!ticket) return;
 
@@ -1799,11 +1815,11 @@
             document.body.appendChild(modal);
         }
 
-        window.confirmApproveTicket = function(event, ticketId) {
+        window.confirmApproveTicket = function (event, ticketId) {
             event.preventDefault();
             const ticket = db.tickets.find(t => t.id === ticketId);
             const picName = document.getElementById('assign-pic-select').value;
-            
+
             if (ticket) {
                 ticket.status = 'Approved';
                 ticket.pic = picName;
@@ -1822,12 +1838,12 @@
                 db.contentPlanner.push(newContent);
                 showToast(`Tiket disetujui! Tugas baru dibuat di Content Planner untuk ${picName}.`);
             }
-            
+
             document.getElementById('assign-pic-modal').remove();
             router('tickets');
         }
 
-        window.rejectTicket = function(id) {
+        window.rejectTicket = function (id) {
             if (confirm("Apakah Anda yakin ingin menolak permintaan ini?")) {
                 const ticket = db.tickets.find(t => t.id === id);
                 if (ticket) {
@@ -1842,7 +1858,7 @@
         function renderAssets(container) {
             const categories = ['Semua', 'Template', 'Logo', 'Foto', 'Dokumen'];
             let activeCategory = 'Semua';
-            
+
             function drawAssets() {
                 let filteredAssets = db.assets;
                 if (activeCategory !== 'Semua') {
@@ -1901,7 +1917,7 @@
                 </div>
             `;
 
-            window.filterAssets = function(cat, btn) {
+            window.filterAssets = function (cat, btn) {
                 activeCategory = cat;
                 document.querySelectorAll('.asset-filter-btn').forEach(b => {
                     b.className = 'asset-filter-btn px-4 py-1.5 rounded-full text-xs font-semibold border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 transition-all';
@@ -1910,7 +1926,7 @@
                 drawAssets();
             };
 
-            window.openAssetUploadModal = function() {
+            window.openAssetUploadModal = function () {
                 currentModalType = 'asset_upload';
                 const modal = document.createElement('div');
                 modal.className = 'modal';
@@ -1949,12 +1965,12 @@
                 document.body.appendChild(modal);
             };
 
-            window.saveAssetUpload = function(event) {
+            window.saveAssetUpload = function (event) {
                 event.preventDefault();
                 const fileInput = document.getElementById('asset-file');
                 const fileName = document.getElementById('asset-name').value;
                 const fileCat = document.getElementById('asset-cat').value;
-                
+
                 let fileSize = "2.4 MB";
                 if (fileInput.files && fileInput.files[0]) {
                     const bytes = fileInput.files[0].size;
@@ -2082,9 +2098,9 @@
                             <canvas id="mediaSentimentChart" width="200" height="200"></canvas>
                         </div>
                         <div class="mt-6 flex flex-col gap-2 w-full text-xs text-slate-600">
-                            <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-green-500 rounded-full"></span> Positif</span><strong>${posCount} (${totalCount ? Math.round((posCount/totalCount)*100) : 0}%)</strong></div>
-                            <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-slate-400 rounded-full"></span> Netral</span><strong>${netCount} (${totalCount ? Math.round((netCount/totalCount)*100) : 0}%)</strong></div>
-                            <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-500 rounded-full"></span> Negatif</span><strong>${negCount} (${totalCount ? Math.round((negCount/totalCount)*100) : 0}%)</strong></div>
+                            <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-green-500 rounded-full"></span> Positif</span><strong>${posCount} (${totalCount ? Math.round((posCount / totalCount) * 100) : 0}%)</strong></div>
+                            <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-slate-400 rounded-full"></span> Netral</span><strong>${netCount} (${totalCount ? Math.round((netCount / totalCount) * 100) : 0}%)</strong></div>
+                            <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-500 rounded-full"></span> Negatif</span><strong>${negCount} (${totalCount ? Math.round((negCount / totalCount) * 100) : 0}%)</strong></div>
                         </div>
                     </div>
                 </div>
@@ -2117,7 +2133,7 @@
             }, 100);
         }
 
-        window.openAddMonitoringModal = function() {
+        window.openAddMonitoringModal = function () {
             currentModalType = 'add_monitoring';
             const modal = document.createElement('div');
             modal.className = 'modal';
@@ -2163,7 +2179,7 @@
             document.body.appendChild(modal);
         }
 
-        window.saveMonitoringItem = function(event) {
+        window.saveMonitoringItem = function (event) {
             event.preventDefault();
             const newMon = {
                 id: Date.now(),
