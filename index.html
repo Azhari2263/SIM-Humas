@@ -267,17 +267,115 @@
     </style>
 </head>
 
-<body class="text-slate-800 antialiased h-screen flex overflow-hidden">
+<body class="text-slate-800 antialiased h-screen flex overflow-hidden bg-slate-900">
 
     <div id="toast-container"></div>
 
-    <!-- Sidebar Overlay -->
-    <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+    <!-- Login Page Wrapper -->
+    <div id="login-layout" class="h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-stats-950 to-slate-900 transition-all duration-300">
+        <!-- Will be dynamically populated by JS -->
+    </div>
 
-    <!-- Mobile Sidebar -->
-    <div id="mobile-sidebar" class="mobile-sidebar flex flex-col">
-        <div class="p-6 border-b border-slate-100 flex items-center justify-between">
-            <div class="flex items-center gap-3">
+    <!-- Main App Layout -->
+    <div id="app-layout" class="h-screen flex overflow-hidden w-full hidden">
+        <!-- Sidebar Overlay -->
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+        <!-- Mobile Sidebar -->
+        <div id="mobile-sidebar" class="mobile-sidebar flex flex-col">
+            <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 bg-gradient-to-br from-stats-500 to-stats-700 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg text-stats-900 leading-tight">SIM Humas</h1>
+                        <p class="text-xs text-slate-500">BPS Prov. Kalbar</p>
+                    </div>
+                </div>
+                <button onclick="closeMobileSidebar()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- User Profile & Simulator (Mobile) -->
+            <div class="p-4 border-b border-slate-100 bg-slate-50 flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <div class="w-8 h-8 rounded-full bg-stats-600 flex items-center justify-center text-white font-bold text-xs" id="mobile-avatar">U</div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs font-bold text-slate-800 truncate" id="mobile-username-display">-</p>
+                            <p class="text-[10px] text-slate-500 capitalize" id="mobile-role-display">-</p>
+                        </div>
+                    </div>
+                    <button onclick="handleLogout()" class="text-slate-400 hover:text-red-600 text-sm p-1" title="Keluar">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+                <div class="flex items-center gap-1.5 pt-1 border-t border-slate-100/50">
+                    <span class="text-[9px] text-slate-400 uppercase font-bold">Simulasi Peran:</span>
+                    <select id="mobile-role-simulator" onchange="simulateRole(this.value)" class="text-[10px] py-0.5 px-1 bg-white border border-slate-200 rounded text-slate-600">
+                        <option value="admin">Super Admin</option>
+                        <option value="ketua">Ketua Tim</option>
+                        <option value="staf">Staf Humas</option>
+                        <option value="internal">User Internal</option>
+                    </select>
+                </div>
+            </div>
+
+            <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+                <button onclick="router('dashboard'); closeMobileSidebar();" id="mobile-nav-dashboard" data-roles="admin,ketua,staf,internal"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-gauge-high w-5"></i> Dashboard
+                </button>
+                <button onclick="router('planner'); closeMobileSidebar();" id="mobile-nav-planner" data-roles="admin,ketua,staf"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-list-check w-5"></i> Content Planner
+                </button>
+                <button onclick="router('schedule'); closeMobileSidebar();" id="mobile-nav-schedule" data-roles="admin,ketua,staf"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-regular fa-calendar-days w-5"></i> Jadwal Rilis (BRS)
+                </button>
+                <button onclick="router('protocol'); closeMobileSidebar();" id="mobile-nav-protocol" data-roles="admin,ketua,staf"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-user-tie w-5"></i> Protokoler & MC
+                </button>
+                <button onclick="router('tickets'); closeMobileSidebar();" id="mobile-nav-tickets" data-roles="admin,ketua,staf,internal"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-ticket w-5"></i> Permintaan Layanan
+                </button>
+                <button onclick="router('assets'); closeMobileSidebar();" id="mobile-nav-assets" data-roles="admin,ketua,staf,internal"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-folder-open w-5"></i> Bank Desain
+                </button>
+                <button onclick="router('monitoring'); closeMobileSidebar();" id="mobile-nav-monitoring" data-roles="admin,ketua,staf"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-magnifying-glass-chart w-5"></i> Media Monitoring
+                </button>
+                <button onclick="router('team'); closeMobileSidebar();" id="mobile-nav-team" data-roles="admin,ketua"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-users w-5"></i> Direktori Tim
+                </button>
+            </nav>
+            <div class="p-4 border-t border-slate-100">
+                <div class="bg-gradient-to-br from-stats-50 to-stats-100 rounded-lg p-4">
+                    <p class="text-xs font-semibold text-stats-800 mb-2">Status Data</p>
+                    <div class="flex items-center justify-between text-xs text-stats-700 mb-1">
+                        <span><i class="fa-regular fa-clock mr-1"></i> Terakhir:</span>
+                        <span id="mobile-last-sync-date" class="font-medium">-</span>
+                    </div>
+                    <button onclick="syncData(); closeMobileSidebar();"
+                        class="mt-3 w-full bg-white border border-stats-200 hover:bg-stats-50 text-stats-700 text-xs py-2 rounded-lg shadow-sm transition-all flex justify-center items-center gap-2 font-medium">
+                        <i class="fa-solid fa-rotate"></i> Sinkron Database
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Desktop Sidebar -->
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10 hidden md:flex">
+            <div class="p-6 border-b border-slate-100 flex items-center gap-3">
                 <div
                     class="w-10 h-10 bg-gradient-to-br from-stats-500 to-stats-700 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">
                     <i class="fa-solid fa-chart-pie"></i>
@@ -287,131 +385,121 @@
                     <p class="text-xs text-slate-500">BPS Prov. Kalbar</p>
                 </div>
             </div>
-            <button onclick="closeMobileSidebar()" class="text-slate-400 hover:text-slate-600">
-                <i class="fa-solid fa-times text-xl"></i>
-            </button>
-        </div>
-        <nav class="flex-1 overflow-y-auto p-4 space-y-1">
-            <button onclick="router('dashboard'); closeMobileSidebar();" id="mobile-nav-dashboard"
-                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                <i class="fa-solid fa-gauge-high w-5"></i> Dashboard
-            </button>
-            <button onclick="router('planner'); closeMobileSidebar();" id="mobile-nav-planner"
-                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                <i class="fa-solid fa-list-check w-5"></i> Content Planner
-            </button>
-            <button onclick="router('schedule'); closeMobileSidebar();" id="mobile-nav-schedule"
-                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                <i class="fa-regular fa-calendar-days w-5"></i> Jadwal Rilis (BRS)
-            </button>
-            <button onclick="router('protocol'); closeMobileSidebar();" id="mobile-nav-protocol"
-                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                <i class="fa-solid fa-user-tie w-5"></i> Protokoler & MC
-            </button>
-            <button onclick="router('team'); closeMobileSidebar();" id="mobile-nav-team"
-                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                <i class="fa-solid fa-users w-5"></i> Direktori Tim
-            </button>
-        </nav>
-        <div class="p-4 border-t border-slate-100">
-            <div class="bg-gradient-to-br from-stats-50 to-stats-100 rounded-lg p-4">
-                <p class="text-xs font-semibold text-stats-800 mb-2">Status Data</p>
-                <div class="flex items-center justify-between text-xs text-stats-700 mb-1">
-                    <span><i class="fa-regular fa-clock mr-1"></i> Terakhir:</span>
-                    <span id="mobile-last-sync-date" class="font-medium">-</span>
+
+            <!-- User Profile & Simulator (Desktop) -->
+            <div class="p-4 border-b border-slate-100 bg-slate-50 flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <div class="w-8 h-8 rounded-full bg-stats-600 flex items-center justify-center text-white font-bold text-xs" id="desktop-avatar">U</div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs font-bold text-slate-800 truncate" id="desktop-username-display">-</p>
+                            <p class="text-[10px] text-slate-500 capitalize" id="desktop-role-display">-</p>
+                        </div>
+                    </div>
+                    <button onclick="handleLogout()" class="text-slate-400 hover:text-red-600 text-sm p-1" title="Keluar">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
                 </div>
-                <button onclick="syncData(); closeMobileSidebar();"
-                    class="mt-3 w-full bg-white border border-stats-200 hover:bg-stats-50 text-stats-700 text-xs py-2 rounded-lg shadow-sm transition-all flex justify-center items-center gap-2 font-medium">
-                    <i class="fa-solid fa-rotate"></i> Sinkron Database
-                </button>
+                <div class="flex items-center gap-1.5 pt-1 border-t border-slate-100/50">
+                    <span class="text-[9px] text-slate-400 uppercase font-bold">Simulasi Peran:</span>
+                    <select id="desktop-role-simulator" onchange="simulateRole(this.value)" class="text-[10px] py-0.5 px-1 bg-white border border-slate-200 rounded text-slate-600 flex-1">
+                        <option value="admin">Super Admin</option>
+                        <option value="ketua">Ketua Tim</option>
+                        <option value="staf">Staf Humas</option>
+                        <option value="internal">User Internal</option>
+                    </select>
+                </div>
             </div>
-        </div>
+
+            <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+                <button onclick="router('dashboard')" id="nav-dashboard" data-roles="admin,ketua,staf,internal"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-gauge-high w-5"></i> Dashboard
+                </button>
+                <button onclick="router('planner')" id="nav-planner" data-roles="admin,ketua,staf"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-list-check w-5"></i> Content Planner
+                </button>
+                <button onclick="router('schedule')" id="nav-schedule" data-roles="admin,ketua,staf"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-regular fa-calendar-days w-5"></i> Jadwal Rilis (BRS)
+                </button>
+                <button onclick="router('protocol')" id="nav-protocol" data-roles="admin,ketua,staf"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-user-tie w-5"></i> Protokoler & MC
+                </button>
+                <button onclick="router('tickets')" id="nav-tickets" data-roles="admin,ketua,staf,internal"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-ticket w-5"></i> Permintaan Layanan
+                </button>
+                <button onclick="router('assets')" id="nav-assets" data-roles="admin,ketua,staf,internal"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-folder-open w-5"></i> Bank Desain
+                </button>
+                <button onclick="router('monitoring')" id="nav-monitoring" data-roles="admin,ketua,staf"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-magnifying-glass-chart w-5"></i> Media Monitoring
+                </button>
+                <button onclick="nav-team" id="nav-team" data-roles="admin,ketua"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
+                    <i class="fa-solid fa-users w-5"></i> Direktori Tim
+                </button>
+            </nav>
+
+            <div class="p-4 border-t border-slate-100">
+                <div class="bg-gradient-to-br from-stats-50 to-stats-100 rounded-lg p-4">
+                    <p class="text-xs font-semibold text-stats-800 mb-2">Status Data</p>
+                    <div class="flex items-center justify-between text-xs text-stats-700 mb-1">
+                        <span><i class="fa-regular fa-clock mr-1"></i> Terakhir:</span>
+                        <span id="last-sync-date" class="font-medium">-</span>
+                    </div>
+                    <button onclick="syncData()"
+                        class="mt-3 w-full bg-white border border-stats-200 hover:bg-stats-50 text-stats-700 text-xs py-2 rounded-lg shadow-sm transition-all flex justify-center items-center gap-2 font-medium">
+                        <i class="fa-solid fa-rotate"></i> Sinkron Database
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 relative">
+            <header class="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center shadow-sm">
+                <div class="font-bold text-stats-900 text-lg">SIM Humas BPS Kalbar</div>
+                <button onclick="openMobileSidebar()" class="text-slate-600 focus:outline-none">
+                    <i class="fa-solid fa-bars text-2xl"></i>
+                </button>
+            </header>
+
+            <div id="app-content" class="flex-1 overflow-y-auto p-4 md:p-8 fade-in">
+                <div class="flex justify-center items-center h-64">
+                    <div class="loading-spinner"></div>
+                    <span class="ml-3 text-slate-600 font-medium">Memuat data dari server...</span>
+                </div>
+            </div>
+        </main>
     </div>
-
-    <!-- Desktop Sidebar -->
-    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10 hidden md:flex">
-        <div class="p-6 border-b border-slate-100 flex items-center gap-3">
-            <div
-                class="w-10 h-10 bg-gradient-to-br from-stats-500 to-stats-700 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                <i class="fa-solid fa-chart-pie"></i>
-            </div>
-            <div>
-                <h1 class="font-bold text-lg text-stats-900 leading-tight">SIM Humas</h1>
-                <p class="text-xs text-slate-500">Tim Protokoler 2026</p>
-            </div>
-        </div>
-
-        <nav class="flex-1 overflow-y-auto p-4 space-y-1">
-            <button onclick="router('dashboard')" id="nav-dashboard"
-                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                <i class="fa-solid fa-gauge-high w-5"></i> Dashboard
-            </button>
-            <button onclick="router('planner')" id="nav-planner"
-                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                <i class="fa-solid fa-list-check w-5"></i> Content Planner
-            </button>
-            <button onclick="router('schedule')" id="nav-schedule"
-                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                <i class="fa-regular fa-calendar-days w-5"></i> Jadwal Rilis (BRS)
-            </button>
-            <button onclick="router('protocol')" id="nav-protocol"
-                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                <i class="fa-solid fa-user-tie w-5"></i> Protokoler & MC
-            </button>
-            <button onclick="router('team')" id="nav-team"
-                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                <i class="fa-solid fa-users w-5"></i> Direktori Tim
-            </button>
-        </nav>
-
-        <div class="p-4 border-t border-slate-100">
-            <div class="bg-gradient-to-br from-stats-50 to-stats-100 rounded-lg p-4">
-                <p class="text-xs font-semibold text-stats-800 mb-2">Status Data</p>
-                <div class="flex items-center justify-between text-xs text-stats-700 mb-1">
-                    <span><i class="fa-regular fa-clock mr-1"></i> Terakhir:</span>
-                    <span id="last-sync-date" class="font-medium">-</span>
-                </div>
-                <button onclick="syncData()"
-                    class="mt-3 w-full bg-white border border-stats-200 hover:bg-stats-50 text-stats-700 text-xs py-2 rounded-lg shadow-sm transition-all flex justify-center items-center gap-2 font-medium">
-                    <i class="fa-solid fa-rotate"></i> Sinkron Database
-                </button>
-            </div>
-        </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 relative">
-        <header class="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center shadow-sm">
-            <div class="font-bold text-stats-900 text-lg">SIM Humas 2026</div>
-            <button onclick="openMobileSidebar()" class="text-slate-600 focus:outline-none">
-                <i class="fa-solid fa-bars text-2xl"></i>
-            </button>
-        </header>
-
-        <div id="app-content" class="flex-1 overflow-y-auto p-4 md:p-8 fade-in">
-            <div class="flex justify-center items-center h-64">
-                <div class="loading-spinner"></div>
-                <span class="ml-3 text-slate-600 font-medium">Memuat data dari server...</span>
-            </div>
-        </div>
-    </main>
 
     <script>
         // KONFIGURASI - GANTI DENGAN URL WEB APP ANDA
-        const GOOGLE_SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzqG9cQMjnpv-bOyifs4kfdpPYdEB5A5a7lw64Yod7GtfFKN4kcwN3BhYyeTQ90n4p7/exec';
+        const GOOGLE_SHEETS_API_URL = 'Nanti diisi kalo sudah dideploy ke GAS';
 
         // State management
         let db = {
             contentPlanner: [],
             brsSchedule: [],
             protocol: [],
-            team: []
+            team: [],
+            tickets: [],
+            assets: [],
+            monitoring: []
         };
+        let currentUser = JSON.parse(localStorage.getItem('sim_humas_user')) || null;
         let currentState = 'dashboard';
         let isLoading = false;
         let currentEditItem = null;
         let currentModalType = null;
         let chartInstance = null;
+        let sentimentChartInstance = null;
 
         // Fungsi khusus untuk mengirim data ke Google Apps Script
         async function sendDataToServer(action, sheetName, item) {
@@ -439,17 +527,182 @@
             }
         }
 
+        // Auth & Role Simulation Functions
+        function checkAuth() {
+            if (!currentUser) {
+                document.getElementById('app-layout').classList.add('hidden');
+                document.getElementById('login-layout').classList.remove('hidden');
+                renderLoginScreen();
+            } else {
+                document.getElementById('login-layout').classList.add('hidden');
+                document.getElementById('app-layout').classList.remove('hidden');
+                updateUserProfileUI();
+                fetchDataFromSheets();
+            }
+        }
+
+        function renderLoginScreen() {
+            const loginLayout = document.getElementById('login-layout');
+            loginLayout.innerHTML = `
+                <div class="w-full max-w-md bg-white/10 backdrop-blur-md border border-white/25 p-8 rounded-2xl shadow-2xl text-white fade-in mx-4 sm:mx-0">
+                    <div class="text-center mb-6">
+                        <div class="w-16 h-16 bg-gradient-to-br from-stats-500 to-stats-700 rounded-2xl flex items-center justify-center text-white text-3xl font-bold mx-auto mb-3 shadow-lg">
+                            <i class="fa-solid fa-chart-pie"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold tracking-tight">SIM HUMAS BPS</h2>
+                        <p class="text-xs text-stats-300 mt-1">Provinsi Kalimantan Barat</p>
+                    </div>
+                    
+                    <form onsubmit="handleLogin(event)" class="space-y-4 text-slate-800">
+                        <div>
+                            <label class="block text-xs font-semibold text-stats-100 mb-1">Nama Pengguna</label>
+                            <input type="text" id="login-username" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none" placeholder="Contoh: azhari" value="azhari" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-stats-100 mb-1">Kata Sandi</label>
+                            <input type="password" id="login-password" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none" placeholder="••••••••" value="password" required>
+                        </div>
+                        <button type="submit" class="w-full btn-primary bg-gradient-to-r from-stats-500 to-stats-700 hover:from-stats-600 hover:to-stats-800 text-white font-bold py-2.5 rounded-lg text-sm transition-all shadow-lg">
+                            Masuk ke Sistem
+                        </button>
+                    </form>
+                    
+                    <div class="mt-6 border-t border-white/10 pt-4">
+                        <p class="text-center text-xs text-stats-300 mb-3 font-medium">Uji Coba Peran Cepat (RBAC):</p>
+                        <div class="grid grid-cols-2 gap-2 text-center text-[10px]">
+                            <button onclick="quickLogin('admin')" class="py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg font-medium transition-all text-white">
+                                <i class="fa-solid fa-user-shield block text-sm mb-1 text-stats-300"></i> Admin / Staf IT
+                            </button>
+                            <button onclick="quickLogin('ketua')" class="py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg font-medium transition-all text-white">
+                                <i class="fa-solid fa-user-tie block text-sm mb-1 text-stats-300"></i> Ketua Tim
+                            </button>
+                            <button onclick="quickLogin('staf')" class="py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg font-medium transition-all text-white">
+                                <i class="fa-solid fa-users block text-sm mb-1 text-stats-300"></i> Staf Humas
+                            </button>
+                            <button onclick="quickLogin('internal')" class="py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg font-medium transition-all text-white">
+                                <i class="fa-solid fa-building-user block text-sm mb-1 text-stats-300"></i> User Bidang
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('login-username').value;
+            let role = 'staf';
+            let name = 'Staf Humas';
+            if (username.toLowerCase() === 'admin') { role = 'admin'; name = 'Admin IT'; }
+            else if (username.toLowerCase() === 'azhari' || username.toLowerCase() === 'ketua') { role = 'ketua'; name = 'Azhari'; }
+            else if (username.toLowerCase() === 'rian') { role = 'staf'; name = 'Rian'; }
+            else if (username.toLowerCase() === 'siska') { role = 'staf'; name = 'Siska'; }
+            else if (username.toLowerCase() === 'dian') { role = 'staf'; name = 'Dian'; }
+            else if (username.toLowerCase() === 'internal' || username.toLowerCase() === 'seksi') { role = 'internal'; name = 'Seksi Sosial'; }
+
+            currentUser = { username, role, name };
+            localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
+            showToast('Selamat datang, ' + name + '!');
+            checkAuth();
+        }
+
+        function quickLogin(role) {
+            let username = 'staf';
+            let name = 'Staf Humas';
+            if (role === 'admin') { username = 'admin'; name = 'Admin IT'; }
+            else if (role === 'ketua') { username = 'azhari'; name = 'Azhari'; }
+            else if (role === 'internal') { username = 'seksi_sosial'; name = 'Seksi Sosial'; }
+            
+            currentUser = { username, role, name };
+            localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
+            showToast('Masuk sebagai ' + name);
+            checkAuth();
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            localStorage.removeItem('sim_humas_user');
+            if (chartInstance) chartInstance.destroy();
+            if (sentimentChartInstance) sentimentChartInstance.destroy();
+            showToast('Anda telah keluar dari sistem.');
+            checkAuth();
+        }
+
+        function simulateRole(role) {
+            if (!currentUser) return;
+            currentUser.role = role;
+            if (role === 'admin') currentUser.name = 'Admin IT';
+            else if (role === 'ketua') currentUser.name = 'Azhari';
+            else if (role === 'staf') currentUser.name = 'Rian';
+            else if (role === 'internal') currentUser.name = 'Seksi Sosial';
+            
+            localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
+            updateUserProfileUI();
+            showToast('Peran disimulasikan ke: ' + getRoleLabel(role));
+            router(currentState);
+        }
+
+        function updateUserProfileUI() {
+            if (!currentUser) return;
+            
+            // Sync values to select elements
+            const selector = document.getElementById('desktop-role-simulator');
+            if (selector) selector.value = currentUser.role;
+            const mobileSelector = document.getElementById('mobile-role-simulator');
+            if (mobileSelector) mobileSelector.value = currentUser.role;
+
+            // Display Name & Role
+            const fields = [
+                { id: 'desktop-username-display', text: currentUser.name },
+                { id: 'desktop-role-display', text: getRoleLabel(currentUser.role) },
+                { id: 'desktop-avatar', text: currentUser.name.charAt(0) },
+                { id: 'mobile-username-display', text: currentUser.name },
+                { id: 'mobile-role-display', text: getRoleLabel(currentUser.role) },
+                { id: 'mobile-avatar', text: currentUser.name.charAt(0) }
+            ];
+
+            fields.forEach(f => {
+                const el = document.getElementById(f.id);
+                if (el) {
+                    if (f.id.includes('avatar')) el.textContent = f.text;
+                    else el.textContent = f.text;
+                }
+            });
+
+            // Update sidebar buttons visibility based on role
+            updateSidebarVisibility();
+        }
+
+        function getRoleLabel(role) {
+            switch(role) {
+                case 'admin': return 'Super Admin';
+                case 'ketua': return 'Ketua Tim';
+                case 'staf': return 'Staf Humas';
+                case 'internal': return 'User Internal';
+                default: return role;
+            }
+        }
+
+        function updateSidebarVisibility() {
+            if (!currentUser) return;
+            const userRole = currentUser.role;
+
+            const buttons = document.querySelectorAll('[data-roles]');
+            buttons.forEach(btn => {
+                const allowedRoles = btn.getAttribute('data-roles').split(',');
+                if (allowedRoles.includes(userRole)) {
+                    btn.style.display = '';
+                } else {
+                    btn.style.display = 'none';
+                }
+            });
+        }
+
         // Mobile sidebar functions
         function openMobileSidebar() {
             document.getElementById('mobile-sidebar').classList.add('open');
             document.getElementById('sidebar-overlay').classList.add('open');
             document.body.style.overflow = 'hidden';
-        }
-
-        function closeMobileSidebar() {
-            document.getElementById('mobile-sidebar').classList.remove('open');
-            document.getElementById('sidebar-overlay').classList.remove('open');
-            document.body.style.overflow = '';
         }
 
         // Helper functions
@@ -487,6 +740,72 @@
             }
         }
 
+        // Mock Data Generators for Fallbacks
+        function getInitialTickets() {
+            return [
+                { id: 1, pengaju: "Seksi Statistik Sosial", bidang: "Sosial", jenis: "Infografis", judul: "Infografis Profil Kemiskinan Kalbar 2026", deadline: "2026-06-25", detail: "Membuat infografis ringkas untuk disebarkan ke instagram berdasarkan data rilis kemiskinan terbaru.", status: "Pending", pic: "" },
+                { id: 2, pengaju: "Seksi Neraca Wilayah", bidang: "Neraca", jenis: "Pembuatan Video", judul: "Video Edukasi PDRB Kalbar", deadline: "2026-06-29", detail: "Video penjelasan animasi singkat mengenai PDRB Kalbar tahun 2025 untuk masyarakat umum.", status: "Approved", pic: "Rian" },
+                { id: 3, pengaju: "Seksi Statistik Distribusi", bidang: "Distribusi", jenis: "Peliputan", judul: "Dokumentasi FKP Regsosek Singkawang", deadline: "2026-06-21", detail: "Melakukan peliputan foto/video kegiatan forum konsultasi publik di Singkawang.", status: "Approved", pic: "Azhari" }
+            ];
+        }
+
+        function getInitialAssets() {
+            return [
+                { id: 1, nama: "Template Feed Instagram BPS Kalbar 2026.psd", kategori: "Template", ukuran: "45.2 MB", pengunggah: "Rian", tanggal: "2026-05-10", preview: "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=150" },
+                { id: 2, nama: "Logo BPS Vector AI & PNG.zip", kategori: "Logo", ukuran: "12.8 MB", pengunggah: "Rian", tanggal: "2026-05-11", preview: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150" },
+                { id: 3, nama: "Foto Pelantikan Kepala BPS Kalbar.jpg", kategori: "Foto", ukuran: "8.4 MB", pengunggah: "Azhari", tanggal: "2026-06-15", preview: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=150" },
+                { id: 4, nama: "BPS Kalbar Press Kit 2026.pdf", kategori: "Dokumen", ukuran: "3.5 MB", pengunggah: "Siska", tanggal: "2026-06-02", preview: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=150" }
+            ];
+        }
+
+        function getInitialMonitoring() {
+            return [
+                { id: 1, media: "Tribun Pontianak", judul: "BPS Kalbar Catat Inflasi Mei Sebesar 2,8% y-on-y", tanggal: "2026-06-02", sentimen: "Positif", ringkasan: "Kunjungan pers dan publikasi BRS Inflasi Mei di Pontianak dilaporkan secara lengkap dan akurat oleh Tribun Pontianak.", url: "https://pontianak.tribunnews.com" },
+                { id: 2, media: "Pontianak Post", judul: "Kenaikan Harga Pangan Picu Inflasi Kalbar Mei 2026", tanggal: "2026-06-03", sentimen: "Netral", ringkasan: "Analisis mengenai kenaikan komoditas pangan utama Kalbar mengutip rilis data BPS Kalimantan Barat.", url: "https://pontianakpost.jawapos.com" },
+                { id: 3, media: "Sintang News", judul: "Dampak Regsosek, Pengentasan Kemiskinan Kalbar Dinilai Tepat Sasaran", tanggal: "2026-06-10", sentimen: "Positif", ringkasan: "Dinas Sosial memuji validitas data Regsosek BPS Kalbar dalam penyaluran bantuan sosial.", url: "https://sintangnews.com" },
+                { id: 4, media: "Kalbar Today", judul: "Akurasi Data Sensus BPS Kalbar Dipertanyakan Sejumlah Pihak", tanggal: "2026-06-14", sentimen: "Negatif", ringkasan: "Kritik dari akademisi perihal sampling metode pengumpulan data survei ketenagakerjaan di pelosok Kalbar.", url: "https://kalbartoday.com" }
+            ];
+        }
+
+        // Default mockup data untuk BPS Kalbar (jika gagal/belum terhubung dengan Google Sheets)
+        function useDefaultData() {
+            db.team = [
+                { id: 1, nama: "Azhari", jabatan: "Pranata Humas Ahli Muda", bidang: "Humas & Protokol", tugas: "Mengoordinasikan seluruh publikasi media sosial, hubungan pers, dan protokol kegiatan pimpinan BPS Kalbar.", kontak: "081234567890" },
+                { id: 2, nama: "Rian", jabatan: "Pranata Komputer", bidang: "Visual & Konten Creator", tugas: "Merancang desain infografis rilis BRS, template media sosial, dan mengelola bank desain publikasi.", kontak: "081298765432" },
+                { id: 3, nama: "Siska", jabatan: "Staf Humas", bidang: "Writer & Editor", tugas: "Menulis press release BRS, caption media sosial, melakukan monitoring pemberitaan media, serta menyusun kliping berita.", kontak: "081345678901" },
+                { id: 4, nama: "Dian", jabatan: "Staf Protokol", bidang: "Protokoler & MC", tugas: "Mengatur agenda pimpinan BPS Kalbar, bertindak sebagai MC pada acara formal, dan koordinasi keprotokolan.", kontak: "085234567812" }
+            ];
+
+            db.contentPlanner = [
+                { id: 101, judul: "Infografis Inflasi Kalbar Mei 2026", konsep: "Visualisasi data inflasi gabungan kota di Kalbar dengan grafik yang estetik.", jenis: "Soft Selling", postType: "Carousel", progres: 85, jadwal: "2026-06-20", status: "In Progress", assignedTo: "Rian" },
+                { id: 102, judul: "Video Reels Hari Lahir Pancasila", konsep: "Video kompilasi ucapan selamat dari pimpinan dan staf BPS Kalbar.", jenis: "Trend", postType: "Reels", progres: 100, jadwal: "2026-06-01", status: "Posted", assignedTo: "Rian" },
+                { id: 103, judul: "Press Release Pertumbuhan Ekonomi Q1", konsep: "Rangkuman poin penting pertumbuhan ekonomi Kalimantan Barat Triwulan I.", jenis: "Hard Selling", postType: "Single Image", progres: 100, jadwal: "2026-06-05", status: "Posted", assignedTo: "Siska" },
+                { id: 104, judul: "Edukasi Pojok Statistik Untan", konsep: "Penjelasan layanan Pojok Statistik di Universitas Tanjungpura.", jenis: "Informasi", postType: "Carousel", progres: 30, jadwal: "2026-06-25", status: "Draft", assignedTo: "Azhari" }
+            ];
+
+            db.brsSchedule = [
+                { id: 201, judul: "BRS Inflasi & NTP Provinsi Kalbar", tanggal: "2026-07-01", pic_poster: "Rian", pic_info: "Siska", pic_doc: "Azhari", pic_high: "Dian" },
+                { id: 202, judul: "BRS Ekspor-Impor & Pariwisata Kalbar", tanggal: "2026-07-03", pic_poster: "Rian", pic_info: "Siska", pic_doc: "Azhari", pic_high: "Dian" }
+            ];
+
+            db.protocol = [
+                { id: 301, kegiatan: "Audiensi Kepala BPS Kalbar dengan Gubernur Kalbar", pimpinan: "Kepala BPS Prov. Kalbar", level: "Formal", lokasi: "Kantor Gubernur Kalimantan Barat", petugas: "Dian, Azhari", tanggal: "2026-06-18" },
+                { id: 302, kegiatan: "Pelepasan Petugas Sakernas 2026", pimpinan: "Kepala BPS Prov. Kalbar", level: "Non-Formal", lokasi: "Aula BPS Kalbar", petugas: "Dian, Rian", tanggal: "2026-06-22" }
+            ];
+
+            db.tickets = getInitialTickets();
+            db.assets = getInitialAssets();
+            db.monitoring = getInitialMonitoring();
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('last-sync-date').textContent = dateStr + ' (Demo)';
+            const mobileSync = document.getElementById('mobile-last-sync-date');
+            if (mobileSync) mobileSync.textContent = dateStr + ' (Demo)';
+
+            router(currentState);
+        }
+
         // Fetch data dari Google Sheets
         async function fetchDataFromSheets() {
             if (isLoading) return;
@@ -502,6 +821,17 @@
                 db.brsSchedule = data.brsSchedule || [];
                 db.protocol = data.protocol || [];
                 db.team = data.team || [];
+                
+                // Jika sheet tambahan belum dideploy, pakai data mockup default agar modul baru tetap jalan
+                if (!data.tickets) {
+                    db.tickets = db.tickets.length > 0 ? db.tickets : getInitialTickets();
+                    db.assets = db.assets.length > 0 ? db.assets : getInitialAssets();
+                    db.monitoring = db.monitoring.length > 0 ? db.monitoring : getInitialMonitoring();
+                } else {
+                    db.tickets = data.tickets;
+                    db.assets = data.assets;
+                    db.monitoring = data.monitoring;
+                }
 
                 const now = new Date();
                 const dateStr = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -700,8 +1030,10 @@
                 if (currentEditItem) {
                     const index = db.protocol.findIndex(i => i.id === currentEditItem.id);
                     if (index !== -1) db.protocol[index] = newItem;
+                    showToast('Menyimpan perubahan agenda...');
                 } else {
                     db.protocol.push(newItem);
+                    showToast('Menambahkan agenda baru...');
                 }
                 sendDataToServer(action, 'protocol', newItem);
             }
@@ -718,8 +1050,10 @@
                 if (currentEditItem) {
                     const index = db.team.findIndex(i => i.id === currentEditItem.id);
                     if (index !== -1) db.team[index] = newItem;
+                    showToast('Menyimpan profil anggota...');
                 } else {
                     db.team.push(newItem);
+                    showToast('Menambahkan anggota baru...');
                 }
                 sendDataToServer(action, 'team', newItem);
             }
@@ -845,8 +1179,20 @@
             await fetchDataFromSheets();
         }
 
-        // Navigation
+        // Navigation with Role Guards
         function router(page) {
+            const allowedPages = {
+                admin: ['dashboard', 'planner', 'schedule', 'protocol', 'tickets', 'assets', 'monitoring', 'team'],
+                ketua: ['dashboard', 'planner', 'schedule', 'protocol', 'tickets', 'assets', 'monitoring', 'team'],
+                staf: ['dashboard', 'planner', 'schedule', 'protocol', 'tickets', 'assets', 'monitoring'],
+                internal: ['dashboard', 'tickets', 'assets']
+            };
+
+            const userRole = currentUser ? currentUser.role : 'internal';
+            if (!allowedPages[userRole].includes(page)) {
+                page = 'dashboard';
+            }
+
             currentState = page;
 
             // Update desktop sidebar
@@ -872,31 +1218,101 @@
                 case 'planner': renderPlanner(contentDiv); break;
                 case 'schedule': renderSchedule(contentDiv); break;
                 case 'protocol': renderProtocol(contentDiv); break;
+                case 'tickets': renderTickets(contentDiv); break;
+                case 'assets': renderAssets(contentDiv); break;
+                case 'monitoring': renderMonitoring(contentDiv); break;
                 case 'team': renderTeam(contentDiv); break;
             }
         }
 
-        // Dashboard dengan Stacked Bar Chart
+        // Dashboard dengan Stacked Bar Chart & Multi-role Widgets
         function renderDashboard(container) {
+            const isInternal = currentUser.role === 'internal';
+
+            if (isInternal) {
+                // Internal User Dashboard
+                const totalTickets = db.tickets.length;
+                const pendingTickets = db.tickets.filter(t => t.status === 'Pending').length;
+                const approvedTickets = db.tickets.filter(t => t.status === 'Approved').length;
+                const totalAssets = db.assets.length;
+
+                container.innerHTML = `
+                    <div class="mb-8">
+                        <h2 class="text-3xl font-bold text-slate-800">Layanan Humas Internal</h2>
+                        <p class="text-slate-500 mt-1">Selamat datang di SIM Humas BPS Provinsi Kalimantan Barat</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
+                        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 card-hover">
+                            <div class="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600"><i class="fa-solid fa-ticket text-lg md:text-xl"></i></div>
+                            <div class="mt-2"><p class="text-xs md:text-sm text-slate-500">Permintaan Saya</p><p class="text-xl md:text-2xl font-bold text-slate-800">${totalTickets}</p></div>
+                        </div>
+                        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 card-hover">
+                            <div class="w-10 h-10 md:w-12 md:h-12 bg-yellow-100 rounded-lg flex items-center justify-center text-yellow-600"><i class="fa-regular fa-clock text-lg md:text-xl"></i></div>
+                            <div class="mt-2"><p class="text-xs md:text-sm text-slate-500">Menunggu Review</p><p class="text-xl md:text-2xl font-bold text-slate-800">${pendingTickets}</p></div>
+                        </div>
+                        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 card-hover">
+                            <div class="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-lg flex items-center justify-center text-green-600"><i class="fa-solid fa-circle-check text-lg md:text-xl"></i></div>
+                            <div class="mt-2"><p class="text-xs md:text-sm text-slate-500">Disetujui / Aktif</p><p class="text-xl md:text-2xl font-bold text-slate-800">${approvedTickets}</p></div>
+                        </div>
+                        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 card-hover">
+                            <div class="w-10 h-10 md:w-12 md:h-12 bg-orange-100 rounded-lg flex items-center justify-center text-orange-600"><i class="fa-solid fa-folder-open text-lg md:text-xl"></i></div>
+                            <div class="mt-2"><p class="text-xs md:text-sm text-slate-500">Bank Desain & Aset</p><p class="text-xl md:text-2xl font-bold text-slate-800">${totalAssets}</p></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                        <!-- Left Panel: Ticket List -->
+                        <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-100 p-4 md:p-6">
+                            <h3 class="font-bold text-base md:text-lg mb-4 flex justify-between items-center">
+                                Permintaan Layanan Terakhir Anda
+                                <button onclick="router('tickets')" class="text-xs md:text-sm text-stats-500 hover:underline">Semua Permintaan →</button>
+                            </h3>
+                            <div class="space-y-4 max-h-96 overflow-y-auto">
+                                ${db.tickets.slice(0, 5).map(item => `
+                                    <div class="flex items-center justify-between border-b border-slate-50 pb-3">
+                                        <div>
+                                            <p class="font-medium text-sm text-slate-700">${item.judul}</p>
+                                            <p class="text-[10px] text-slate-400 mt-1">${item.jenis} • Deadline: ${formatDate(item.deadline)}</p>
+                                        </div>
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${item.status === 'Approved' ? 'bg-green-100 text-green-700' : item.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">${item.status === 'Approved' ? 'Disetujui' : item.status === 'Pending' ? 'Pending' : 'Ditolak'}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Right Panel: BRS Schedule -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 md:p-6">
+                            <h3 class="font-bold text-base md:text-lg mb-4">Jadwal Rilis BRS Terdekat</h3>
+                            <div class="space-y-3">
+                                ${db.brsSchedule.slice(0, 3).map(item => `
+                                    <div class="p-3 bg-slate-50 rounded-lg">
+                                        <p class="font-medium text-xs text-slate-700">${item.judul}</p>
+                                        <p class="text-[10px] text-slate-400 mt-1"><i class="fa-regular fa-calendar mr-1"></i>${formatDate(item.tanggal)}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Humas Team Dashboard (Admin, Ketua, Staf)
             const totalContent = db.contentPlanner.length;
             const postedContent = db.contentPlanner.filter(c => c.status === 'Posted').length;
             const upcomingProtocol = db.protocol.filter(p => p.level === 'Formal').length;
-            const totalSchedule = db.brsSchedule.length;
+            const activeTickets = db.tickets.filter(t => t.status === 'Pending').length;
 
             // Hitung distribusi tugas per anggota tim untuk stacked bar chart
             const memberTaskDetails = db.team.map(member => {
-                // Hitung tugas Content Planner
                 const contentTasks = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
-
-                // Hitung tugas Jadwal Rilis (sebagai PIC)
                 const scheduleTasks = db.brsSchedule.filter(s =>
                     s.pic_poster === member.nama ||
                     s.pic_info === member.nama ||
                     s.pic_doc === member.nama ||
                     s.pic_high === member.nama
                 ).length;
-
-                // Hitung tugas Protokol (sebagai petugas)
                 const protocolTasks = db.protocol.filter(p =>
                     p.petugas && p.petugas.includes(member.nama.split(' ')[0])
                 ).length;
@@ -918,9 +1334,17 @@
             const protocolData = memberTaskDetails.map(m => m.protocolTasks);
 
             container.innerHTML = `
-                <div class="mb-8">
-                    <h2 class="text-3xl font-bold text-slate-800">Dashboard Overview</h2>
-                    <p class="text-slate-500 mt-1">Ringkasan aktivitas Tim Humas & Protokoler 2026</p>
+                <div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-slate-800">Dashboard Overview</h2>
+                        <p class="text-slate-500 mt-1">Ringkasan aktivitas Tim Humas & Protokoler BPS Kalbar</p>
+                    </div>
+                    ${activeTickets > 0 ? `
+                        <div onclick="router('tickets')" class="bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-sm animate-pulse">
+                            <i class="fa-solid fa-circle-exclamation text-yellow-600 text-base"></i>
+                            <span>Ada <strong>${activeTickets}</strong> Permintaan Layanan menunggu persetujuan Anda!</span>
+                        </div>
+                    ` : ''}
                 </div>
 
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
@@ -937,8 +1361,8 @@
                         <div class="mt-2"><p class="text-xs md:text-sm text-slate-500">Kegiatan Protokol</p><p class="text-xl md:text-2xl font-bold text-slate-800">${upcomingProtocol}</p></div>
                     </div>
                     <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-100 card-hover">
-                        <div class="w-10 h-10 md:w-12 md:h-12 bg-orange-100 rounded-lg flex items-center justify-center text-orange-600"><i class="fa-solid fa-calendar-alt text-lg md:text-xl"></i></div>
-                        <div class="mt-2"><p class="text-xs md:text-sm text-slate-500">Jadwal Rilis</p><p class="text-xl md:text-2xl font-bold text-slate-800">${totalSchedule}</p></div>
+                        <div class="w-10 h-10 md:w-12 md:h-12 bg-yellow-100 rounded-lg flex items-center justify-center text-yellow-600"><i class="fa-solid fa-ticket text-lg md:text-xl"></i></div>
+                        <div class="mt-2"><p class="text-xs md:text-sm text-slate-500">Tiket Pending</p><p class="text-xl md:text-2xl font-bold text-slate-800">${activeTickets}</p></div>
                     </div>
                 </div>
 
@@ -980,7 +1404,7 @@
                             ${db.brsSchedule.slice(0, 3).map(item => `
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 rounded-lg">
                                     <div class="mb-2 sm:mb-0"><p class="font-medium text-sm md:text-base text-slate-700">${item.judul}</p><p class="text-xs text-slate-400"><i class="fa-regular fa-calendar mr-1"></i>${formatDate(item.tanggal)}</p></div>
-                                    <span class="text-xs bg-stats-100 text-stats-700 px-2 py-1 rounded text-center">PIC: ${item.pic_poster}</span>
+                                    <span class="text-xs bg-stats-100 text-stats-700 px-2 py-1 rounded text-center font-medium">PIC Poster: ${item.pic_poster}</span>
                                 </div>
                             `).join('')}
                         </div>
@@ -992,7 +1416,7 @@
                             ${db.protocol.slice(0, 3).map(item => `
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 rounded-lg">
                                     <div class="mb-2 sm:mb-0"><p class="font-medium text-sm md:text-base text-slate-700">${item.kegiatan}</p><p class="text-xs text-slate-400"><i class="fa-solid fa-location-dot mr-1"></i>${item.lokasi}</p></div>
-                                    <span class="text-xs ${item.level === 'Formal' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'} px-2 py-1 rounded text-center">${item.level}</span>
+                                    <span class="text-xs ${item.level === 'Formal' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'} px-2 py-1 rounded text-center font-medium">${item.level}</span>
                                 </div>
                             `).join('')}
                         </div>
@@ -1201,9 +1625,564 @@
             `;
         }
 
+        // Module: Permintaan Layanan (Ticketing)
+        function renderTickets(container) {
+            const isInternal = currentUser.role === 'internal';
+            const isAdminOrKetua = currentUser.role === 'admin' || currentUser.role === 'ketua';
+            
+            let filteredTickets = db.tickets;
+            if (isInternal) {
+                filteredTickets = db.tickets.filter(t => t.pengaju.includes(currentUser.name) || t.pengaju.includes("Seksi"));
+            }
+
+            let ticketCards = filteredTickets.map(t => {
+                let statusBadge = '';
+                if (t.status === 'Pending') {
+                    statusBadge = `<span class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-bold"><i class="fa-regular fa-clock mr-1"></i>Pending</span>`;
+                } else if (t.status === 'Approved') {
+                    statusBadge = `<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold"><i class="fa-solid fa-check mr-1"></i>Disetujui</span>`;
+                } else {
+                    statusBadge = `<span class="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold"><i class="fa-solid fa-times mr-1"></i>Ditolak</span>`;
+                }
+
+                let actions = '';
+                if (isAdminOrKetua && t.status === 'Pending') {
+                    actions = `
+                        <div class="mt-4 pt-3 border-t border-slate-100 flex gap-2 justify-end">
+                            <button onclick="approveTicket(${t.id})" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-all">
+                                <i class="fa-solid fa-check mr-1"></i> Setujui & Tugaskan
+                            </button>
+                            <button onclick="rejectTicket(${t.id})" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-all">
+                                <i class="fa-solid fa-times mr-1"></i> Tolak
+                            </button>
+                        </div>
+                    `;
+                } else if (t.status === 'Approved' && t.pic) {
+                    actions = `
+                        <div class="mt-2 text-xs text-slate-500">
+                            <i class="fa-solid fa-user mr-1 text-stats-500"></i> PIC: <strong>${t.pic}</strong>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[10px] uppercase font-bold">${t.jenis}</span>
+                                <h4 class="font-bold text-slate-800 text-base mt-2">${t.judul}</h4>
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2 font-medium"><i class="fa-regular fa-building mr-1"></i> Pengaju: ${t.pengaju} (${t.bidang})</p>
+                        <p class="text-xs text-slate-600 mt-2">${t.detail}</p>
+                        <p class="text-xs text-red-500 mt-3 font-semibold"><i class="fa-regular fa-calendar-xmark mr-1"></i> Batas Waktu: ${formatDate(t.deadline)}</p>
+                        ${actions}
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800">Permintaan Layanan Humas</h2>
+                        <p class="text-sm md:text-base text-slate-500 mt-1">Sistem antrean permintaan publikasi dan kegiatan kehumasan dari bidang/seksi</p>
+                    </div>
+                    ${isInternal ? `
+                        <button onclick="openTicketModal()" class="btn-primary flex items-center gap-2 shadow-md text-sm md:text-base">
+                            <i class="fa-solid fa-plus"></i> Buat Permintaan Baru
+                        </button>
+                    ` : ''}
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    ${ticketCards.length > 0 ? ticketCards : `
+                        <div class="col-span-full bg-white p-8 text-center text-slate-400 rounded-xl border border-dashed border-slate-300">
+                            <i class="fa-solid fa-ticket text-4xl mb-2"></i>
+                            <p>Belum ada permintaan layanan.</p>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        window.openTicketModal = function() {
+            currentModalType = 'ticket_request';
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.id = 'dynamic-modal';
+            modal.innerHTML = `
+                <div class="modal-content p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-slate-800">Buat Permintaan Layanan</h3>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-times text-xl"></i></button>
+                    </div>
+                    <form onsubmit="saveTicketRequest(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Judul Permintaan / Nama Kegiatan</label>
+                            <input type="text" id="req-title" class="w-full" placeholder="Contoh: Infografis Data Sensus Pertanian" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Jenis Layanan</label>
+                            <select id="req-type" class="w-full">
+                                <option value="Infografis">Infografis / Poster</option>
+                                <option value="Pembuatan Video">Pembuatan Video Edukasi/Reels</option>
+                                <option value="Peliputan">Peliputan / Dokumentasi Acara</option>
+                                <option value="Desain Publikasi">Desain Buku / Laporan Publikasi</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Batas Waktu (Deadline)</label>
+                            <input type="date" id="req-deadline" class="w-full" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Detail Deskripsi & Permintaan Khusus</label>
+                            <textarea id="req-detail" rows="3" class="w-full" placeholder="Jelaskan data/kegiatan secara rinci..." required></textarea>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <button type="submit" class="btn-primary flex-1"><i class="fa-solid fa-paper-plane mr-2"></i> Kirim Permintaan</button>
+                            <button type="button" onclick="closeModal()" class="btn-secondary flex-1">Batal</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        window.saveTicketRequest = function(event) {
+            event.preventDefault();
+            const newTicket = {
+                id: Date.now(),
+                pengaju: currentUser.name || "Seksi Sosial",
+                bidang: "Statistik",
+                jenis: document.getElementById('req-type').value,
+                judul: document.getElementById('req-title').value,
+                deadline: document.getElementById('req-deadline').value,
+                detail: document.getElementById('req-detail').value,
+                status: "Pending",
+                pic: ""
+            };
+            db.tickets.push(newTicket);
+            showToast("Permintaan layanan berhasil dikirim!");
+            closeModal();
+            router('tickets');
+        }
+
+        window.approveTicket = function(id) {
+            const ticket = db.tickets.find(t => t.id === id);
+            if (!ticket) return;
+
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.id = 'assign-pic-modal';
+            modal.innerHTML = `
+                <div class="modal-content p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-slate-800">Setujui & Tugaskan PIC</h3>
+                        <button onclick="this.closest('.modal').remove()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-times text-xl"></i></button>
+                    </div>
+                    <form onsubmit="confirmApproveTicket(event, ${id})" class="space-y-4">
+                        <div>
+                            <p class="text-xs text-slate-500 mb-2">Pilih anggota tim humas yang akan bertanggung jawab untuk pengerjaan:</p>
+                            <label class="block text-sm font-medium mb-1">Ditugaskan ke (PIC)</label>
+                            <select id="assign-pic-select" class="w-full">
+                                ${db.team.map(m => `<option value="${m.nama}">${m.nama} (${m.jabatan})</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <button type="submit" class="btn-primary flex-1"><i class="fa-solid fa-check mr-2"></i> Konfirmasi</button>
+                            <button type="button" onclick="this.closest('.modal').remove()" class="btn-secondary flex-1">Batal</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        window.confirmApproveTicket = function(event, ticketId) {
+            event.preventDefault();
+            const ticket = db.tickets.find(t => t.id === ticketId);
+            const picName = document.getElementById('assign-pic-select').value;
+            
+            if (ticket) {
+                ticket.status = 'Approved';
+                ticket.pic = picName;
+
+                const newContent = {
+                    id: Date.now(),
+                    judul: `[TIKET] ${ticket.judul}`,
+                    konsep: `Permintaan dari ${ticket.pengaju}. Detail: ${ticket.detail}`,
+                    jenis: ticket.jenis === 'Infografis' ? 'Soft Selling' : 'Informasi',
+                    postType: ticket.jenis === 'Pembuatan Video' ? 'Reels' : 'Carousel',
+                    progres: 0,
+                    jadwal: ticket.deadline,
+                    status: 'In Progress',
+                    assignedTo: picName
+                };
+                db.contentPlanner.push(newContent);
+                showToast(`Tiket disetujui! Tugas baru dibuat di Content Planner untuk ${picName}.`);
+            }
+            
+            document.getElementById('assign-pic-modal').remove();
+            router('tickets');
+        }
+
+        window.rejectTicket = function(id) {
+            if (confirm("Apakah Anda yakin ingin menolak permintaan ini?")) {
+                const ticket = db.tickets.find(t => t.id === id);
+                if (ticket) {
+                    ticket.status = 'Rejected';
+                    showToast("Permintaan ditolak.", "info");
+                    router('tickets');
+                }
+            }
+        }
+
+        // Module: Bank Desain (Digital Asset Management)
+        function renderAssets(container) {
+            const categories = ['Semua', 'Template', 'Logo', 'Foto', 'Dokumen'];
+            let activeCategory = 'Semua';
+            
+            function drawAssets() {
+                let filteredAssets = db.assets;
+                if (activeCategory !== 'Semua') {
+                    filteredAssets = db.assets.filter(a => a.kategori === activeCategory);
+                }
+
+                let assetCards = filteredAssets.map(a => `
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
+                        <div class="h-32 bg-slate-100 relative overflow-hidden shrink-0">
+                            <img src="${a.preview}" alt="${a.nama}" class="w-full h-full object-cover">
+                            <span class="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm text-white rounded-full text-[10px] font-bold uppercase">${a.kategori}</span>
+                        </div>
+                        <div class="p-4 flex-1 flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm truncate" title="${a.nama}">${a.nama}</h4>
+                                <p class="text-[10px] text-slate-400 mt-1">Ukuran: ${a.ukuran} • Oleh: ${a.pengunggah}</p>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                                <span class="text-slate-400"><i class="fa-regular fa-calendar mr-1"></i>${formatDate(a.tanggal)}</span>
+                                <a href="#" onclick="event.preventDefault(); showToast('Simulasi Pengunduhan file: ${a.nama}')" class="text-stats-600 hover:text-stats-800 font-semibold flex items-center gap-1">
+                                    <i class="fa-solid fa-download"></i> Unduh
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                container.querySelector('#assets-grid').innerHTML = assetCards.length > 0 ? assetCards : `
+                    <div class="col-span-full bg-white p-8 text-center text-slate-400 rounded-xl border border-dashed border-slate-300">
+                        <i class="fa-solid fa-folder-open text-4xl mb-2"></i>
+                        <p>Belum ada aset digital dalam kategori ini.</p>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800">Bank Desain & Dokumentasi</h2>
+                        <p class="text-sm md:text-base text-slate-500 mt-1">Penyimpanan aset digital kehumasan (Digital Asset Management)</p>
+                    </div>
+                    <button onclick="openAssetUploadModal()" class="btn-primary flex items-center gap-2 shadow-md text-sm md:text-base">
+                        <i class="fa-solid fa-upload"></i> Unggah Aset
+                    </button>
+                </div>
+
+                <!-- Category Filters -->
+                <div class="flex flex-wrap gap-2 mb-6" id="assets-filter-bar">
+                    ${categories.map(c => `
+                        <button onclick="filterAssets('${c}', this)" class="asset-filter-btn px-4 py-1.5 rounded-full text-xs font-semibold border ${c === 'Semua' ? 'bg-stats-600 text-white border-stats-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'} transition-all">${c}</button>
+                    `).join('')}
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6" id="assets-grid">
+                    <!-- Cards will be drawn here -->
+                </div>
+            `;
+
+            window.filterAssets = function(cat, btn) {
+                activeCategory = cat;
+                document.querySelectorAll('.asset-filter-btn').forEach(b => {
+                    b.className = 'asset-filter-btn px-4 py-1.5 rounded-full text-xs font-semibold border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 transition-all';
+                });
+                btn.className = 'asset-filter-btn px-4 py-1.5 rounded-full text-xs font-semibold border bg-stats-600 text-white border-stats-600 transition-all';
+                drawAssets();
+            };
+
+            window.openAssetUploadModal = function() {
+                currentModalType = 'asset_upload';
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.id = 'dynamic-modal';
+                modal.innerHTML = `
+                    <div class="modal-content p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold text-slate-800">Unggah Aset Baru</h3>
+                            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-times text-xl"></i></button>
+                        </div>
+                        <form onsubmit="saveAssetUpload(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Nama Aset / Berkas</label>
+                                <input type="text" id="asset-name" class="w-full" placeholder="Contoh: Template Infografis Inflasi.psd" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Kategori</label>
+                                <select id="asset-cat" class="w-full">
+                                    <option value="Template">Template Desain</option>
+                                    <option value="Logo">Logo & Brand Kit</option>
+                                    <option value="Foto">Foto Dokumentasi</option>
+                                    <option value="Dokumen">Dokumen (Press Release / PDF)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Unggah Berkas (Simulasi)</label>
+                                <input type="file" id="asset-file" class="w-full border border-dashed border-slate-300 p-4 rounded-lg bg-slate-50 cursor-pointer" required>
+                            </div>
+                            <div class="flex gap-3 mt-6">
+                                <button type="submit" class="btn-primary flex-1"><i class="fa-solid fa-upload mr-2"></i> Unggah</button>
+                                <button type="button" onclick="closeModal()" class="btn-secondary flex-1">Batal</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            };
+
+            window.saveAssetUpload = function(event) {
+                event.preventDefault();
+                const fileInput = document.getElementById('asset-file');
+                const fileName = document.getElementById('asset-name').value;
+                const fileCat = document.getElementById('asset-cat').value;
+                
+                let fileSize = "2.4 MB";
+                if (fileInput.files && fileInput.files[0]) {
+                    const bytes = fileInput.files[0].size;
+                    fileSize = (bytes / (1024 * 1024)).toFixed(1) + " MB";
+                }
+
+                const newAsset = {
+                    id: Date.now(),
+                    nama: fileName,
+                    kategori: fileCat,
+                    ukuran: fileSize,
+                    pengunggah: currentUser.name || "Staf Humas",
+                    tanggal: new Date().toISOString().split('T')[0],
+                    preview: fileCat === 'Foto' ? 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=150' : 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=150'
+                };
+
+                db.assets.push(newAsset);
+                showToast("Aset digital berhasil diunggah!");
+                closeModal();
+                drawAssets();
+            };
+
+            drawAssets();
+        }
+
+        // Module: Media Monitoring & Sentiment Analysis
+        function renderMonitoring(container) {
+            const posCount = db.monitoring.filter(m => m.sentimen === 'Positif').length;
+            const netCount = db.monitoring.filter(m => m.sentimen === 'Netral').length;
+            const negCount = db.monitoring.filter(m => m.sentimen === 'Negatif').length;
+            const totalCount = db.monitoring.length;
+            const positiveRate = totalCount > 0 ? Math.round((posCount / totalCount) * 100) : 0;
+
+            let newsRows = db.monitoring.map(m => {
+                let badge = '';
+                if (m.sentimen === 'Positif') {
+                    badge = `<span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-bold"><i class="fa-solid fa-face-smile mr-1"></i>Positif</span>`;
+                } else if (m.sentimen === 'Negatif') {
+                    badge = `<span class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-bold"><i class="fa-solid fa-face-frown mr-1"></i>Negatif</span>`;
+                } else {
+                    badge = `<span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-bold"><i class="fa-solid fa-face-meh mr-1"></i>Netral</span>`;
+                }
+
+                return `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4 font-semibold text-slate-800">${m.media}</td>
+                        <td class="px-6 py-4">
+                            <div class="font-medium text-slate-800">${m.judul}</div>
+                            <div class="text-xs text-slate-400 mt-1">${m.ringkasan}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-xs text-slate-500">${formatDate(m.tanggal)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${badge}</td>
+                        <td class="px-6 py-4 text-center whitespace-nowrap text-xs font-semibold">
+                            <a href="${m.url}" target="_blank" class="text-stats-600 hover:underline"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>Kunjungi</a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800">Media Monitoring</h2>
+                        <p class="text-sm md:text-base text-slate-500 mt-1">Pemantauan rilis berita BPS Kalbar di media online Kalimantan Barat</p>
+                    </div>
+                    <button onclick="openAddMonitoringModal()" class="btn-primary flex items-center gap-2 text-sm md:text-base">
+                        <i class="fa-solid fa-plus"></i> Tambah Kliping Berita
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-slate-400 font-semibold uppercase">Total Berita</p>
+                            <p class="text-2xl font-bold text-slate-800 mt-1">${totalCount}</p>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 text-xl"><i class="fa-solid fa-newspaper"></i></div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-slate-400 font-semibold uppercase">Sentimen Positif</p>
+                            <p class="text-2xl font-bold text-green-600 mt-1">${posCount}</p>
+                        </div>
+                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-green-600 text-xl"><i class="fa-regular fa-face-smile"></i></div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-slate-400 font-semibold uppercase">Sentimen Negatif</p>
+                            <p class="text-2xl font-bold text-red-600 mt-1">${negCount}</p>
+                        </div>
+                        <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center text-red-600 text-xl"><i class="fa-regular fa-face-frown"></i></div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-slate-400 font-semibold uppercase">Indeks Sentimen</p>
+                            <p class="text-2xl font-bold text-stats-600 mt-1">${positiveRate}%</p>
+                        </div>
+                        <div class="w-12 h-12 bg-stats-100 rounded-lg flex items-center justify-center text-stats-600 text-xl"><i class="fa-solid fa-percent"></i></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-slate-600">
+                                <thead class="text-xs text-slate-700 uppercase bg-slate-50 border-b">
+                                    <tr>
+                                        <th class="px-6 py-3">Media</th>
+                                        <th class="px-6 py-3">Berita</th>
+                                        <th class="px-6 py-3">Tanggal</th>
+                                        <th class="px-6 py-3">Sentimen</th>
+                                        <th class="px-6 py-3 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${newsRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col items-center">
+                        <h3 class="font-bold text-slate-800 text-base mb-4 w-full">Analisis Sentimen Media</h3>
+                        <div class="w-48 h-48 relative">
+                            <canvas id="mediaSentimentChart" width="200" height="200"></canvas>
+                        </div>
+                        <div class="mt-6 flex flex-col gap-2 w-full text-xs text-slate-600">
+                            <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-green-500 rounded-full"></span> Positif</span><strong>${posCount} (${totalCount ? Math.round((posCount/totalCount)*100) : 0}%)</strong></div>
+                            <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-slate-400 rounded-full"></span> Netral</span><strong>${netCount} (${totalCount ? Math.round((netCount/totalCount)*100) : 0}%)</strong></div>
+                            <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-red-500 rounded-full"></span> Negatif</span><strong>${negCount} (${totalCount ? Math.round((negCount/totalCount)*100) : 0}%)</strong></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                const ctx = document.getElementById('mediaSentimentChart')?.getContext('2d');
+                if (ctx) {
+                    if (sentimentChartInstance) sentimentChartInstance.destroy();
+                    sentimentChartInstance = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Positif', 'Netral', 'Negatif'],
+                            datasets: [{
+                                data: [posCount, netCount, negCount],
+                                backgroundColor: ['#10b981', '#94a3b8', '#ef4444'],
+                                borderHeight: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            cutout: '70%'
+                        }
+                    });
+                }
+            }, 100);
+        }
+
+        window.openAddMonitoringModal = function() {
+            currentModalType = 'add_monitoring';
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.id = 'dynamic-modal';
+            modal.innerHTML = `
+                <div class="modal-content p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-slate-800">Tambah Kliping Berita</h3>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-times text-xl"></i></button>
+                    </div>
+                    <form onsubmit="saveMonitoringItem(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Nama Media</label>
+                            <input type="text" id="mon-media" class="w-full" placeholder="Contoh: Pontianak Post" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Judul Berita</label>
+                            <input type="text" id="mon-title" class="w-full" placeholder="Masukkan judul utama berita..." required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Sentimen Berita</label>
+                            <select id="mon-sentiment" class="w-full">
+                                <option value="Positif">Positif</option>
+                                <option value="Netral">Netral</option>
+                                <option value="Negatif">Negatif</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Kliping Ringkasan Berita</label>
+                            <textarea id="mon-summary" rows="3" class="w-full" placeholder="Tuliskan intisari berita singkat..." required></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">URL Berita</label>
+                            <input type="url" id="mon-url" class="w-full" placeholder="https://example.com/link-berita" required>
+                        </div>
+                        <div class="flex gap-3 mt-6">
+                            <button type="submit" class="btn-primary flex-1"><i class="fa-solid fa-save mr-2"></i> Simpan Kliping</button>
+                            <button type="button" onclick="closeModal()" class="btn-secondary flex-1">Batal</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        window.saveMonitoringItem = function(event) {
+            event.preventDefault();
+            const newMon = {
+                id: Date.now(),
+                media: document.getElementById('mon-media').value,
+                judul: document.getElementById('mon-title').value,
+                tanggal: new Date().toISOString().split('T')[0],
+                sentimen: document.getElementById('mon-sentiment').value,
+                ringkasan: document.getElementById('mon-summary').value,
+                url: document.getElementById('mon-url').value
+            };
+            db.monitoring.push(newMon);
+            showToast("Kliping berita berhasil ditambahkan!");
+            closeModal();
+            router('monitoring');
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            fetchDataFromSheets();
+            checkAuth();
         });
     </script>
 </body>
