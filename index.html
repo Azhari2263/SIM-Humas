@@ -13,7 +13,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -87,6 +88,7 @@
                 opacity: 0;
                 transform: translateY(8px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -102,7 +104,7 @@
         ::-webkit-scrollbar-track {
             background: #f8fafc;
         }
-        
+
         .dark ::-webkit-scrollbar-track {
             background: #0f172a;
         }
@@ -152,6 +154,7 @@
                 transform: translateX(100%) scale(0.9);
                 opacity: 0;
             }
+
             to {
                 transform: translateX(0) scale(1);
                 opacity: 1;
@@ -174,8 +177,13 @@
         }
 
         @keyframes fadeInModal {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         .modal-content {
@@ -199,6 +207,7 @@
                 transform: translateY(20px) scale(0.95);
                 opacity: 0;
             }
+
             to {
                 transform: translateY(0) scale(1);
                 opacity: 1;
@@ -324,8 +333,8 @@
         #login-layout input,
         #login-layout input:focus,
         #login-layout input:-webkit-autofill,
-        #login-layout input:-webkit-autofill:hover, 
-        #login-layout input:-webkit-autofill:focus, 
+        #login-layout input:-webkit-autofill:hover,
+        #login-layout input:-webkit-autofill:focus,
         #login-layout input:-webkit-autofill:active {
             color: #ffffff !important;
             -webkit-text-fill-color: #ffffff !important;
@@ -336,12 +345,14 @@
     </style>
 </head>
 
-<body class="text-slate-800 dark:text-slate-100 antialiased h-screen flex overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans">
+<body
+    class="text-slate-800 dark:text-slate-100 antialiased h-screen flex overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans">
 
     <div id="toast-container"></div>
 
     <!-- Login Page Wrapper -->
-    <div id="login-layout" class="h-screen w-full flex items-center justify-center bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 transition-all duration-300">
+    <div id="login-layout"
+        class="h-screen w-full flex items-center justify-center bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 transition-all duration-300">
         <!-- populated by auth.js -->
     </div>
 
@@ -354,87 +365,128 @@
         <div id="mobile-sidebar" class="mobile-sidebar flex flex-col border-r border-slate-100 dark:border-slate-700">
             <div class="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-100">
+                    <div
+                        class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-100">
                         <i class="fa-solid fa-chart-pie text-lg"></i>
                     </div>
                     <div>
-                        <h1 class="font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">SIM Humas</h1>
-                        <p class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">BPS Prov. Kalbar</p>
+                        <h1 class="font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">SIM Humas
+                        </h1>
+                        <p class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
+                            BPS Prov. Kalbar</p>
                     </div>
                 </div>
-                <button onclick="closeMobileSidebar()" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
+                <button onclick="closeMobileSidebar()"
+                    class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
                     <i class="fa-solid fa-times text-lg"></i>
                 </button>
             </div>
 
             <!-- User Profile Card (Mobile) -->
-            <div class="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between">
+            <div
+                class="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between">
                 <div class="flex items-center gap-3 overflow-hidden">
-                    <div class="w-9 h-9 rounded-xl bg-indigo-55 border border-indigo-150 dark:border-slate-700 flex items-center justify-center text-indigo-750 dark:text-indigo-300 font-black text-sm" id="mobile-avatar">U</div>
+                    <div class="w-9 h-9 rounded-xl bg-indigo-55 border border-indigo-150 dark:border-slate-700 flex items-center justify-center text-indigo-750 dark:text-indigo-300 font-black text-sm"
+                        id="mobile-avatar">U</div>
                     <div class="overflow-hidden">
-                        <p class="text-xs font-black text-slate-800 dark:text-slate-100 truncate" id="mobile-username-display">-</p>
-                        <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5" id="mobile-role-display">-</p>
+                        <p class="text-xs font-black text-slate-800 dark:text-slate-100 truncate"
+                            id="mobile-username-display">-</p>
+                        <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5"
+                            id="mobile-role-display">-</p>
                     </div>
                 </div>
-                <button onclick="handleLogout()" class="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:text-rose-600 text-slate-400 text-xs flex items-center justify-center transition-all" title="Keluar">
+                <button onclick="handleLogout()"
+                    class="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:text-rose-600 text-slate-400 text-xs flex items-center justify-center transition-all"
+                    title="Keluar">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
             </div>
 
             <nav class="flex-1 overflow-y-auto p-4 space-y-1" id="mobile-nav">
                 <!-- Populated dynamically / static roles layout -->
-                <button onclick="router('dashboard'); closeMobileSidebar();" id="mobile-nav-dashboard" data-roles="admin,kepala,koordinator,tim,pemohon" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('dashboard'); closeMobileSidebar();" id="mobile-nav-dashboard"
+                    data-roles="admin,kepala,koordinator,tim,pemohon"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-gauge-high w-5 text-sm"></i> Dashboard
                 </button>
-                <button onclick="router('calendar'); closeMobileSidebar();" id="mobile-nav-calendar" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('calendar'); closeMobileSidebar();" id="mobile-nav-calendar"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-regular fa-calendar-days w-5 text-sm"></i> Kalender Kegiatan
                 </button>
-                <button onclick="router('planner'); closeMobileSidebar();" id="mobile-nav-planner" data-roles="admin,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('planner'); closeMobileSidebar();" id="mobile-nav-planner"
+                    data-roles="admin,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-list-check w-5 text-sm"></i> Content Planner
                 </button>
-                <button onclick="router('rekap_rutin'); closeMobileSidebar();" id="mobile-nav-rekap_rutin" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('rekap_rutin'); closeMobileSidebar();" id="mobile-nav-rekap_rutin"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-circle-nodes w-5 text-sm"></i> Rekap Rutin
                 </button>
-                <button onclick="router('ad_hoc'); closeMobileSidebar();" id="mobile-nav-ad_hoc" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('ad_hoc'); closeMobileSidebar();" id="mobile-nav-ad_hoc"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-business-time w-5 text-sm"></i> Ad Hoc 2026
                 </button>
-                <button onclick="router('protokoler_sep'); closeMobileSidebar();" id="mobile-nav-protokoler_sep" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('protokoler_sep'); closeMobileSidebar();" id="mobile-nav-protokoler_sep"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-crown w-5 text-sm"></i> Protokoler
                 </button>
-                <button onclick="router('mc_sep'); closeMobileSidebar();" id="mobile-nav-mc_sep" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('mc_sep'); closeMobileSidebar();" id="mobile-nav-mc_sep"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-microphone-lines w-5 text-sm"></i> Master of Ceremony
                 </button>
-                <button onclick="router('brs_rilis'); closeMobileSidebar();" id="mobile-nav-brs_rilis" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('brs_rilis'); closeMobileSidebar();" id="mobile-nav-brs_rilis"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-bullhorn w-5 text-sm"></i> BRS Rilis
                 </button>
-                <button onclick="router('hari_besar'); closeMobileSidebar();" id="mobile-nav-hari_besar" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('hari_besar'); closeMobileSidebar();" id="mobile-nav-hari_besar"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-heart w-5 text-sm"></i> Ucapan Hari Besar
                 </button>
-                <button onclick="router('tickets'); closeMobileSidebar();" id="mobile-nav-tickets" data-roles="admin,kepala,koordinator,tim,pemohon" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('tickets'); closeMobileSidebar();" id="mobile-nav-tickets"
+                    data-roles="admin,kepala,koordinator,tim,pemohon"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-ticket w-5 text-sm"></i> Layanan Humas
                 </button>
-                <button onclick="router('monitoring'); closeMobileSidebar();" id="mobile-nav-monitoring" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('monitoring'); closeMobileSidebar();" id="mobile-nav-monitoring"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-magnifying-glass-chart w-5 text-sm"></i> Media Monitoring
                 </button>
-                <button onclick="router('rekap_kegiatan'); closeMobileSidebar();" id="mobile-nav-rekap_kegiatan" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('rekap_kegiatan'); closeMobileSidebar();" id="mobile-nav-rekap_kegiatan"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-chart-simple w-5 text-sm"></i> SLA & Rekap Tugas
                 </button>
-                <button onclick="router('team'); closeMobileSidebar();" id="mobile-nav-team" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('team'); closeMobileSidebar();" id="mobile-nav-team"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-users w-5 text-sm"></i> Direktori Tim
                 </button>
-                <button onclick="router('settings'); closeMobileSidebar();" id="mobile-nav-settings" data-roles="admin" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('settings'); closeMobileSidebar();" id="mobile-nav-settings" data-roles="admin"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-gears w-5 text-sm"></i> Master & Backup
                 </button>
             </nav>
 
             <div class="p-4 border-t border-slate-100 dark:border-slate-700">
-                <div class="bg-slate-50/80 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
-                    <p class="text-[9px] uppercase font-extrabold text-indigo-650 dark:text-indigo-400 tracking-widest">Sinkronisasi</p>
-                    <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-medium">
+                <div
+                    class="bg-slate-50/80 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+                    <p class="text-[9px] uppercase font-extrabold text-indigo-650 dark:text-indigo-400 tracking-widest">
+                        Sinkronisasi</p>
+                    <div
+                        class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-medium">
                         <span><i class="fa-regular fa-clock mr-1"></i> Terakhir:</span>
                         <span id="mobile-last-sync-date" class="font-bold text-slate-700 dark:text-slate-200">-</span>
                     </div>
-                    <button onclick="syncData(); closeMobileSidebar();" class="mt-3 w-full bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-[10px] font-bold uppercase tracking-wider py-2 rounded-xl shadow-xs transition-all flex justify-center items-center gap-2">
+                    <button onclick="syncData(); closeMobileSidebar();"
+                        class="mt-3 w-full bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-[10px] font-bold uppercase tracking-wider py-2 rounded-xl shadow-xs transition-all flex justify-center items-center gap-2">
                         <i class="fa-solid fa-rotate"></i> Sinkron
                     </button>
                 </div>
@@ -442,84 +494,115 @@
         </div>
 
         <!-- Desktop Sidebar -->
-        <aside class="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col shadow-sm z-10 hidden md:flex shrink-0">
+        <aside
+            class="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col shadow-sm z-10 hidden md:flex shrink-0">
             <div class="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-100">
+                <div
+                    class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-100">
                     <i class="fa-solid fa-chart-pie text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">SIM Humas</h1>
-                    <p class="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">BPS Prov. Kalbar</p>
+                    <h1 class="font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">SIM Humas
+                    </h1>
+                    <p class="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">BPS
+                        Prov. Kalbar</p>
                 </div>
             </div>
 
             <!-- User Profile Card (Desktop) -->
-            <div class="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
+            <div
+                class="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
                 <div class="flex items-center gap-3 overflow-hidden">
-                    <div class="w-9 h-9 rounded-xl bg-indigo-55 border border-indigo-150 dark:border-slate-700 flex items-center justify-center text-indigo-750 dark:text-indigo-300 font-black text-sm" id="desktop-avatar">U</div>
+                    <div class="w-9 h-9 rounded-xl bg-indigo-55 border border-indigo-150 dark:border-slate-700 flex items-center justify-center text-indigo-750 dark:text-indigo-300 font-black text-sm"
+                        id="desktop-avatar">U</div>
                     <div class="overflow-hidden">
-                        <p class="text-xs font-black text-slate-800 dark:text-slate-100 truncate" id="desktop-username-display">-</p>
-                        <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5" id="desktop-role-display">-</p>
+                        <p class="text-xs font-black text-slate-800 dark:text-slate-100 truncate"
+                            id="desktop-username-display">-</p>
+                        <p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5"
+                            id="desktop-role-display">-</p>
                     </div>
                 </div>
-                <button onclick="handleLogout()" class="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:text-rose-600 text-slate-400 dark:text-slate-300 text-xs shadow-xs flex items-center justify-center transition-all animate-none" title="Keluar">
+                <button onclick="handleLogout()"
+                    class="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:text-rose-600 text-slate-400 dark:text-slate-300 text-xs shadow-xs flex items-center justify-center transition-all animate-none"
+                    title="Keluar">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
             </div>
 
             <nav class="flex-1 overflow-y-auto p-4 space-y-1" id="desktop-nav">
-                <button onclick="router('dashboard')" id="nav-dashboard" data-roles="admin,kepala,koordinator,tim,pemohon" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('dashboard')" id="nav-dashboard"
+                    data-roles="admin,kepala,koordinator,tim,pemohon"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-gauge-high w-5 text-sm"></i> Dashboard
                 </button>
-                <button onclick="router('calendar')" id="nav-calendar" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('calendar')" id="nav-calendar" data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-regular fa-calendar-days w-5 text-sm"></i> Kalender Kegiatan
                 </button>
-                <button onclick="router('planner')" id="nav-planner" data-roles="admin,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('planner')" id="nav-planner" data-roles="admin,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-list-check w-5 text-sm"></i> Content Planner
                 </button>
-                <button onclick="router('rekap_rutin')" id="nav-rekap_rutin" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('rekap_rutin')" id="nav-rekap_rutin" data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-circle-nodes w-5 text-sm"></i> Rekap Rutin
                 </button>
-                <button onclick="router('ad_hoc')" id="nav-ad_hoc" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('ad_hoc')" id="nav-ad_hoc" data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-business-time w-5 text-sm"></i> Ad Hoc 2026
                 </button>
-                <button onclick="router('protokoler_sep')" id="nav-protokoler_sep" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('protokoler_sep')" id="nav-protokoler_sep"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-crown w-5 text-sm"></i> Protokoler
                 </button>
-                <button onclick="router('mc_sep')" id="nav-mc_sep" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-microphone-lines w-5 text-sm"></i> Modul MC
+                <button onclick="router('mc_sep')" id="nav-mc_sep" data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-microphone-lines w-5 text-sm"></i> Master of Ceremony
                 </button>
-                <button onclick="router('brs_rilis')" id="nav-brs_rilis" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('brs_rilis')" id="nav-brs_rilis" data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-bullhorn w-5 text-sm"></i> BRS Rilis
                 </button>
-                <button onclick="router('hari_besar')" id="nav-hari_besar" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('hari_besar')" id="nav-hari_besar" data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-heart w-5 text-sm"></i> Ucapan Hari Besar
                 </button>
-                <button onclick="router('tickets')" id="nav-tickets" data-roles="admin,kepala,koordinator,tim,pemohon" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('tickets')" id="nav-tickets" data-roles="admin,kepala,koordinator,tim,pemohon"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-ticket w-5 text-sm"></i> Layanan Humas
                 </button>
-                <button onclick="router('monitoring')" id="nav-monitoring" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('monitoring')" id="nav-monitoring" data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-magnifying-glass-chart w-5 text-sm"></i> Media Monitoring
                 </button>
-                <button onclick="router('rekap_kegiatan')" id="nav-rekap_kegiatan" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('rekap_kegiatan')" id="nav-rekap_kegiatan"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-chart-simple w-5 text-sm"></i> SLA & Rekap Tugas
                 </button>
-                <button onclick="router('team')" id="nav-team" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('team')" id="nav-team" data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-users w-5 text-sm"></i> Direktori Tim
                 </button>
-                <button onclick="router('settings')" id="nav-settings" data-roles="admin" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                <button onclick="router('settings')" id="nav-settings" data-roles="admin"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-gears w-5 text-sm"></i> Master & Backup
                 </button>
             </nav>
 
             <div class="p-4 border-t border-slate-100 dark:border-slate-700">
-                <div class="bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
-                    <p class="text-[9px] uppercase font-extrabold text-indigo-650 dark:text-indigo-400 tracking-widest">Sinkronisasi</p>
-                    <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-medium">
+                <div
+                    class="bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+                    <p class="text-[9px] uppercase font-extrabold text-indigo-650 dark:text-indigo-400 tracking-widest">
+                        Sinkronisasi</p>
+                    <div
+                        class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-medium">
                         <span><i class="fa-regular fa-clock mr-1"></i> Terakhir:</span>
                         <span id="last-sync-date" class="font-bold text-slate-700 dark:text-slate-200">-</span>
                     </div>
-                    <button onclick="syncData()" class="mt-3.5 w-full bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-[10px] font-bold uppercase tracking-wider py-2 rounded-xl shadow-xs transition-all flex justify-center items-center gap-2">
+                    <button onclick="syncData()"
+                        class="mt-3.5 w-full bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-[10px] font-bold uppercase tracking-wider py-2 rounded-xl shadow-xs transition-all flex justify-center items-center gap-2">
                         <i class="fa-solid fa-rotate"></i> Sinkron
                     </button>
                 </div>
@@ -527,15 +610,19 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 relative transition-colors duration-300">
+        <main
+            class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 relative transition-colors duration-300">
             <!-- Global Header for Search, Dark Mode, Notification -->
-            <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-3.5 flex justify-between items-center shadow-xs shrink-0 z-20 transition-colors duration-300">
+            <header
+                class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-3.5 flex justify-between items-center shadow-xs shrink-0 z-20 transition-colors duration-300">
                 <div class="flex items-center gap-4">
-                    <button onclick="openMobileSidebar()" class="md:hidden w-8 h-8 rounded-xl flex items-center justify-center text-slate-550 hover:bg-slate-50 dark:hover:bg-slate-700 dark:text-slate-300 transition-all">
+                    <button onclick="openMobileSidebar()"
+                        class="md:hidden w-8 h-8 rounded-xl flex items-center justify-center text-slate-550 hover:bg-slate-50 dark:hover:bg-slate-700 dark:text-slate-300 transition-all">
                         <i class="fa-solid fa-bars text-lg"></i>
                     </button>
                     <div>
-                        <h2 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                        <h2
+                            class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
                             <i class="fa-solid fa-shield-halved text-indigo-500 hidden md:inline"></i>
                             SIM Humas & Protokol BPS Kalbar
                         </h2>
@@ -548,32 +635,46 @@
                         <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
                             <i class="fa-solid fa-magnifying-glass text-[10px]"></i>
                         </span>
-                        <input type="text" id="global-search-input" oninput="handleGlobalSearch(this.value)" class="w-full pl-8.5 pr-4 py-1.5 bg-slate-50 dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-medium focus:bg-white dark:focus:bg-slate-800 focus:outline-none placeholder-slate-450 dark:text-white transition-all" placeholder="Cari global di halaman aktif...">
+                        <input type="text" id="global-search-input" oninput="handleGlobalSearch(this.value)"
+                            class="w-full pl-8.5 pr-4 py-1.5 bg-slate-50 dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-medium focus:bg-white dark:focus:bg-slate-800 focus:outline-none placeholder-slate-450 dark:text-white transition-all"
+                            placeholder="Cari global di halaman aktif...">
                     </div>
                 </div>
 
                 <!-- Top Right Utilities -->
                 <div class="flex items-center gap-2">
                     <!-- Dark Mode Toggle -->
-                    <button onclick="toggleDarkMode()" class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all" title="Toggle Dark/Light Mode">
+                    <button onclick="toggleDarkMode()"
+                        class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+                        title="Toggle Dark/Light Mode">
                         <i class="fa-solid fa-moon dark:hidden text-xs"></i>
                         <i class="fa-solid fa-sun hidden dark:block text-amber-500 text-xs"></i>
                     </button>
 
                     <!-- Notifications Dropdown -->
                     <div class="relative">
-                        <button onclick="toggleNotificationPanel()" class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all relative" title="Notifikasi System">
+                        <button onclick="toggleNotificationPanel()"
+                            class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all relative"
+                            title="Notifikasi System">
                             <i class="fa-solid fa-bell text-xs"></i>
-                            <span id="notif-badge" class="absolute -top-1.5 -right-1.5 bg-rose-500 text-white font-extrabold text-[8px] px-1 rounded-full border-2 border-white dark:border-slate-850 hidden">0</span>
+                            <span id="notif-badge"
+                                class="absolute -top-1.5 -right-1.5 bg-rose-500 text-white font-extrabold text-[8px] px-1 rounded-full border-2 border-white dark:border-slate-850 hidden">0</span>
                         </button>
-                        
+
                         <!-- Panel Dropdown -->
-                        <div id="notif-panel" class="absolute right-0 mt-3.5 w-76 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl hidden z-50 overflow-hidden">
-                            <div class="p-3.5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
-                                <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-bell text-indigo-500"></i> Notifikasi</h4>
-                                <button onclick="markAllNotificationsRead()" class="text-[9px] font-black text-indigo-650 dark:text-indigo-400 hover:underline">Tandai dibaca</button>
+                        <div id="notif-panel"
+                            class="absolute right-0 mt-3.5 w-76 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl hidden z-50 overflow-hidden">
+                            <div
+                                class="p-3.5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
+                                <h4
+                                    class="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                                    <i class="fa-solid fa-bell text-indigo-500"></i> Notifikasi</h4>
+                                <button onclick="markAllNotificationsRead()"
+                                    class="text-[9px] font-black text-indigo-650 dark:text-indigo-400 hover:underline">Tandai
+                                    dibaca</button>
                             </div>
-                            <div id="notif-list" class="max-h-64 overflow-y-auto p-2 space-y-1.5 bg-white dark:bg-slate-800">
+                            <div id="notif-list"
+                                class="max-h-64 overflow-y-auto p-2 space-y-1.5 bg-white dark:bg-slate-800">
                                 <!-- Populated dynamically -->
                             </div>
                         </div>
@@ -584,8 +685,10 @@
             <!-- Main Render Area -->
             <div id="app-content" class="flex-1 overflow-y-auto p-4 md:p-8 fade-in">
                 <div class="flex flex-col justify-center items-center h-full">
-                    <div class="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-                    <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Menghubungkan ke server database...</span>
+                    <div class="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin mb-4">
+                    </div>
+                    <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Menghubungkan ke server
+                        database...</span>
                 </div>
             </div>
         </main>
