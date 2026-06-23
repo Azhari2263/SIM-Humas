@@ -18,7 +18,8 @@ function doGet() {
     brsRilis: getSheetData(sheet, 'brs_rilis', ["id", "tanggal_rilis", "judul", "pic_poster_info", "pic_doc_ruang", "pic_doc_yt_zoom", "highlight"]),
     hariBesar: getSheetData(sheet, 'hari_besar', ["id", "tanggal", "hari_besar", "data_pendukung", "pembuat_konten", "status"]),
     rekapKegiatan: getSheetData(sheet, 'rekap_kegiatan', ["id", "deadline", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status"]),
-    notifications: getSheetData(sheet, 'notifications', ["id", "user_role", "title", "message", "timestamp", "is_read"])
+    notifications: getSheetData(sheet, 'notifications', ["id", "user_role", "title", "message", "timestamp", "is_read"]),
+    assignments: getSheetData(sheet, 'assignments', ["id", "tugas", "deskripsi", "prioritas", "status", "tanggal_penugasan", "deadline", "progres", "lampiran", "assigned_to"])
   };
   
   return ContentService.createTextOutput(JSON.stringify(data))
@@ -135,7 +136,8 @@ function getHeadersForSheet(name) {
     'brs_rilis': ["id", "tanggal_rilis", "judul", "pic_poster_info", "pic_doc_ruang", "pic_doc_yt_zoom", "highlight"],
     'hari_besar': ["id", "tanggal", "hari_besar", "data_pendukung", "pembuat_konten", "status"],
     'rekap_kegiatan': ["id", "deadline", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status"],
-    'notifications': ["id", "user_role", "title", "message", "timestamp", "is_read"]
+    'notifications': ["id", "user_role", "title", "message", "timestamp", "is_read"],
+    'assignments': ["id", "tugas", "deskripsi", "prioritas", "status", "tanggal_penugasan", "deadline", "progres", "lampiran", "assigned_to"]
   };
   return schemas[name] || null;
 }

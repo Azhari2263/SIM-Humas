@@ -21,16 +21,15 @@ function isTaskForCurrentUser(item) {
         item.pembuat_konten,
         item.pic_poster_info,
         item.pic_doc_ruang,
-        item.pic_doc_yt_zoom
+        item.pic_doc_yt_zoom,
+        item.assigned_to
     ].filter(Boolean).map(v => String(v).toLowerCase()).join(' ');
 
     if (!picFields.trim()) return false;
 
     return picFields.includes(userName) ||
         picFields.includes(displayName) ||
-        displayName.includes(userName) ||
-        picFields.includes('staf humas') ||
-        displayName.includes('staf humas');
+        picFields.includes('staf humas');
 }
 
 // Helper: Get user avatar initials
@@ -610,11 +609,13 @@ function renderPemohonDashboard(container) {
     `;
 }
 
-// -------------------------------------------------------------
-// 2. CONTENT PLANNER (KANBAN BOARD) VIEW
+// ------------------------------------------------------------// 2. CONTENT PLANNER (TABLE VIEW)
 // -------------------------------------------------------------
 let plannerSearch = '';
 let plannerPicFilter = '';
+let plannerStatusFilter = '';
+let plannerSortField = 'jadwal';
+let plannerSortAsc = true;
 
 function renderPlanner(container) {
     const isKepala = currentUser.role === 'kepala';
@@ -622,8 +623,11 @@ function renderPlanner(container) {
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
-                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Content Planner</h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola papan Kanban interaktif untuk melacak pembuatan dan penayangan konten visual.</p>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-indigo-650 dark:text-indigo-400"></i>
+                    Content Planner
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola dan jadwalkan rencana konten visual tim Humas BPS Provinsi Kalimantan Barat.</p>
             </div>
             ${!isKepala && isUserAdminOrKetua() ? `
                 <button onclick="openModal('content')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
@@ -632,51 +636,117 @@ function renderPlanner(container) {
             ` : ''}
         </div>
 
-        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-xs">
-            <div class="relative w-full sm:max-w-xs">
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-4 shadow-xs">
+            <div class="relative">
                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
                 <input type="text" id="planner-search-input" oninput="handlePlannerSearch(this.value)" value="${plannerSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:bg-white focus:outline-none placeholder-slate-450 dark:text-white text-slate-750 transition-all" placeholder="Cari judul atau konsep...">
             </div>
-            <div class="flex items-center gap-2 w-full sm:w-auto">
-                <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-filter mr-1 text-slate-450"></i> Filter PIC:</span>
-                <select id="planner-pic-select" onchange="handlePlannerPicFilter(this.value)" class="text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-650 dark:text-slate-200 focus:outline-none min-w-[140px] shadow-xs">
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-filter mr-1 text-slate-400"></i> Status:</span>
+                <select id="planner-status-select" onchange="handlePlannerStatusFilter(this.value)" class="w-full text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-655 dark:text-slate-200 focus:outline-none shadow-xs">
+                    <option value="">Semua Status</option>
+                    <option ${plannerStatusFilter === 'Draft' ? 'selected' : ''} value="Draft">Draft</option>
+                    <option ${plannerStatusFilter === 'In Progress' ? 'selected' : ''} value="In Progress">In Progress</option>
+                    <option ${plannerStatusFilter === 'Done' ? 'selected' : ''} value="Done">Done</option>
+                    <option ${plannerStatusFilter === 'Posted' ? 'selected' : ''} value="Posted">Posted</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-user-tag mr-1 text-slate-405"></i> PIC:</span>
+                <select id="planner-pic-select" onchange="handlePlannerPicFilter(this.value)" class="w-full text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-655 dark:text-slate-200 focus:outline-none shadow-xs">
                     <option value="">Semua PIC</option>
                     ${db.team.map(m => `<option ${plannerPicFilter === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
                 </select>
             </div>
+            <div class="flex justify-end items-center">
+                <button onclick="resetPlannerFilters()" class="w-full sm:w-auto btn-secondary text-xs py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </button>
+            </div>
         </div>
 
-        <div class="flex gap-4 overflow-x-auto pb-4 select-none pr-1" id="kanban-columns">
-            <!-- Will be drawn dynamically -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 select-none">
+                            <th class="py-3.5 px-4 w-12 text-center">No</th>
+                            <th onclick="handlePlannerSort('judul')" class="py-3.5 px-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
+                                Judul Konten <span id="sort-icon-judul" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th class="py-3.5 px-4">Konsep / Visual</th>
+                            <th class="py-3.5 px-4 w-32">Jenis & Tipe</th>
+                            <th onclick="handlePlannerSort('progres')" class="py-3.5 px-4 w-32 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 text-center">
+                                Progres <span id="sort-icon-progres" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th onclick="handlePlannerSort('jadwal')" class="py-3.5 px-4 w-36 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
+                                Jadwal Post <span id="sort-icon-jadwal" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th onclick="handlePlannerSort('status')" class="py-3.5 px-4 w-28 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 text-center">
+                                Status <span id="sort-icon-status" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th onclick="handlePlannerSort('assignedTo')" class="py-3.5 px-4 w-36 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
+                                PIC <span id="sort-icon-assignedTo" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            ${!isKepala ? `<th class="py-3.5 px-4 w-24 text-center">Aksi</th>` : ''}
+                        </tr>
+                    </thead>
+                    <tbody id="planner-table-body" class="text-xs divide-y divide-slate-100 dark:divide-slate-800">
+                        <!-- Table rows populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     `;
 
     drawPlannerBoard();
 }
 
-function handlePlannerSearch(val) {
+window.handlePlannerSearch = function(val) {
     plannerSearch = val;
     drawPlannerBoard();
-}
+};
 
-function handlePlannerPicFilter(val) {
+window.handlePlannerPicFilter = function(val) {
     plannerPicFilter = val;
     drawPlannerBoard();
-}
+};
 
-function drawPlannerBoard() {
-    const statuses = ['Draft', 'In Progress', 'Done', 'Posted'];
-    const postTypeIcons = {
-        'Carousel': '<i class="fa-solid fa-images text-indigo-500" title="Carousel"></i>',
-        'Reels': '<i class="fa-solid fa-clapperboard text-rose-500" title="Reels"></i>',
-        'Single Image': '<i class="fa-regular fa-image text-emerald-500" title="Single Image"></i>',
-        'Video': '<i class="fa-solid fa-video text-violet-500" title="Video"></i>'
-    };
+window.handlePlannerStatusFilter = function(val) {
+    plannerStatusFilter = val;
+    drawPlannerBoard();
+};
 
-    const board = document.getElementById('kanban-columns');
-    if (!board) return;
+window.resetPlannerFilters = function() {
+    plannerSearch = '';
+    plannerPicFilter = '';
+    plannerStatusFilter = '';
+    const searchInput = document.getElementById('planner-search-input');
+    if (searchInput) searchInput.value = '';
+    const statusSelect = document.getElementById('planner-status-select');
+    if (statusSelect) statusSelect.value = '';
+    const picSelect = document.getElementById('planner-pic-select');
+    if (picSelect) picSelect.value = '';
+    drawPlannerBoard();
+};
+
+window.handlePlannerSort = function(field) {
+    if (plannerSortField === field) {
+        plannerSortAsc = !plannerSortAsc;
+    } else {
+        plannerSortField = field;
+        plannerSortAsc = true;
+    }
+    drawPlannerBoard();
+};
+
+window.drawPlannerBoard = function() {
+    const tableBody = document.getElementById('planner-table-body');
+    if (!tableBody) return;
 
     let filtered = db.contentPlanner.filter(isTaskForCurrentUser);
+    
+    // Search filter
     if (plannerSearch.trim()) {
         const query = plannerSearch.toLowerCase();
         filtered = filtered.filter(item =>
@@ -684,133 +754,152 @@ function drawPlannerBoard() {
             (item.konsep && item.konsep.toLowerCase().includes(query))
         );
     }
+    
+    // Status filter
+    if (plannerStatusFilter) {
+        filtered = filtered.filter(item => item.status === plannerStatusFilter);
+    }
+    
+    // PIC filter
     if (plannerPicFilter) {
         filtered = filtered.filter(item => item.assignedTo === plannerPicFilter);
     }
 
+    // Sorting
+    filtered.sort((a, b) => {
+        let valA = a[plannerSortField] || '';
+        let valB = b[plannerSortField] || '';
+        
+        if (plannerSortField === 'progres') {
+            valA = Number(valA);
+            valB = Number(valB);
+        } else if (plannerSortField === 'jadwal') {
+            valA = new Date(valA || '1970-01-01');
+            valB = new Date(valB || '1970-01-01');
+        } else {
+            valA = String(valA).toLowerCase();
+            valB = String(valB).toLowerCase();
+        }
+
+        if (valA < valB) return plannerSortAsc ? -1 : 1;
+        if (valA > valB) return plannerSortAsc ? 1 : -1;
+        return 0;
+    });
+
+    // Update sort icons
+    const sortFields = ['judul', 'progres', 'jadwal', 'status', 'assignedTo'];
+    sortFields.forEach(f => {
+        const iconEl = document.getElementById(`sort-icon-${f}`);
+        if (iconEl) {
+            if (plannerSortField === f) {
+                iconEl.innerHTML = plannerSortAsc ? '<i class="fa-solid fa-sort-up text-indigo-500"></i>' : '<i class="fa-solid fa-sort-down text-indigo-500"></i>';
+            } else {
+                iconEl.innerHTML = '<i class="fa-solid fa-sort"></i>';
+            }
+        }
+    });
+
     const isKepala = currentUser.role === 'kepala';
+    const postTypeIcons = {
+        'Carousel': '<span class="inline-flex items-center gap-1 text-indigo-650 dark:text-indigo-400 font-medium"><i class="fa-solid fa-images"></i> Carousel</span>',
+        'Reels': '<span class="inline-flex items-center gap-1 text-rose-500 font-medium"><i class="fa-solid fa-clapperboard"></i> Reels</span>',
+        'Single Image': '<span class="inline-flex items-center gap-1 text-emerald-500 font-medium"><i class="fa-regular fa-image"></i> Image</span>',
+        'Video': '<span class="inline-flex items-center gap-1 text-violet-500 font-medium"><i class="fa-solid fa-video"></i> Video</span>'
+    };
 
-    board.innerHTML = statuses.map(status => {
-        const cards = filtered.filter(c => c.status === status);
-        const cardsHtml = cards.map(item => {
-            const avatarBg = getAvatarBg(item.assignedTo);
-            const initials = getPicInitials(item.assignedTo);
-            const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
-
-            let nextIndex = statuses.indexOf(status) + 1;
-            let prevIndex = statuses.indexOf(status) - 1;
-
-            let moveButtons = '';
-            if (!isKepala) {
-                moveButtons = `
-                    <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700 rounded-lg p-0.5">
-                        ${prevIndex >= 0 ? `
-                            <button onclick="moveKanbanTask(${item.id}, '${statuses[prevIndex]}')" title="Pindahkan ke ${statuses[prevIndex]}" class="w-5 h-5 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded text-slate-500 hover:bg-slate-100 transition-colors">
-                                <i class="fa-solid fa-chevron-left text-[9px]"></i>
-                            </button>
-                        ` : '<div class="w-5"></div>'}
-                        <span class="text-[9px] font-black text-slate-400 dark:text-slate-555 uppercase select-none px-1">Geser</span>
-                        ${nextIndex < statuses.length ? `
-                            <button onclick="moveKanbanTask(${item.id}, '${statuses[nextIndex]}')" title="Pindahkan ke ${statuses[nextIndex]}" class="w-5 h-5 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded text-slate-500 hover:bg-slate-100 transition-colors">
-                                <i class="fa-solid fa-chevron-right text-[9px]"></i>
-                            </button>
-                        ` : '<div class="w-5"></div>'}
+    if (filtered.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="${isKepala ? 8 : 9}" class="py-12 text-center text-slate-400 dark:text-slate-500">
+                    <div class="flex flex-col items-center justify-center">
+                        <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-350 dark:text-slate-600"></i>
+                        <p class="text-xs font-bold uppercase tracking-wider">Data Rencana Konten Kosong</p>
+                        <p class="text-[10px] mt-0.5">Cobalah mengubah kata kunci pencarian atau filter</p>
                     </div>
-                `;
-            }
+                </td>
+            </tr>
+        `;
+        return;
+    }
 
-            let actionsPanel = '';
-            if (!isKepala) {
-                actionsPanel = `
-                    <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-1">
-                        <div class="flex items-center">
-                            <button onclick="openModalById('content', ${item.id})" title="Ubah tugas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-655 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
-                                <i class="fa-solid fa-pen text-[10px]"></i>
+    tableBody.innerHTML = filtered.map((item, index) => {
+        const initials = getPicInitials(item.assignedTo);
+        const avatarBg = getAvatarBg(item.assignedTo);
+
+        // Status Badge Style
+        let statusBadge = '';
+        switch (item.status) {
+            case 'Draft':
+                statusBadge = '<span class="px-2.5 py-1 bg-slate-105 text-slate-700 dark:bg-slate-700 dark:text-slate-300 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-600">Draft</span>';
+                break;
+            case 'In Progress':
+                statusBadge = '<span class="px-2.5 py-1 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 rounded-full text-[10px] font-bold border border-blue-105 dark:border-blue-900/65">In Progress</span>';
+                break;
+            case 'Done':
+                statusBadge = '<span class="px-2.5 py-1 bg-violet-50 text-violet-700 dark:bg-violet-955/40 dark:text-violet-300 rounded-full text-[10px] font-bold border border-violet-105 dark:border-violet-900/65">Done</span>';
+                break;
+            case 'Posted':
+                statusBadge = '<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-955/40 dark:text-emerald-300 rounded-full text-[10px] font-bold border border-emerald-105 dark:border-emerald-900/65">Posted</span>';
+                break;
+            default:
+                statusBadge = `<span class="px-2.5 py-1 bg-slate-50 text-slate-600 rounded-full text-[10px] font-bold">${item.status}</span>`;
+        }
+
+        let actions = '';
+        if (!isKepala) {
+            actions = `
+                <td class="py-3 px-4 text-center">
+                    <div class="flex justify-center items-center gap-1.5">
+                        <button onclick="openModalById('content', ${item.id})" title="Ubah data" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
+                            <i class="fa-solid fa-pen text-[10px]"></i>
+                        </button>
+                        ${isUserAdminOrKetua() ? `
+                            <button onclick="deleteItem('content', ${item.id})" title="Hapus data" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
+                                <i class="fa-solid fa-trash text-[10px]"></i>
                             </button>
-                            ${isUserAdminOrKetua() ? `
-                                <button onclick="deleteItem('content', ${item.id})" title="Hapus tugas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
-                                    <i class="fa-solid fa-trash text-[10px]"></i>
-                                </button>
-                            ` : ''}
-                        </div>
-                        ${moveButtons}
+                        ` : ''}
                     </div>
-                `;
-            }
+                </td>
+            `;
+        }
 
-            return `
-                <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200/90 dark:border-slate-700 p-4 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-650 transition-all duration-205 group relative">
-                    <div class="flex justify-between items-start mb-2 gap-2">
-                        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${item.jenis === 'Hard Selling' ? 'bg-rose-50 text-rose-750 border border-rose-100 dark:bg-rose-950 dark:text-rose-300' : 'bg-indigo-50 text-indigo-750 border border-indigo-100 dark:bg-indigo-950 dark:text-indigo-300'}">${item.jenis}</span>
-                        <span class="text-xs">${postTypeIcons[item.postType] || ''}</span>
+        return `
+            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors">
+                <td class="py-3.5 px-4 text-center font-bold text-slate-400">${index + 1}</td>
+                <td class="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 min-w-[180px] max-w-[280px]">
+                    <span onclick="showDetailById('content', ${item.id})" class="hover:text-indigo-650 transition-colors cursor-pointer block truncate" title="${item.judul}">${item.judul}</span>
+                </td>
+                <td class="py-3.5 px-4 text-slate-500 dark:text-slate-400 min-w-[200px]">
+                    <p class="line-clamp-2 leading-relaxed" title="${item.konsep || ''}">${item.konsep || '-'}</p>
+                </td>
+                <td class="py-3.5 px-4 font-semibold text-[10px]">
+                    <div class="flex flex-col gap-1">
+                        <span class="px-2 py-0.5 w-max rounded text-[9px] font-extrabold uppercase ${item.jenis === 'Hard Selling' ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-100 dark:border-rose-900' : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900'}">${item.jenis}</span>
+                        <span>${postTypeIcons[item.postType] || item.postType || '-'}</span>
                     </div>
-
-                    <h4 onclick="showDetailById('content', ${item.id})" class="font-bold text-slate-855 dark:text-slate-200 text-xs hover:text-indigo-650 transition-colors cursor-pointer line-clamp-2 leading-snug" title="${item.judul}">${item.judul}</h4>
-                    <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed" title="${item.konsep}">${item.konsep || 'Tidak ada konsep.'}</p>
-                    
-                    <!-- Progress Bar -->
-                    <div class="mt-3.5">
-                        <div class="flex justify-between items-center text-[9px] text-slate-455 mb-1">
-                            <span>Pengerjaan</span>
-                            <span class="font-bold text-slate-600 dark:text-slate-400">${item.progres}%</span>
-                        </div>
-                        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1">
+                </td>
+                <td class="py-3.5 px-4 text-center">
+                    <div class="flex flex-col items-center justify-center gap-1 min-w-[80px]">
+                        <span class="font-bold text-[10px] text-slate-600 dark:text-slate-450">${item.progres}%</span>
+                        <div class="w-20 bg-slate-100 dark:bg-slate-800 rounded-full h-1">
                             <div class="bg-gradient-to-r from-indigo-500 to-violet-650 h-1 rounded-full" style="width: ${item.progres}%"></div>
                         </div>
                     </div>
-
-                    <!-- Footer Info -->
-                    <div class="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[9px] font-bold shadow-xs ${avatarBg}" title="${item.assignedTo}">${initials}</div>
-                            <span class="text-[9px] text-slate-500 font-semibold truncate max-w-[65px]">${item.assignedTo?.split(' ')[0] || 'PIC'}</span>
-                        </div>
-                        <span class="text-[9px] text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1 bg-rose-50 dark:bg-rose-955/40 px-1.5 py-0.5 rounded-md"><i class="fa-regular fa-clock"></i> ${formatDate(item.jadwal)}</span>
-                    </div>
-
-                    ${actionsPanel}
-                </div>
-            `;
-        }).join('');
-
-        return `
-            <div class="flex-1 min-w-[280px] max-w-[320px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col max-h-[660px]">
-                <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+                </td>
+                <td class="py-3.5 px-4 font-bold text-rose-600 dark:text-rose-450 whitespace-nowrap">
+                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300"><i class="fa-regular fa-calendar-check text-[10px]"></i> ${formatDate(item.jadwal)}</span>
+                </td>
+                <td class="py-3.5 px-4 text-center">${statusBadge}</td>
+                <td class="py-3.5 px-4">
                     <div class="flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full ${status === 'Draft' ? 'bg-slate-450' :
-                status === 'In Progress' ? 'bg-blue-500' :
-                    status === 'Done' ? 'bg-violet-500' : 'bg-emerald-500'
-            }"></span>
-                        <h3 class="font-black text-slate-700 dark:text-slate-350 text-xs tracking-wider uppercase">${status}</h3>
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold border border-slate-200 shadow-xs ${avatarBg}" title="${item.assignedTo}">${initials}</div>
+                        <span class="font-bold text-[10px] text-slate-600 dark:text-slate-400 truncate max-w-[80px]">${item.assignedTo || '-'}</span>
                     </div>
-                    <span class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 shadow-xs">${cards.length}</span>
-                </div>
-                <div class="space-y-3.5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
-                    ${cardsHtml.length > 0 ? cardsHtml : `
-                        <div class="py-16 text-center text-slate-400 dark:text-slate-550 border border-dashed border-slate-250 dark:border-slate-700 rounded-2xl bg-white/40 dark:bg-slate-850/40">
-                            <i class="fa-solid fa-folder-open text-2xl mb-1.5 text-slate-300 dark:text-slate-655"></i>
-                            <p class="text-[10px] font-bold">Kosong</p>
-                        </div>
-                    `}
-                </div>
-            </div>
+                </td>
+                ${actions}
+            </tr>
         `;
     }).join('');
-
-    window.moveKanbanTask = async function (taskId, newStatus) {
-        if (isKepala) return;
-        const item = db.contentPlanner.find(c => c.id === taskId);
-        if (!item) return;
-
-        item.status = newStatus;
-        if (newStatus === 'Posted') item.progres = 100;
-        else if (newStatus === 'Draft' && item.progres === 100) item.progres = 30;
-        else if (newStatus === 'Done') item.progres = 100;
-
-        showToast(`Tugas dipindahkan ke status: ${newStatus}`);
-        drawPlannerBoard();
-        await sendDataToServer('update', 'content_planner', item);
-    };
 }
 
 // -------------------------------------------------------------
@@ -1736,12 +1825,10 @@ function renderRekapKegiatan(container) {
                 `).join('')}
             </div>
         </div>
-    `;
-}
+    // 10. INTEGRATED CALENDAR VIEW
+// -------------------------------------------------------------
+let calendarFilter = 'all';
 
-// -------------------------------------------------------------
-// 10. INTEGRATED CALENDAR VIEW
-// -------------------------------------------------------------
 function renderIntegratedCalendar(container) {
     if (!window.calendarCurrentDate) {
         window.calendarCurrentDate = new Date();
@@ -1750,14 +1837,34 @@ function renderIntegratedCalendar(container) {
         window.calendarMode = 'month';
     }
 
+    const rawEvents = [];
+    db.rekapRutin.forEach(e => rawEvents.push({ title: `[Rutin] ${e.kegiatan}`, date: formatDateInput(e.tanggal), color: 'bg-indigo-500', type: 'rekap_rutin', item: e }));
+    db.adHoc.forEach(e => rawEvents.push({ title: `[AdHoc] ${e.kegiatan}`, date: formatDateInput(e.tanggal), color: 'bg-emerald-500', type: 'ad_hoc', item: e }));
+    db.protokoler.forEach(e => rawEvents.push({ title: `[Proto] ${e.kegiatan}`, date: formatDateInput(e.tanggal), color: 'bg-violet-500', type: 'protokoler', item: e }));
+    db.mc.forEach(e => rawEvents.push({ title: `[MC] ${e.kegiatan}`, date: formatDateInput(e.tanggal), color: 'bg-sky-500', type: 'mc', item: e }));
+    db.brsRilis.forEach(e => rawEvents.push({ title: `[BRS] ${e.judul}`, date: formatDateInput(e.tanggal_rilis), color: 'bg-rose-500', type: 'brs_rilis', item: e }));
+    db.hariBesar.forEach(e => rawEvents.push({ title: `[HariBesar] ${e.hari_besar}`, date: formatDateInput(e.tanggal), color: 'bg-amber-500', type: 'hari_besar', item: e }));
+    db.contentPlanner.forEach(e => rawEvents.push({ title: `[Konten] ${e.judul}`, date: formatDateInput(e.jadwal), color: 'bg-teal-600', type: 'content', item: e }));
+    db.assignments.forEach(e => rawEvents.push({ title: `[Tugas] ${e.tugas}`, date: formatDateInput(e.deadline), color: 'bg-rose-600', type: 'assignment', item: e }));
+
     const events = [];
-    db.rekapRutin.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Rutin] ${e.kegiatan}`, date: formatDateInput(e.tanggal), color: 'bg-indigo-500' }));
-    db.adHoc.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[AdHoc] ${e.kegiatan}`, date: formatDateInput(e.tanggal), color: 'bg-emerald-500' }));
-    db.protokoler.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Proto] ${e.kegiatan}`, date: formatDateInput(e.tanggal), color: 'bg-violet-500' }));
-    db.mc.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[MC] ${e.kegiatan}`, date: formatDateInput(e.tanggal), color: 'bg-sky-500' }));
-    db.brsRilis.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[BRS] ${e.judul}`, date: formatDateInput(e.tanggal_rilis), color: 'bg-rose-500' }));
-    db.hariBesar.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[HariBesar] ${e.hari_besar}`, date: formatDateInput(e.tanggal), color: 'bg-amber-500' }));
-    db.contentPlanner.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Konten] ${e.judul}`, date: formatDateInput(e.jadwal), color: 'bg-teal-600' }));
+    rawEvents.forEach(e => {
+        const isMine = isTaskForCurrentUser(e.item);
+        if (calendarFilter === 'my' && !isMine) return;
+
+        let displayTitle = e.title;
+        let isHighlighted = false;
+        if (calendarFilter === 'highlight' && isMine) {
+            displayTitle = `⭐ ${e.title}`;
+            isHighlighted = true;
+        }
+
+        events.push({
+            ...e,
+            displayTitle,
+            isHighlighted
+        });
+    });
 
     const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     let headerTitle = '';
@@ -1779,7 +1886,7 @@ function renderIntegratedCalendar(container) {
             const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const dayEvents = events.filter(e => e.date && e.date.includes(dateStr));
             const eventsListHtml = dayEvents.map(e => `
-                <div class="text-[8px] font-bold ${e.color} text-white px-1.5 py-0.5 rounded truncate mt-1" title="${e.title}">${e.title}</div>
+                <div class="text-[8px] font-bold ${e.color} text-white px-1.5 py-0.5 rounded truncate mt-1 ${e.isHighlighted ? 'ring-2 ring-amber-400 dark:ring-amber-500' : ''}" title="${e.title}">${e.displayTitle}</div>
             `).join('');
 
             const isToday = new Date(currentYear, currentMonth, d).toDateString() === new Date().toDateString();
@@ -1816,7 +1923,7 @@ function renderIntegratedCalendar(container) {
             const dateStrFixed = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             const dayEvents = events.filter(e => e.date && e.date.includes(dateStrFixed));
             const eventsListHtml = dayEvents.map(e => `
-                <div class="text-[8px] font-bold ${e.color} text-white px-1.5 py-0.5 rounded truncate mt-1" title="${e.title}">${e.title}</div>
+                <div class="text-[8px] font-bold ${e.color} text-white px-1.5 py-0.5 rounded truncate mt-1 ${e.isHighlighted ? 'ring-2 ring-amber-400 dark:ring-amber-500' : ''}" title="${e.title}">${e.displayTitle}</div>
             `).join('');
 
             const isToday = d.toDateString() === new Date().toDateString();
@@ -1834,9 +1941,24 @@ function renderIntegratedCalendar(container) {
     }
 
     container.innerHTML = `
-        <div class="mb-8 animate-fade-in">
-            <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Kalender Kegiatan Terintegrasi</h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Jadwal agenda harian, rilis BRS, ucapan hari besar, kegiatan protokoler pimpinan Kalbar, dan rencana konten.</p>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
+            <div>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                    <i class="fa-regular fa-calendar-days text-indigo-650 dark:text-indigo-400"></i>
+                    Kalender Kegiatan Terintegrasi
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Jadwal agenda harian, rilis BRS, ucapan hari besar, kegiatan protokoler pimpinan Kalbar, rencana konten, dan assignment tugas.</p>
+            </div>
+            
+            <!-- Calendar Filter Dropdown for My Tasks/Highlighting -->
+            <div class="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-205 dark:border-slate-700 p-2 rounded-2xl shadow-xs">
+                <span class="text-[10px] text-slate-550 dark:text-slate-400 font-extrabold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-eye text-indigo-500"></i> Tampilan:</span>
+                <select id="calendar-filter-select" onchange="handleCalendarFilterChange(this.value)" class="text-xs font-bold py-1 px-2.5 bg-slate-55 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-655 dark:text-slate-200 focus:outline-none shadow-xs">
+                    <option value="all" ${calendarFilter === 'all' ? 'selected' : ''}>Semua Agenda Tim</option>
+                    <option value="my" ${calendarFilter === 'my' ? 'selected' : ''}>Hanya Agenda Saya</option>
+                    <option value="highlight" ${calendarFilter === 'highlight' ? 'selected' : ''}>Sorot Agenda Saya (⭐)</option>
+                </select>
+            </div>
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs">
@@ -1864,6 +1986,7 @@ function renderIntegratedCalendar(container) {
                 <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-rose-500 rounded-md mr-1.5"></span> BRS</span>
                 <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-amber-500 rounded-md mr-1.5"></span> Hari Besar</span>
                 <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-teal-600 rounded-md mr-1.5"></span> Konten</span>
+                <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-rose-600 rounded-md mr-1.5"></span> Tugas</span>
             </div>
 
             <div class="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-700 text-center text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 py-3 rounded-t-2xl shrink-0">
@@ -1876,6 +1999,11 @@ function renderIntegratedCalendar(container) {
         </div>
     `;
 }
+
+window.handleCalendarFilterChange = function(val) {
+    calendarFilter = val;
+    router(currentState);
+};
 
 window.prevCalendar = function () {
     if (window.calendarMode === 'month') {
@@ -1909,79 +2037,95 @@ window.showCalendarDayEvents = function (dateStr) {
     const formattedDate = new Date(dateStr).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const dayEvents = [];
 
-    db.rekapRutin.filter(isTaskForCurrentUser).forEach(e => {
+    db.rekapRutin.forEach(e => {
         if (e.tanggal && formatDateInput(e.tanggal).includes(dateStr)) {
             dayEvents.push({ type: 'rekap_rutin', label: 'Rutin', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-indigo-500' });
         }
     });
 
-    db.adHoc.filter(isTaskForCurrentUser).forEach(e => {
+    db.adHoc.forEach(e => {
         if (e.tanggal && formatDateInput(e.tanggal).includes(dateStr)) {
             dayEvents.push({ type: 'ad_hoc', label: 'Ad Hoc', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-emerald-500' });
         }
     });
 
-    db.protokoler.filter(isTaskForCurrentUser).forEach(e => {
+    db.protokoler.forEach(e => {
         if (e.tanggal && formatDateInput(e.tanggal).includes(dateStr)) {
             dayEvents.push({ type: 'protokoler', label: 'Protokoler', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-violet-500' });
         }
     });
 
-    db.mc.filter(isTaskForCurrentUser).forEach(e => {
+    db.mc.forEach(e => {
         if (e.tanggal && formatDateInput(e.tanggal).includes(dateStr)) {
-            dayEvents.push({ type: 'mc', label: 'Master of Ceremony', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-sky-500' });
+            dayEvents.push({ type: 'mc', label: 'MC', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-sky-500' });
         }
     });
 
-    db.brsRilis.filter(isTaskForCurrentUser).forEach(e => {
+    db.brsRilis.forEach(e => {
         if (e.tanggal_rilis && formatDateInput(e.tanggal_rilis).includes(dateStr)) {
-            dayEvents.push({ type: 'brs_rilis', label: 'BRS Rilis', title: e.judul, pic: e.pic_poster_info || '-', status: 'Rilis', item: e, color: 'bg-rose-500' });
+            dayEvents.push({ type: 'brs_rilis', label: 'BRS Rilis', title: e.judul, pic: e.pic_poster_info || '-', status: 'Rilis', item: e, color: 'bg-rose-505' });
         }
     });
 
-    db.hariBesar.filter(isTaskForCurrentUser).forEach(e => {
+    db.hariBesar.forEach(e => {
         if (e.tanggal && formatDateInput(e.tanggal).includes(dateStr)) {
             dayEvents.push({ type: 'hari_besar', label: 'Hari Besar', title: e.hari_besar, pic: e.pembuat_konten || '-', status: e.status, item: e, color: 'bg-amber-500' });
         }
     });
 
-    db.contentPlanner.filter(isTaskForCurrentUser).forEach(e => {
+    db.contentPlanner.forEach(e => {
         if (e.jadwal && formatDateInput(e.jadwal).includes(dateStr)) {
             dayEvents.push({ type: 'content', label: 'Konten', title: e.judul, pic: e.assignedTo || '-', status: e.status, item: e, color: 'bg-teal-600' });
         }
     });
+
+    db.assignments.forEach(e => {
+        if (e.deadline && formatDateInput(e.deadline).includes(dateStr)) {
+            dayEvents.push({ type: 'assignment', label: 'Tugas', title: e.tugas, pic: e.assigned_to || '-', status: e.status, item: e, color: 'bg-rose-600' });
+        }
+    });
+
+    // Apply calendar filtering on day details modal too!
+    let filteredDayEvents = dayEvents;
+    if (calendarFilter === 'my') {
+        filteredDayEvents = dayEvents.filter(ev => isTaskForCurrentUser(ev.item));
+    }
 
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'calendar-day-modal';
 
     let listContent = '';
-    if (dayEvents.length === 0) {
+    if (filteredDayEvents.length === 0) {
         listContent = `
             <div class="py-12 text-center text-slate-400 dark:text-slate-500">
                 <i class="fa-regular fa-calendar-minus text-4xl mb-3 opacity-60"></i>
-                <p class="text-xs font-bold">Tidak ada agenda atau penugasan kegiatan pada tanggal ini.</p>
+                <p class="text-xs font-bold">Tidak ada agenda atau penugasan kegiatan.</p>
             </div>
         `;
     } else {
         listContent = `
             <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
-                ${dayEvents.map(ev => {
-            const itemJson = JSON.stringify(ev.item).replace(/"/g, '&quot;');
-            return `
-                        <div class="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl hover:border-indigo-400 dark:hover:border-indigo-600 transition-all cursor-pointer flex flex-col justify-between" onclick="closeCalendarDayModal(); showDetailFromCalendar('${ev.type}', ${ev.item.id})">
+                ${filteredDayEvents.map(ev => {
+                    const isMine = isTaskForCurrentUser(ev.item);
+                    const isHighlighted = calendarFilter === 'highlight' && isMine;
+                    return `
+                        <div class="p-3.5 bg-white dark:bg-slate-900 border ${isHighlighted ? 'border-amber-400 dark:border-amber-550 shadow-sm' : 'border-slate-200 dark:border-slate-750'} rounded-xl hover:border-indigo-400 dark:hover:border-indigo-600 transition-all cursor-pointer flex flex-col justify-between" onclick="closeCalendarDayModal(); showDetailFromCalendar('${ev.type}', ${ev.item.id})">
                             <div class="flex items-center justify-between mb-1.5">
-                                <span class="px-2 py-0.5 ${ev.color} text-white font-black text-[8px] rounded uppercase tracking-wider">${ev.label}</span>
+                                <span class="px-2 py-0.5 ${ev.color} text-white font-black text-[8px] rounded uppercase tracking-wider">${ev.label} ${isHighlighted ? '⭐' : ''}</span>
                                 <span class="text-[9px] font-bold text-slate-450 dark:text-slate-500 uppercase">${ev.status || '-'}</span>
                             </div>
-                            <h4 class="text-xs font-black text-slate-800 dark:text-white leading-relaxed line-clamp-2">${ev.title}</h4>
-                            <div class="flex items-center gap-1.5 mt-2 text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
-                                <i class="fa-regular fa-user text-xs"></i>
-                                <span>Petugas/PIC: <strong class="text-slate-700 dark:text-slate-200 font-bold">${ev.pic}</strong></span>
+                            <h4 class="text-xs font-black text-slate-805 dark:text-white leading-relaxed line-clamp-2">${ev.title}</h4>
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center gap-1.5 text-[10px] text-slate-505 dark:text-slate-400 font-semibold">
+                                    <i class="fa-regular fa-user text-xs"></i>
+                                    <span>PIC: <strong class="text-slate-700 dark:text-slate-200 font-bold">${ev.pic}</strong></span>
+                                </div>
+                                ${isMine ? `<span class="text-[9px] font-bold px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 rounded">Milik Anda</span>` : ''}
                             </div>
                         </div>
                     `;
-        }).join('')}
+                }).join('')}
             </div>
         `;
     }
@@ -2724,3 +2868,400 @@ function drawMonitoringTable() {
         else openPrintReportWindow("Kliping Media Monitoring BPS Kalbar", headers, rows);
     };
 }
+
+// -------------------------------------------------------------
+// 12. ASSIGNMENT VIEW
+// -------------------------------------------------------------
+let assignmentSearch = '';
+let assignmentPicFilter = '';
+let assignmentPriorityFilter = '';
+let assignmentStatusFilter = '';
+let assignmentSortField = 'deadline';
+let assignmentSortAsc = true;
+
+function renderAssignmentPage(container) {
+    const isKepala = currentUser.role === 'kepala';
+    const isTim = currentUser.role === 'tim';
+
+    // If role is 'tim', PIC filter is locked to their own name
+    if (isTim) {
+        assignmentPicFilter = currentUser.name;
+    }
+
+    container.innerHTML = `
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
+            <div>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-list text-indigo-650 dark:text-indigo-400"></i>
+                    Penugasan Tugas (Assignment)
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pantau, kelola, dan perbarui tugas tim Humas BPS Provinsi Kalimantan Barat.</p>
+            </div>
+            ${!isKepala && !isTim ? `
+                <button onclick="openModal('assignment')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-plus text-xs"></i> Tambah Tugas Baru
+                </button>
+            ` : ''}
+        </div>
+
+        <!-- KPI SUMMARY CARDS -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="assignment-kpi-container">
+            <!-- Dynamically populated in drawAssignmentTable() -->
+        </div>
+
+        <!-- FILTERS -->
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 grid grid-cols-1 sm:grid-cols-5 gap-4 shadow-xs">
+            <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <input type="text" id="assignment-search-input" oninput="handleAssignmentSearch(this.value)" value="${assignmentSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:bg-white focus:outline-none placeholder-slate-450 dark:text-white text-slate-750 transition-all" placeholder="Cari nama tugas atau deskripsi...">
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-filter mr-1 text-slate-400"></i> Status:</span>
+                <select id="assignment-status-select" onchange="handleAssignmentStatusFilter(this.value)" class="w-full text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-655 dark:text-slate-200 focus:outline-none shadow-xs">
+                    <option value="">Semua Status</option>
+                    <option ${assignmentStatusFilter === 'Belum Mulai' ? 'selected' : ''} value="Belum Mulai">Belum Mulai</option>
+                    <option ${assignmentStatusFilter === 'Sedang Dikerjakan' ? 'selected' : ''} value="Sedang Dikerjakan">Sedang Dikerjakan</option>
+                    <option ${assignmentStatusFilter === 'Selesai' ? 'selected' : ''} value="Selesai">Selesai</option>
+                    <option ${assignmentStatusFilter === 'Revisi' ? 'selected' : ''} value="Revisi">Revisi</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-triangle-exclamation mr-1 text-slate-400"></i> Prioritas:</span>
+                <select id="assignment-priority-select" onchange="handleAssignmentPriorityFilter(this.value)" class="w-full text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-655 dark:text-slate-200 focus:outline-none shadow-xs">
+                    <option value="">Semua Prioritas</option>
+                    <option ${assignmentPriorityFilter === 'Tinggi' ? 'selected' : ''} value="Tinggi">Tinggi</option>
+                    <option ${assignmentPriorityFilter === 'Sedang' ? 'selected' : ''} value="Sedang">Sedang</option>
+                    <option ${assignmentPriorityFilter === 'Rendah' ? 'selected' : ''} value="Rendah">Rendah</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-user mr-1 text-slate-400"></i> PIC:</span>
+                <select id="assignment-pic-select" onchange="handleAssignmentPicFilter(this.value)" ${isTim ? 'disabled' : ''} class="w-full text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-655 dark:text-slate-200 focus:outline-none shadow-xs disabled:bg-slate-100 disabled:dark:bg-slate-805 disabled:cursor-not-allowed">
+                    ${isTim ? `
+                        <option value="${currentUser.name}">${currentUser.name}</option>
+                    ` : `
+                        <option value="">Semua PIC</option>
+                        ${db.team.map(m => `<option ${assignmentPicFilter === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
+                    `}
+                </select>
+            </div>
+            <div class="flex justify-end items-center">
+                <button onclick="resetAssignmentFilters()" class="w-full sm:w-auto btn-secondary text-xs py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- TABLE VIEW -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 select-none">
+                            <th class="py-3.5 px-4 w-12 text-center">No</th>
+                            <th onclick="handleAssignmentSort('tugas')" class="py-3.5 px-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 min-w-[150px]">
+                                Nama Tugas <span id="sort-icon-tugas" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th class="py-3.5 px-4 min-w-[200px]">Deskripsi Detail</th>
+                            <th onclick="handleAssignmentSort('prioritas')" class="py-3.5 px-4 w-28 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 text-center">
+                                Prioritas <span id="sort-icon-prioritas" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th onclick="handleAssignmentSort('status')" class="py-3.5 px-4 w-32 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 text-center">
+                                Status <span id="sort-icon-status-asgn" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th onclick="handleAssignmentSort('tanggal_penugasan')" class="py-3.5 px-4 w-32 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
+                                Ditugaskan <span id="sort-icon-tanggal_penugasan" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th onclick="handleAssignmentSort('deadline')" class="py-3.5 px-4 w-32 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
+                                Deadline <span id="sort-icon-deadline" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th onclick="handleAssignmentSort('progres')" class="py-3.5 px-4 w-28 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 text-center">
+                                Progres <span id="sort-icon-progres-asgn" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th onclick="handleAssignmentSort('assigned_to')" class="py-3.5 px-4 w-36 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
+                                PIC <span id="sort-icon-assigned_to" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th class="py-3.5 px-4 w-24 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assignment-table-body" class="text-xs divide-y divide-slate-100 dark:divide-slate-800">
+                        <!-- Dynamically populated -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    drawAssignmentTable();
+}
+
+window.drawAssignmentTable = function() {
+    const tableBody = document.getElementById('assignment-table-body');
+    const kpiContainer = document.getElementById('assignment-kpi-container');
+    if (!tableBody) return;
+
+    // 1. Get filtered list base (using isTaskForCurrentUser for RBAC scoping)
+    let filtered = db.assignments.filter(isTaskForCurrentUser);
+
+    // 2. Count statistics for KPI cards (using the RBAC-filtered list so a member sees stats only for their tasks, while coord/admin sees overall stats)
+    const totalCount = filtered.length;
+    const pendingCount = filtered.filter(item => item.status === 'Belum Mulai').length;
+    const progressCount = filtered.filter(item => item.status === 'Sedang Dikerjakan').length;
+    const completedCount = filtered.filter(item => item.status === 'Selesai').length;
+
+    if (kpiContainer) {
+        kpiContainer.innerHTML = `
+            <div class="kpi-card flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs animate-fade-in">
+                <div>
+                    <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Tugas</h4>
+                    <p class="text-2xl font-black text-slate-800 dark:text-white mt-1.5">${totalCount}</p>
+                </div>
+                <div class="w-11 h-11 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl flex items-center justify-center text-indigo-655 dark:text-indigo-400 font-bold text-lg"><i class="fa-solid fa-clipboard-list"></i></div>
+            </div>
+            <div class="kpi-card flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs animate-fade-in">
+                <div>
+                    <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Belum Mulai</h4>
+                    <p class="text-2xl font-black text-slate-800 dark:text-white mt-1.5">${pendingCount}</p>
+                </div>
+                <div class="w-11 h-11 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-center text-slate-500 dark:text-slate-455 font-bold text-lg"><i class="fa-regular fa-circle-play"></i></div>
+            </div>
+            <div class="kpi-card flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs animate-fade-in">
+                <div>
+                    <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sedang Dikerjakan</h4>
+                    <p class="text-2xl font-black text-slate-800 dark:text-white mt-1.5">${progressCount}</p>
+                </div>
+                <div class="w-11 h-11 bg-blue-50 dark:bg-blue-955/40 rounded-xl flex items-center justify-center text-blue-655 dark:text-blue-400 font-bold text-lg"><i class="fa-solid fa-arrows-spin animate-spin-slow"></i></div>
+            </div>
+            <div class="kpi-card flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs animate-fade-in">
+                <div>
+                    <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Selesai</h4>
+                    <p class="text-2xl font-black text-slate-800 dark:text-white mt-1.5">${completedCount}</p>
+                </div>
+                <div class="w-11 h-11 bg-emerald-50 dark:bg-emerald-955/40 rounded-xl flex items-center justify-center text-emerald-655 dark:text-emerald-400 font-bold text-lg"><i class="fa-regular fa-circle-check"></i></div>
+            </div>
+        `;
+    }
+
+    // 3. Search filter
+    if (assignmentSearch.trim()) {
+        const query = assignmentSearch.toLowerCase();
+        filtered = filtered.filter(item =>
+            (item.tugas && item.tugas.toLowerCase().includes(query)) ||
+            (item.deskripsi && item.deskripsi.toLowerCase().includes(query))
+        );
+    }
+
+    // 4. Status filter
+    if (assignmentStatusFilter) {
+        filtered = filtered.filter(item => item.status === assignmentStatusFilter);
+    }
+
+    // 5. Priority filter
+    if (assignmentPriorityFilter) {
+        filtered = filtered.filter(item => item.prioritas === assignmentPriorityFilter);
+    }
+
+    // 6. PIC filter (if not already filtered by isTaskForCurrentUser)
+    if (assignmentPicFilter && currentUser.role !== 'tim') {
+        filtered = filtered.filter(item => item.assigned_to === assignmentPicFilter);
+    }
+
+    // 7. Sorting
+    filtered.sort((a, b) => {
+        let valA = a[assignmentSortField] || '';
+        let valB = b[assignmentSortField] || '';
+
+        if (assignmentSortField === 'progres') {
+            valA = Number(valA);
+            valB = Number(valB);
+        } else if (assignmentSortField === 'deadline' || assignmentSortField === 'tanggal_penugasan') {
+            valA = new Date(valA || '1970-01-01');
+            valB = new Date(valB || '1970-01-01');
+        } else {
+            valA = String(valA).toLowerCase();
+            valB = String(valB).toLowerCase();
+        }
+
+        if (valA < valB) return assignmentSortAsc ? -1 : 1;
+        if (valA > valB) return assignmentSortAsc ? 1 : -1;
+        return 0;
+    });
+
+    // 8. Update sort icons
+    const sortFields = ['tugas', 'prioritas', 'status', 'tanggal_penugasan', 'deadline', 'progres', 'assigned_to'];
+    sortFields.forEach(f => {
+        const idName = f === 'status' ? 'sort-icon-status-asgn' : (f === 'progres' ? 'sort-icon-progres-asgn' : `sort-icon-${f}`);
+        const iconEl = document.getElementById(idName);
+        if (iconEl) {
+            if (assignmentSortField === f) {
+                iconEl.innerHTML = assignmentSortAsc ? '<i class="fa-solid fa-sort-up text-indigo-500"></i>' : '<i class="fa-solid fa-sort-down text-indigo-500"></i>';
+            } else {
+                iconEl.innerHTML = '<i class="fa-solid fa-sort"></i>';
+            }
+        }
+    });
+
+    const isKepala = currentUser.role === 'kepala';
+
+    if (filtered.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="10" class="py-12 text-center text-slate-400 dark:text-slate-500">
+                    <div class="flex flex-col items-center justify-center">
+                        <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-350 dark:text-slate-600"></i>
+                        <p class="text-xs font-bold uppercase tracking-wider">Data Penugasan Kosong</p>
+                        <p class="text-[10px] mt-0.5">Cobalah mengubah kata kunci pencarian atau filter</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tableBody.innerHTML = filtered.map((item, index) => {
+        const initials = getPicInitials(item.assigned_to);
+        const avatarBg = getAvatarBg(item.assigned_to);
+
+        // Status Badge Style
+        let statusBadge = '';
+        switch (item.status) {
+            case 'Belum Mulai':
+                statusBadge = '<span class="px-2.5 py-1 bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-655">Belum Mulai</span>';
+                break;
+            case 'Sedang Dikerjakan':
+                statusBadge = '<span class="px-2.5 py-1 bg-blue-50 text-blue-700 dark:bg-blue-955/40 dark:text-blue-300 rounded-full text-[10px] font-bold border border-blue-105 dark:border-blue-900/65">Sedang Dikerjakan</span>';
+                break;
+            case 'Selesai':
+                statusBadge = '<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-955/40 dark:text-emerald-300 rounded-full text-[10px] font-bold border border-emerald-105 dark:border-emerald-900/65">Selesai</span>';
+                break;
+            case 'Revisi':
+                statusBadge = '<span class="px-2.5 py-1 bg-rose-50 text-rose-700 dark:bg-rose-955/40 dark:text-rose-300 rounded-full text-[10px] font-bold border border-rose-105 dark:border-rose-900/65">Revisi</span>';
+                break;
+            default:
+                statusBadge = `<span class="px-2.5 py-1 bg-slate-50 text-slate-600 rounded-full text-[10px] font-bold">${item.status || '-'}</span>`;
+        }
+
+        // Priority Badge Style
+        let priorityBadge = '';
+        switch (item.prioritas) {
+            case 'Tinggi':
+                priorityBadge = '<span class="px-2 py-0.5 bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-100 dark:border-rose-900 rounded text-[9px] font-extrabold uppercase">Tinggi</span>';
+                break;
+            case 'Sedang':
+                priorityBadge = '<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900 rounded text-[9px] font-extrabold uppercase">Sedang</span>';
+                break;
+            case 'Rendah':
+                priorityBadge = '<span class="px-2 py-0.5 bg-slate-50 text-slate-655 dark:bg-slate-700 dark:text-slate-350 border border-slate-200 dark:border-slate-655 rounded text-[9px] font-bold uppercase">Rendah</span>';
+                break;
+            default:
+                priorityBadge = `<span class="px-2 py-0.5 bg-slate-50 text-slate-655 rounded text-[9px] font-bold">${item.prioritas || '-'}</span>`;
+        }
+
+        let actions = '';
+        actions = `
+            <td class="py-3 px-4 text-center">
+                <div class="flex justify-center items-center gap-1.5">
+                    ${!isKepala ? `
+                        <button onclick="openModalById('assignment', ${item.id})" title="Ubah data" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
+                            <i class="fa-solid fa-pen text-[10px]"></i>
+                        </button>
+                    ` : ''}
+                    ${!isKepala && currentUser.role !== 'tim' ? `
+                        <button onclick="deleteItem('assignment', ${item.id})" title="Hapus data" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
+                            <i class="fa-solid fa-trash text-[10px]"></i>
+                        </button>
+                    ` : ''}
+                    ${isKepala ? `
+                        <button onclick="showDetailById('assignment', ${item.id})" title="Lihat detail" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
+                            <i class="fa-solid fa-eye text-[10px]"></i>
+                        </button>
+                    ` : ''}
+                </div>
+            </td>
+        `;
+
+        const attachmentLink = item.lampiran ? `<a href="${item.lampiran}" target="_blank" class="inline-flex items-center gap-1 text-indigo-650 hover:underline"><i class="fa-solid fa-paperclip"></i> Tautan</a>` : '<span class="text-slate-400">-</span>';
+
+        return `
+            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors">
+                <td class="py-3.5 px-4 text-center font-bold text-slate-400">${index + 1}</td>
+                <td class="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 min-w-[150px] max-w-[250px]">
+                    <span onclick="showDetailById('assignment', ${item.id})" class="hover:text-indigo-655 dark:hover:text-indigo-400 transition-colors cursor-pointer block truncate" title="${item.tugas}">${item.tugas}</span>
+                </td>
+                <td class="py-3.5 px-4 text-slate-550 dark:text-slate-405 min-w-[200px] max-w-[300px]">
+                    <p class="line-clamp-2 leading-relaxed" title="${item.deskripsi || ''}">${item.deskripsi || '-'}</p>
+                </td>
+                <td class="py-3.5 px-4 text-center">${priorityBadge}</td>
+                <td class="py-3.5 px-4 text-center">${statusBadge}</td>
+                <td class="py-3.5 px-4 font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                    ${formatDate(item.tanggal_penugasan)}
+                </td>
+                <td class="py-3.5 px-4 font-bold text-rose-655 dark:text-rose-400 whitespace-nowrap">
+                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300"><i class="fa-regular fa-calendar-check text-[10px]"></i> ${formatDate(item.deadline)}</span>
+                </td>
+                <td class="py-3.5 px-4 text-center">
+                    <div class="flex flex-col items-center justify-center gap-1 min-w-[80px]">
+                        <span class="font-bold text-[10px] text-slate-600 dark:text-slate-455">${item.progres || 0}%</span>
+                        <div class="w-20 bg-slate-100 dark:bg-slate-800 rounded-full h-1">
+                            <div class="bg-gradient-to-r from-indigo-500 to-violet-650 h-1 rounded-full" style="width: ${item.progres || 0}%"></div>
+                        </div>
+                    </div>
+                </td>
+                <td class="py-3.5 px-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold border border-slate-200 dark:border-slate-700 shadow-xs ${avatarBg}" title="${item.assigned_to}">${initials}</div>
+                        <span class="font-bold text-[10px] text-slate-655 dark:text-slate-400 truncate max-w-[80px]">${item.assigned_to || '-'}</span>
+                    </div>
+                </td>
+                ${actions}
+            </tr>
+        `;
+    }).join('');
+};
+
+window.handleAssignmentSearch = function(val) {
+    assignmentSearch = val;
+    drawAssignmentTable();
+};
+
+window.handleAssignmentPicFilter = function(val) {
+    assignmentPicFilter = val;
+    drawAssignmentTable();
+};
+
+window.handleAssignmentStatusFilter = function(val) {
+    assignmentStatusFilter = val;
+    drawAssignmentTable();
+};
+
+window.handleAssignmentPriorityFilter = function(val) {
+    assignmentPriorityFilter = val;
+    drawAssignmentTable();
+};
+
+window.resetAssignmentFilters = function() {
+    assignmentSearch = '';
+    assignmentPicFilter = currentUser.role === 'tim' ? currentUser.name : '';
+    assignmentStatusFilter = '';
+    assignmentPriorityFilter = '';
+    const searchInput = document.getElementById('assignment-search-input');
+    if (searchInput) searchInput.value = '';
+    const statusSelect = document.getElementById('assignment-status-select');
+    if (statusSelect) statusSelect.value = '';
+    const prioritySelect = document.getElementById('assignment-priority-select');
+    if (prioritySelect) prioritySelect.value = '';
+    const picSelect = document.getElementById('assignment-pic-select');
+    if (picSelect) picSelect.value = assignmentPicFilter;
+    drawAssignmentTable();
+};
+
+window.handleAssignmentSort = function(field) {
+    if (assignmentSortField === field) {
+        assignmentSortAsc = !assignmentSortAsc;
+    } else {
+        assignmentSortField = field;
+        assignmentSortAsc = true;
+    }
+    drawAssignmentTable();
+};
+

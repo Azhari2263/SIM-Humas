@@ -508,6 +508,11 @@
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-regular fa-calendar-days w-5 text-sm"></i> Kalender Kegiatan
                 </button>
+                <button onclick="router('assignment'); closeMobileSidebar();" id="mobile-nav-assignment"
+                    data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-clipboard-list w-5 text-sm"></i> Assignment
+                </button>
                 <button onclick="router('planner'); closeMobileSidebar();" id="mobile-nav-planner"
                     data-roles="admin,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
@@ -630,6 +635,10 @@
                 <button onclick="router('calendar')" id="nav-calendar" data-roles="admin,kepala,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-regular fa-calendar-days w-5 text-sm shrink-0"></i> <span class="sidebar-text">Kalender Kegiatan</span>
+                </button>
+                <button onclick="router('assignment')" id="nav-assignment" data-roles="admin,kepala,koordinator,tim"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-clipboard-list w-5 text-sm shrink-0"></i> <span class="sidebar-text">Assignment</span>
                 </button>
                 <button onclick="router('planner')" id="nav-planner" data-roles="admin,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">

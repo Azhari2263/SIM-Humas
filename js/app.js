@@ -240,7 +240,8 @@ function getItemByTypeAndId(type, id) {
         'brs_rilis': 'brs_rilis',
         'hari_besar': 'hari_besar',
         'team': 'team',
-        'user_manager': 'users'
+        'user_manager': 'users',
+        'assignment': 'assignments'
     };
     const sheetName = sheetMapping[type] || type;
     const varName = SHEET_TO_VAR[sheetName] || type;
@@ -598,6 +599,66 @@ function openModal(type, item = null) {
                 </div>
             </div>
         `;
+    } else if (type === 'assignment') {
+        title = item ? 'Edit Assignment Tugas' : 'Tambah Assignment Baru';
+        fields = `
+            <div class="space-y-4 text-slate-700 dark:text-slate-300">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tugas <span class="text-rose-500">*</span></label>
+                    <input type="text" id="tugas" value="${item?.tugas || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-medium text-slate-800 dark:text-white" placeholder="Contoh: Membuat Infografis Statistik" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Deskripsi Detail <span class="text-rose-500">*</span></label>
+                    <textarea id="deskripsi" rows="3" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="Deskripsikan detail penugasan..." required>${item?.deskripsi || ''}</textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Prioritas</label>
+                        <select id="prioritas" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
+                            <option ${item?.prioritas === 'Rendah' ? 'selected' : ''}>Rendah</option>
+                            <option ${item?.prioritas === 'Sedang' ? 'selected' : '' || !item ? 'selected' : ''}>Sedang</option>
+                            <option ${item?.prioritas === 'Tinggi' ? 'selected' : ''}>Tinggi</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status</label>
+                        <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
+                            <option ${item?.status === 'Belum Mulai' ? 'selected' : ''}>Belum Mulai</option>
+                            <option ${item?.status === 'Sedang Dikerjakan' ? 'selected' : ''}>Sedang Dikerjakan</option>
+                            <option ${item?.status === 'Selesai' ? 'selected' : ''}>Selesai</option>
+                            <option ${item?.status === 'Revisi' ? 'selected' : ''}>Revisi</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Penugasan <span class="text-rose-500">*</span></label>
+                        <input type="date" id="tanggal_penugasan" value="${formatDateInput(item?.tanggal_penugasan || new Date())}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Deadline <span class="text-rose-500">*</span></label>
+                        <input type="date" id="deadline" value="${formatDateInput(item?.deadline)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs text-slate-800 dark:text-white" required>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Progres (%)</label>
+                        <input type="number" id="progres" value="${item?.progres || 0}" min="0" max="100" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Ditugaskan ke (PIC) <span class="text-rose-500">*</span></label>
+                        <select id="assigned_to" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
+                            <option value="">Pilih Anggota...</option>
+                            ${db.team.map(m => `<option ${item?.assigned_to === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Link Lampiran</label>
+                    <input type="url" id="lampiran" value="${item?.lampiran || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="https://drive.google.com/...">
+                </div>
+            </div>
+        `;
     } else if (type === 'rekap_rutin') {
         title = item ? 'Edit Kegiatan Rutin' : 'Tambah Kegiatan Rutin';
         fields = `
@@ -952,6 +1013,7 @@ function validateFormInput(type, data) {
     if (type === 'hari_besar' && (!data.hari_besar || !data.tanggal)) return 'Kolom bertanda bintang (*) wajib diisi.';
     if (type === 'team' && (!data.nama || !data.jabatan || !data.tugas || !data.kontak)) return 'Kolom bertanda bintang (*) wajib diisi.';
     if (type === 'user_manager' && (!data.nama || !data.username)) return 'Kolom bertanda bintang (*) wajib diisi.';
+    if (type === 'assignment' && (!data.tugas || !data.deskripsi || !data.tanggal_penugasan || !data.deadline || !data.assigned_to)) return 'Kolom bertanda bintang (*) wajib diisi.';
     return null;
 }
 
@@ -985,6 +1047,16 @@ async function saveData(event) {
         item.jadwal = document.getElementById('jadwal').value;
         item.status = document.getElementById('status').value;
         item.assignedTo = document.getElementById('assignedTo').value;
+    } else if (currentModalType === 'assignment') {
+        item.tugas = document.getElementById('tugas').value;
+        item.deskripsi = document.getElementById('deskripsi').value;
+        item.prioritas = document.getElementById('prioritas').value;
+        item.status = document.getElementById('status').value;
+        item.tanggal_penugasan = document.getElementById('tanggal_penugasan').value;
+        item.deadline = document.getElementById('deadline').value;
+        item.progres = Number(document.getElementById('progres').value);
+        item.assigned_to = document.getElementById('assigned_to').value;
+        item.lampiran = document.getElementById('lampiran').value;
     } else if (currentModalType === 'rekap_rutin') {
         item.tanggal = document.getElementById('tanggal').value;
         item.hari = document.getElementById('hari').value;
@@ -1056,7 +1128,8 @@ async function saveData(event) {
         'brs_rilis': 'brs_rilis',
         'hari_besar': 'hari_besar',
         'team': 'team',
-        'user_manager': 'users'
+        'user_manager': 'users',
+        'assignment': 'assignments'
     };
 
     const sheetName = sheetMapping[currentModalType];
@@ -1071,13 +1144,13 @@ async function saveData(event) {
             `Kamu ditugaskan pada kegiatan: ${item.judul || item.kegiatan || item.hari_besar || 'Baru'}.`,
             targetUsername
         );
-    } else if (action === 'add' && (item.assignedTo || item.pembuat_konten)) {
-        const petugasNama = item.assignedTo || item.pembuat_konten;
+    } else if (action === 'add' && (item.assignedTo || item.pembuat_konten || item.assigned_to)) {
+        const petugasNama = item.assignedTo || item.pembuat_konten || item.assigned_to;
         const petugasUser = db.users.find(u => u.nama === petugasNama);
         const targetUsername = petugasUser ? petugasUser.username : petugasNama;
         addNotification(
             'Tugas Baru Untukmu',
-            `Kamu ditugaskan sebagai PIC: ${item.judul || item.kegiatan || item.hari_besar || 'Baru'}.`,
+            `Kamu ditugaskan: ${item.judul || item.kegiatan || item.hari_besar || item.tugas || 'Baru'}.`,
             targetUsername
         );
     } else if (action === 'update' && item.status && currentEditItem?.status !== item.status) {
@@ -1098,6 +1171,7 @@ async function saveData(event) {
         'brs_rilis': 'Dokumen BRS',
         'hari_besar': 'Ucapan Hari Besar',
         'team': 'Profil Anggota Tim',
+        'assignment': 'Assignment Tugas',
         'user_manager': 'Akun Pengguna'
     };
 
@@ -1135,7 +1209,8 @@ function deleteItem(type, id) {
         'assets': 'assets',
         'monitoring': 'monitoring',
         'users': 'users',
-        'masterData': 'master_data'
+        'masterData': 'master_data',
+        'assignment': 'assignments'
     };
 
     const sheetName = sheetMapping[type];
@@ -1481,6 +1556,20 @@ function showDetail(type, item) {
                 <div class="flex flex-col gap-1"><strong>Tugas Utama Kehumasan:</strong><p class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px] mt-1">${item.tugas || '-'}</p></div>
             </div>
         `;
+    } else if (type === 'assignment') {
+        content = `
+            <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Tugas:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.tugas}</span></div>
+                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deskripsi:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.deskripsi || 'Tidak ada deskripsi.'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Prioritas:</strong><span class="font-bold">${item.prioritas || 'Sedang'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || 'Belum Mulai'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal Ditugaskan:</strong><span class="font-bold">${formatDate(item.tanggal_penugasan)}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deadline:</strong><span class="font-bold text-rose-600">${formatDate(item.deadline)}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Progres Kerja:</strong><span class="font-black text-indigo-650">${item.progres || 0}%</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Diberikan Kepada:</strong><span class="font-bold text-slate-800 dark:text-white">${item.assigned_to || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Lampiran:</strong><span class="font-bold">${item.lampiran ? `<a href="${item.lampiran}" target="_blank" class="text-indigo-650 dark:text-indigo-400 hover:underline">Buka Tautan</a>` : '-'}</span></div>
+            </div>
+        `;
     }
 
     const modal = document.createElement('div');
@@ -1503,10 +1592,10 @@ function showDetail(type, item) {
 // Navigation & Routing System
 function router(page) {
     const allowedPages = {
-        admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'settings'],
-        kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar'],
-        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar'],
-        tim: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar'],
+        admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'settings', 'assignment'],
+        kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'assignment'],
+        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'assignment'],
+        tim: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'assignment'],
         pemohon: ['dashboard', 'tickets']
     };
 
@@ -1594,6 +1683,7 @@ function router(page) {
         case 'team': renderTeam(contentDiv); break;
         case 'calendar': renderIntegratedCalendar(contentDiv); break;
         case 'settings': renderSettingsPage(contentDiv); break;
+        case 'assignment': renderAssignmentPage(contentDiv); break;
     }
 }
 
