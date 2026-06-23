@@ -643,7 +643,6 @@ function openModal(type, item = null) {
         });
     }
 }
-}
 
 function closeModal() {
     const modal = document.getElementById('dynamic-modal');
