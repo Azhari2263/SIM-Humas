@@ -46,7 +46,6 @@ const SHEET_TO_VAR = {
     'brs_rilis': 'brsRilis',
     'hari_besar': 'hariBesar',
     'rekap_kegiatan': 'rekapKegiatan',
-    'audit_trail': 'auditTrail',
     'notifications': 'notifications',
     'master_data': 'masterData',
     'assignments': 'assignments'
@@ -72,12 +71,6 @@ function loadLocalFallbacks() {
         }
     });
 
-    // Clean up old seeded users from cache if present to reload actual sheet users
-    if (db.users && db.users.some(u => u.username === 'tim')) {
-        db.users = [];
-        localStorage.removeItem('sim_humas_db_users');
-    }
-
     // Seed default team data if empty
     if (db.team.length === 0) {
         db.team = [
@@ -89,31 +82,21 @@ function loadLocalFallbacks() {
         saveLocalFallback('team');
     }
 
-    // Seed default users if empty
-    if (db.users.length === 0) {
+    // Seed default users if empty or missing specific team users
+    if (db.users.length === 0 || !db.users.some(u => u.username === 'rian')) {
         db.users = [
-            { id: 1, username: "admin", password: "password", nama: "Super Admin", role: "admin", bidang: "IT & Master" },
-            { id: 2, username: "kepala", password: "password", nama: "Kepala BPS Kalbar", role: "kepala", bidang: "Pimpinan" },
-            { id: 3, username: "koordinator", password: "password", nama: "Ketua Tim Humas", role: "koordinator", bidang: "Humas & Protokol" },
-            { id: 4, username: "tim", password: "password", nama: "Staf Humas", role: "tim", bidang: "Humas & Protokol" },
-            { id: 5, username: "pemohon", password: "password", nama: "User Bidang", role: "pemohon", bidang: "Seksi Sosial" }
+            { id: 1, username: "admin", nama: "Super Admin", role: "admin", bidang: "IT & Master" },
+            { id: 2, username: "kepala", nama: "Kepala BPS Kalbar", role: "kepala", bidang: "Pimpinan" },
+            { id: 3, username: "koordinator", nama: "Ketua Tim Humas", role: "koordinator", bidang: "Humas & Protokol" },
+            { id: 4, username: "tim", nama: "Staf Humas", role: "tim", bidang: "Humas & Protokol" },
+            { id: 5, username: "pemohon", nama: "User Bidang", role: "pemohon", bidang: "Seksi Sosial" },
+            { id: 6, username: "rian", nama: "Rian", role: "tim", bidang: "Diseminasi Informasi" },
+            { id: 7, username: "siska", nama: "Siska", role: "tim", bidang: "Humas & Protokol" },
+            { id: 8, username: "dian", nama: "Dian", role: "tim", bidang: "Humas & Protokol" },
+            { id: 9, username: "azhari", nama: "Azhari", role: "tim", bidang: "Humas & Protokol" }
         ];
         saveLocalFallback('users');
     }
-
-    // Append test accounts dynamically if not already present
-    const testUsers = [
-        { id: 9901, username: "rian", password: "password", nama: "Rian", role: "tim", bidang: "Diseminasi Informasi" },
-        { id: 9902, username: "siska", password: "password", nama: "Siska", role: "tim", bidang: "Humas & Protokol" },
-        { id: 9903, username: "dian", password: "password", nama: "Dian", role: "tim", bidang: "Humas & Protokol" },
-        { id: 9904, username: "azhari_tim", password: "password", nama: "Azhari Test", role: "tim", bidang: "Humas & Protokol" }
-    ];
-
-    testUsers.forEach(tu => {
-        if (!db.users.some(u => u.username && u.username.toLowerCase() === tu.username)) {
-            db.users.push(tu);
-        }
-    });
 
     // Seed default master data if empty
     if (db.masterData.length === 0) {
@@ -163,7 +146,7 @@ async function fetchDataFromSheets(silent = false) {
         if (!response.ok) throw new Error('Gagal mengambil data dari server database (HTTP ' + response.status + ')');
 
         const data = await response.json();
-        
+
         // Map database collections dynamically
         for (let sheetName in SHEET_TO_VAR) {
             const varName = SHEET_TO_VAR[sheetName];
@@ -198,10 +181,10 @@ async function fetchDataFromSheets(silent = false) {
 
         const now = new Date();
         const dateStr = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-        
+
         const lastSyncEl = document.getElementById('last-sync-date');
         if (lastSyncEl) lastSyncEl.textContent = dateStr;
-        
+
         const mobileSyncEl = document.getElementById('mobile-last-sync-date');
         if (mobileSyncEl) mobileSyncEl.textContent = dateStr;
 
@@ -236,7 +219,7 @@ function applySyncQueueToDb() {
     syncQueue.forEach(task => {
         const varName = SHEET_TO_VAR[task.sheet] || task.sheet;
         if (!db[varName]) return;
-        
+
         if (task.action === 'add') {
             const idx = db[varName].findIndex(i => Number(i.id) === Number(task.item.id));
             if (idx === -1) {
@@ -260,7 +243,7 @@ function applySyncQueueToDb() {
 // Send local changes back to the GAS backend (Queued & Offline-Safe)
 async function sendDataToServer(action, sheetName, item) {
     const varName = SHEET_TO_VAR[sheetName] || sheetName;
-    
+
     // Update local cache first (Optimistic UI update)
     if (action === 'add') {
         if (!item.id) {
@@ -299,10 +282,10 @@ async function sendDataToServer(action, sheetName, item) {
 async function processSyncQueue() {
     if (isProcessingQueue || syncQueue.length === 0) return;
     isProcessingQueue = true;
-    
+
     console.log(`[Sync] Processing sync queue. Tasks: ${syncQueue.length}`);
     let successCount = 0;
-    
+
     while (syncQueue.length > 0) {
         const task = syncQueue[0];
         try {
@@ -311,7 +294,7 @@ async function processSyncQueue() {
                 sheet: task.sheet,
                 item: task.item
             };
-            
+
             const response = await fetch(GOOGLE_SHEETS_API_URL, {
                 method: 'POST',
                 headers: {
@@ -319,26 +302,26 @@ async function processSyncQueue() {
                 },
                 body: JSON.stringify(payload)
             });
-            
+
             if (!response.ok) throw new Error('HTTP Status ' + response.status);
-            
+
             const result = await response.json();
             if (!result.success) throw new Error(result.error || 'Server error');
-            
+
             // Remove successfully processed task
             syncQueue.shift();
             saveSyncQueue();
             successCount++;
             console.log(`[Sync] Successfully synced task: ${task.action} on ${task.sheet}`);
-            
+
         } catch (error) {
             console.warn('[Sync] Sync queue paused due to error:', error);
             break;
         }
     }
-    
+
     isProcessingQueue = false;
-    
+
     if (successCount > 0) {
         if (syncQueue.length === 0) {
             showToast('Semua perubahan berhasil disinkronkan ke server database!');
@@ -370,7 +353,7 @@ async function syncData() {
 function updateLoadingStateUI(loading) {
     const contentDiv = document.getElementById('app-content');
     if (!contentDiv) return;
-    
+
     if (loading && db.contentPlanner.length === 0 && db.brsSchedule.length === 0) {
         contentDiv.innerHTML = `
             <div class="flex flex-col justify-center items-center h-96 animate-pulse">
@@ -382,27 +365,5 @@ function updateLoadingStateUI(loading) {
     }
 }
 
-// Audit Log Handler
-function logActivity(action, detail) {
-    const username = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : 'guest';
-    const newLog = {
-        id: Date.now(),
-        timestamp: new Date().toISOString(),
-        user: username,
-        action: action,
-        detail: detail
-    };
-    if (!db.auditTrail) db.auditTrail = [];
-    db.auditTrail.push(newLog);
-    saveLocalFallback('auditTrail');
-
-    // Sync to Sheets
-    sendDataToServer('add', 'audit_trail', newLog).catch(err => {
-        console.error('Audit sync error:', err);
-    });
-}
-window.logActivity = logActivity;
-
 // Seed initial system data if first time
 loadLocalFallbacks();
-
