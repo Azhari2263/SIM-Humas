@@ -46,6 +46,7 @@ const SHEET_TO_VAR = {
     'brs_rilis': 'brsRilis',
     'hari_besar': 'hariBesar',
     'rekap_kegiatan': 'rekapKegiatan',
+    'audit_trail': 'auditTrail',
     'notifications': 'notifications',
     'master_data': 'masterData',
     'assignments': 'assignments'
@@ -365,5 +366,27 @@ function updateLoadingStateUI(loading) {
     }
 }
 
+// Audit Log Handler
+function logActivity(action, detail) {
+    const username = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : 'guest';
+    const newLog = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        user: username,
+        action: action,
+        detail: detail
+    };
+    if (!db.auditTrail) db.auditTrail = [];
+    db.auditTrail.push(newLog);
+    saveLocalFallback('auditTrail');
+
+    // Sync to Sheets
+    sendDataToServer('add', 'audit_trail', newLog).catch(err => {
+        console.error('Audit sync error:', err);
+    });
+}
+window.logActivity = logActivity;
+
 // Seed initial system data if first time
 loadLocalFallbacks();
+
