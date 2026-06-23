@@ -1,73 +1,94 @@
 function doGet() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Ambil atau buat lembar data secara dinamis (Self-Healing Schema)
   const data = {
-    contentPlanner: getSheetData(sheet, 'content_planner'),
-    brsSchedule: getSheetData(sheet, 'brs_schedule'),
-    protocol: getSheetData(sheet, 'protocol'),
-    team: getSheetData(sheet, 'team')
+    contentPlanner: getSheetData(sheet, 'content_planner', ["id", "judul", "konsep", "jenis", "postType", "progres", "jadwal", "status", "assignedTo"]),
+    brsSchedule: getSheetData(sheet, 'brs_schedule', ["id", "judul", "tanggal", "pic_poster", "pic_info", "pic_doc", "pic_high"]),
+    protocol: getSheetData(sheet, 'protocol', ["id", "kegiatan", "pimpinan", "level", "lokasi", "petugas", "tanggal"]),
+    team: getSheetData(sheet, 'team', ["id", "nama", "jabatan", "bidang", "tugas", "kontak"]),
+    tickets: getSheetData(sheet, 'tickets', ["id", "pengaju", "bidang", "jenis", "judul", "deadline", "detail", "status", "pic"]),
+    assets: getSheetData(sheet, 'assets', ["id", "nama", "kategori", "ukuran", "pengunggah", "tanggal", "preview"]),
+    monitoring: getSheetData(sheet, 'monitoring', ["id", "media", "judul", "tanggal", "sentimen", "ringkasan", "url"])
   };
+  
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
-  // Pastikan ada data yang dikirim
   if (!e.postData.contents) return ContentService.createTextOutput(JSON.stringify({success: false, error: "No data"}));
   
   const data = JSON.parse(e.postData.contents);
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
-  const ws = sheet.getSheetByName(data.sheet);
   
-  if (!ws) return ContentService.createTextOutput(JSON.stringify({success: false, error: "Sheet not found"}));
-
-  // Ambil header untuk memastikan urutan kolom sesuai
-  const headers = ws.getRange(1, 1, 1, ws.getLastColumn()).getValues()[0];
+  // Tentukan headers berdasarkan nama sheet
+  const headers = getHeadersForSheet(data.sheet);
+  if (!headers) return ContentService.createTextOutput(JSON.stringify({success: false, error: "Invalid sheet name"}));
+  
+  // Ambil atau buat sheet secara dinamis
+  const ws = getOrCreateSheet(sheet, data.sheet, headers);
   const rows = ws.getDataRange().getValues();
+  const currentHeaders = rows[0];
   
   // Cari index kolom 'id'
-  const idIndex = headers.indexOf('id');
+  const idIndex = currentHeaders.indexOf('id');
+  if (idIndex === -1) return ContentService.createTextOutput(JSON.stringify({success: false, error: "Column 'id' not found"}));
 
-  if(data.action === 'add') {
-    // Mapping data object sesuai urutan header kolom agar tidak salah tempat
-    const rowData = headers.map(header => data.item[header]);
+  if (data.action === 'add') {
+    // Petakan data objek sesuai dengan susunan header kolom
+    const rowData = currentHeaders.map(header => {
+      const val = data.item[header];
+      return val !== undefined ? val : "";
+    });
     ws.appendRow(rowData);
     
   } else if (data.action === 'update') {
     const idToUpdate = data.item.id;
+    let updated = false;
     
-    // Loop mencari baris dengan ID yang cocok
+    // Cari baris yang cocok berdasarkan ID
     for (let i = 1; i < rows.length; i++) {
       if (rows[i][idIndex] == idToUpdate) {
-        // Update baris tersebut (i + 1 karena array mulai dari 0, spreadsheet mulai dari 1)
         const rowIndex = i + 1;
-        const rowData = headers.map(header => data.item[header]);
-        ws.getRange(rowIndex, 1, 1, headers.length).setValues([rowData]);
+        const rowData = currentHeaders.map(header => {
+          const val = data.item[header];
+          return val !== undefined ? val : rows[i][currentHeaders.indexOf(header)];
+        });
+        ws.getRange(rowIndex, 1, 1, currentHeaders.length).setValues([rowData]);
+        updated = true;
         break;
       }
     }
+    if (!updated) return ContentService.createTextOutput(JSON.stringify({success: false, error: "Item ID not found for update"}));
     
   } else if (data.action === 'delete') {
     const idToDelete = data.item.id;
+    let deleted = false;
     
-    // Loop mencari baris dengan ID yang cocok
-    // Loop dari bawah ke atas (reverse) agar penghapusan tidak merusak index baris selanjutnya
+    // Cari dan hapus baris dari bawah ke atas agar tidak mengganggu indeks baris berikutnya
     for (let i = rows.length - 1; i >= 1; i--) {
       if (rows[i][idIndex] == idToDelete) {
-        // Hapus baris (i + 1)
         ws.deleteRow(i + 1);
+        deleted = true;
         break;
       }
     }
+    if (!deleted) return ContentService.createTextOutput(JSON.stringify({success: false, error: "Item ID not found for delete"}));
   }
   
   return ContentService.createTextOutput(JSON.stringify({success: true}))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-function getSheetData(sheet, sheetName) {
-  const ws = sheet.getSheetByName(sheetName);
+// Mengambil data sheet atau membuatnya jika belum ada
+function getSheetData(sheet, sheetName, defaultHeaders) {
+  const ws = getOrCreateSheet(sheet, sheetName, defaultHeaders);
   const rows = ws.getDataRange().getValues();
   const headers = rows[0];
+  
+  if (rows.length <= 1) return []; // Hanya baris header
+  
   return rows.slice(1).map(row => {
     let obj = {};
     headers.forEach((header, idx) => {
@@ -75,4 +96,28 @@ function getSheetData(sheet, sheetName) {
     });
     return obj;
   });
+}
+
+// Membantu mengambil atau membuat sheet dengan header default
+function getOrCreateSheet(sheet, name, headers) {
+  let ws = sheet.getSheetByName(name);
+  if (!ws) {
+    ws = sheet.insertSheet(name);
+    ws.appendRow(headers);
+  }
+  return ws;
+}
+
+// Menyediakan daftar header default untuk setiap tabel
+function getHeadersForSheet(name) {
+  const schemas = {
+    'content_planner': ["id", "judul", "konsep", "jenis", "postType", "progres", "jadwal", "status", "assignedTo"],
+    'brs_schedule': ["id", "judul", "tanggal", "pic_poster", "pic_info", "pic_doc", "pic_high"],
+    'protocol': ["id", "kegiatan", "pimpinan", "level", "lokasi", "petugas", "tanggal"],
+    'team': ["id", "nama", "jabatan", "bidang", "tugas", "kontak"],
+    'tickets': ["id", "pengaju", "bidang", "jenis", "judul", "deadline", "detail", "status", "pic"],
+    'assets': ["id", "nama", "kategori", "ukuran", "pengunggah", "tanggal", "preview"],
+    'monitoring': ["id", "media", "judul", "tanggal", "sentimen", "ringkasan", "url"]
+  };
+  return schemas[name] || null;
 }

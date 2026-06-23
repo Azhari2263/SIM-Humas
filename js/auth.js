@@ -16,61 +16,60 @@ function checkAuth() {
 
 function renderLoginScreen() {
     const loginLayout = document.getElementById('login-layout');
-    // Set a beautiful animated gradient background for the login screen container if needed
-    loginLayout.className = "min-h-screen w-full flex items-center justify-center bg-gradient-to-tr from-slate-950 via-slate-900 to-stats-950 font-sans p-4 relative overflow-hidden";
+    loginLayout.className = "min-h-screen w-full flex items-center justify-center bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 font-sans p-4 relative overflow-hidden";
     
-    // Add decorative floating background blur blobs
+    // Floating background blur elements
     loginLayout.innerHTML = `
-        <div class="absolute top-1/4 left-1/4 w-72 h-72 bg-stats-600/10 rounded-full blur-3xl animate-pulse"></div>
-        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s"></div>
+        <div class="absolute top-1/4 left-1/4 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s"></div>
 
         <div class="w-full max-w-md bg-slate-900/60 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl text-white relative z-10 transform transition-all duration-300 hover:scale-[1.01]">
             <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-gradient-to-br from-stats-400 to-stats-600 rounded-2xl flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4 shadow-lg shadow-stats-500/20 transform rotate-3 hover:rotate-12 transition-transform duration-300">
+                <div class="w-14 h-14 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4 shadow-lg shadow-indigo-500/20 transform rotate-3 hover:rotate-12 transition-transform duration-300">
                     <i class="fa-solid fa-chart-pie"></i>
                 </div>
-                <h2 class="text-2xl font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-stats-200 to-white">SIM HUMAS</h2>
-                <p class="text-xs text-stats-300 font-medium tracking-widest uppercase mt-1">BPS Provinsi Kalimantan Barat</p>
+                <h2 class="text-xl font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-indigo-200 to-white">SIM HUMAS</h2>
+                <p class="text-[10px] text-indigo-300 font-bold tracking-widest uppercase mt-1">BPS Provinsi Kalimantan Barat</p>
             </div>
             
             <form onsubmit="handleLogin(event)" class="space-y-5">
                 <div>
-                    <label class="block text-xs font-semibold text-stats-200 mb-1.5 uppercase tracking-wider">Nama Pengguna</label>
+                    <label class="block text-[10px] font-bold text-indigo-250 mb-1.5 uppercase tracking-wider">Nama Pengguna</label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
                             <i class="fa-regular fa-user"></i>
                         </span>
-                        <input type="text" id="login-username" class="w-full pl-10 pr-4 py-2.5 bg-slate-850 border border-slate-700/60 rounded-lg text-sm text-white focus:outline-none focus:border-stats-500 focus:ring-1 focus:ring-stats-500/50 placeholder-slate-500 transition-all" placeholder="Contoh: azhari" value="azhari" required>
+                        <input type="text" id="login-username" class="w-full pl-10 pr-4 py-2.5 bg-slate-800/80 border border-slate-700/60 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 placeholder-slate-500 transition-all font-medium" placeholder="Masukkan username..." value="admin" required>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-stats-200 mb-1.5 uppercase tracking-wider">Kata Sandi</label>
+                    <label class="block text-[10px] font-bold text-indigo-250 mb-1.5 uppercase tracking-wider">Kata Sandi</label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
                             <i class="fa-solid fa-lock"></i>
                         </span>
-                        <input type="password" id="login-password" class="w-full pl-10 pr-4 py-2.5 bg-slate-850 border border-slate-700/60 rounded-lg text-sm text-white focus:outline-none focus:border-stats-500 focus:ring-1 focus:ring-stats-500/50 placeholder-slate-500 transition-all" placeholder="••••••••" value="password" required>
+                        <input type="password" id="login-password" class="w-full pl-10 pr-4 py-2.5 bg-slate-800/80 border border-slate-700/60 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 placeholder-slate-500 transition-all font-medium" placeholder="••••••••" value="password" required>
                     </div>
                 </div>
-                <button type="submit" class="w-full bg-gradient-to-r from-stats-500 to-stats-600 hover:from-stats-400 hover:to-stats-500 text-white font-bold py-2.5 rounded-lg text-sm transition-all duration-300 shadow-lg shadow-stats-500/10 hover:shadow-stats-550/30 transform active:scale-[0.98]">
+                <button type="submit" class="w-full bg-gradient-to-r from-indigo-500 to-indigo-650 hover:from-indigo-400 hover:to-indigo-550 text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all duration-300 shadow-md shadow-indigo-500/10 hover:shadow-indigo-550/30 transform active:scale-[0.98]">
                     Masuk ke Sistem
                 </button>
             </form>
             
-            <div class="mt-8 border-t border-slate-800 pt-6">
-                <p class="text-center text-xs text-stats-300 mb-4 font-semibold tracking-wide uppercase">Uji Coba Peran Cepat (RBAC):</p>
+            <div class="mt-8 border-t border-slate-800/60 pt-6">
+                <p class="text-center text-[10px] text-indigo-250 mb-4 font-bold tracking-wider uppercase">Pilih Peran Demo untuk Uji Coba:</p>
                 <div class="grid grid-cols-2 gap-3">
-                    <button onclick="quickLogin('admin')" class="py-2.5 px-3 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-stats-550/40 rounded-xl font-medium transition-all text-white text-[11px] flex flex-col items-center justify-center gap-1">
-                        <i class="fa-solid fa-user-shield text-base text-stats-400"></i> Admin / Staf IT
+                    <button onclick="quickLogin('admin')" class="py-2 px-3 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-indigo-500/30 rounded-xl font-bold transition-all text-white text-[10px] flex flex-col items-center justify-center gap-1">
+                        <i class="fa-solid fa-user-shield text-base text-indigo-400"></i> Super Admin
                     </button>
-                    <button onclick="quickLogin('ketua')" class="py-2.5 px-3 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-stats-550/40 rounded-xl font-medium transition-all text-white text-[11px] flex flex-col items-center justify-center gap-1">
-                        <i class="fa-solid fa-user-tie text-base text-stats-400"></i> Ketua Tim
+                    <button onclick="quickLogin('ketua')" class="py-2 px-3 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-indigo-500/30 rounded-xl font-bold transition-all text-white text-[10px] flex flex-col items-center justify-center gap-1">
+                        <i class="fa-solid fa-user-tie text-base text-indigo-400"></i> Ketua Tim
                     </button>
-                    <button onclick="quickLogin('staf')" class="py-2.5 px-3 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-stats-550/40 rounded-xl font-medium transition-all text-white text-[11px] flex flex-col items-center justify-center gap-1">
-                        <i class="fa-solid fa-users text-base text-stats-400"></i> Staf Humas
+                    <button onclick="quickLogin('staf')" class="py-2 px-3 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-indigo-500/30 rounded-xl font-bold transition-all text-white text-[10px] flex flex-col items-center justify-center gap-1">
+                        <i class="fa-solid fa-users text-base text-indigo-400"></i> Staf Humas
                     </button>
-                    <button onclick="quickLogin('internal')" class="py-2.5 px-3 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-stats-550/40 rounded-xl font-medium transition-all text-white text-[11px] flex flex-col items-center justify-center gap-1">
-                        <i class="fa-solid fa-building-user text-base text-stats-400"></i> User Bidang
+                    <button onclick="quickLogin('internal')" class="py-2 px-3 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-indigo-500/30 rounded-xl font-bold transition-all text-white text-[10px] flex flex-col items-center justify-center gap-1">
+                        <i class="fa-solid fa-building-user text-base text-indigo-400"></i> User Bidang
                     </button>
                 </div>
             </div>
@@ -165,12 +164,6 @@ function simulateRole(role) {
 
 function updateUserProfileUI() {
     if (!currentUser) return;
-
-    // Sync values to select elements
-    const selector = document.getElementById('desktop-role-simulator');
-    if (selector) selector.value = currentUser.role;
-    const mobileSelector = document.getElementById('mobile-role-simulator');
-    if (mobileSelector) mobileSelector.value = currentUser.role;
 
     // Display Name & Role
     const fields = [

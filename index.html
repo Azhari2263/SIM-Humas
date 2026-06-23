@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Sistem Informasi Manajemen Tim Humas & Protokoler 2026</title>
+    <title>Sistem Informasi Manajemen Tim Humas & Protokoler BPS Kalbar</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,8 +13,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -25,21 +24,21 @@
                 extend: {
                     colors: {
                         stats: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            200: '#bae6fd',
-                            300: '#7dd3fc',
-                            400: '#38bdf8',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            700: '#0369a1',
-                            800: '#075985',
-                            900: '#0c4a6e',
-                            950: '#082f49',
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#6366f1', // Indigo primary
+                            600: '#4f46e5', // Deep Indigo
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                            950: '#1e1b4b',
                         }
                     },
                     fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
+                        sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
                     }
                 }
             }
@@ -48,49 +47,53 @@
 
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #f8fafc;
         }
 
+        /* Modern active sidebar link */
         .sidebar-link.active {
-            background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
-            color: white;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: #f5f3ff;
+            color: #4f46e5;
+            font-weight: 700;
+            border-left: 4px solid #4f46e5;
+            border-radius: 0 0.5rem 0.5rem 0;
+            box-shadow: 2px 2px 8px rgba(99, 102, 241, 0.05);
         }
 
         .sidebar-link:hover:not(.active) {
-            background-color: #f0f9ff;
-            color: #0c4a6e;
+            background-color: #faf9ff;
+            color: #312e81;
         }
 
         .fade-in {
-            animation: fadeIn 0.3s ease-in-out;
+            animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         @keyframes fadeIn {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateY(8px);
             }
-
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
 
+        /* Custom Scrollbar for premium look */
         ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
         }
 
         ::-webkit-scrollbar-track {
-            background: #f1f1f1;
+            background: #f8fafc;
         }
 
         ::-webkit-scrollbar-thumb {
             background: #cbd5e1;
-            border-radius: 4px;
+            border-radius: 6px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
@@ -99,50 +102,34 @@
 
         #toast-container {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
+            bottom: 24px;
+            right: 24px;
+            z-index: 1050;
         }
 
         .toast {
-            background: white;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            margin-top: 0.5rem;
-            border-left: 4px solid #0ea5e9;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            padding: 12px 18px;
+            border-radius: 14px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 16px -6px rgba(0, 0, 0, 0.05);
+            margin-top: 8px;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            animation: slideIn 0.3s ease-out;
-            max-width: 350px;
+            gap: 10px;
+            animation: slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 380px;
+            border: 1px solid rgba(226, 232, 240, 0.8);
         }
 
         @keyframes slideIn {
             from {
-                transform: translateX(100%);
+                transform: translateX(100%) scale(0.9);
                 opacity: 0;
             }
-
             to {
-                transform: translateX(0);
+                transform: translateX(0) scale(1);
                 opacity: 1;
-            }
-        }
-
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(0, 0, 0, .1);
-            border-radius: 50%;
-            border-top-color: #0ea5e9;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
             }
         }
 
@@ -152,98 +139,103 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(8px);
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 1001;
-            animation: fadeIn 0.2s ease-out;
+            z-index: 1040;
+            animation: fadeInModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeInModal {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .modal-content {
             background: white;
-            border-radius: 1rem;
-            max-width: 500px;
-            width: 90%;
-            max-height: 85vh;
+            border-radius: 20px;
+            max-width: 520px;
+            width: 92%;
+            max-height: 88vh;
             overflow-y: auto;
-            animation: slideUp 0.3s ease-out;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            animation: slideUpModal 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        @keyframes slideUp {
+        @keyframes slideUpModal {
             from {
-                transform: translateY(50px);
+                transform: translateY(20px) scale(0.95);
                 opacity: 0;
             }
-
             to {
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
                 opacity: 1;
             }
         }
 
-        .card-hover {
-            transition: all 0.3s ease;
-        }
-
-        .card-hover:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 20px -12px rgba(0, 0, 0, 0.15);
-        }
-
         .btn-primary {
-            background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
             color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            transition: all 0.3s;
+            border-radius: 12px;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.2);
         }
 
         .btn-primary:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+            box-shadow: 0 6px 14px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
         }
 
         .btn-secondary {
             background: #f1f5f9;
             color: #475569;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            transition: all 0.3s;
+            border-radius: 12px;
+            transition: all 0.25s ease;
+            border: 1px solid #e2e8f0;
         }
 
         .btn-secondary:hover {
             background: #e2e8f0;
+            color: #1e293b;
         }
 
         input,
         select,
         textarea {
             border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            padding: 0.5rem 0.75rem;
-            transition: all 0.2s;
+            border-radius: 10px;
+            padding: 8px 12px;
+            transition: all 0.2s ease;
+            color: #334155;
+            background-color: #f8fafc;
         }
 
         input:focus,
         select:focus,
         textarea:focus {
             outline: none;
-            border-color: #0ea5e9;
-            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+            border-color: #6366f1;
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
 
-        /* Mobile Sidebar */
+        /* Mobile Sidebar Drawer styling */
         .mobile-sidebar {
             position: fixed;
             top: 0;
-            left: -280px;
-            width: 280px;
+            left: -290px;
+            width: 290px;
             height: 100%;
             background: white;
-            z-index: 1002;
-            transition: left 0.3s ease;
-            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+            z-index: 1030;
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 20px rgba(15, 23, 42, 0.08);
         }
 
         .mobile-sidebar.open {
@@ -256,9 +248,16 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1001;
+            background: rgba(15, 23, 42, 0.35);
+            backdrop-filter: blur(4px);
+            z-index: 1020;
             display: none;
+            animation: fadeInOverlay 0.3s;
+        }
+
+        @keyframes fadeInOverlay {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .sidebar-overlay.open {
@@ -267,14 +266,14 @@
     </style>
 </head>
 
-<body class="text-slate-800 antialiased h-screen flex overflow-hidden bg-slate-900">
+<body class="text-slate-800 antialiased h-screen flex overflow-hidden bg-slate-950 font-sans">
 
     <div id="toast-container"></div>
 
     <!-- Login Page Wrapper -->
     <div id="login-layout"
-        class="h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-stats-950 to-slate-900 transition-all duration-300">
-        <!-- Will be dynamically populated by JS -->
+        class="h-screen w-full flex items-center justify-center bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 transition-all duration-300">
+        <!-- populated by auth.js -->
     </div>
 
     <!-- Main App Layout -->
@@ -283,102 +282,88 @@
         <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
 
         <!-- Mobile Sidebar -->
-        <div id="mobile-sidebar" class="mobile-sidebar flex flex-col">
+        <div id="mobile-sidebar" class="mobile-sidebar flex flex-col border-r border-slate-100">
             <div class="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div
-                        class="w-10 h-10 bg-gradient-to-br from-stats-500 to-stats-700 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                        <i class="fa-solid fa-chart-pie"></i>
+                        class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-100">
+                        <i class="fa-solid fa-chart-pie text-lg"></i>
                     </div>
                     <div>
-                        <h1 class="font-bold text-lg text-stats-900 leading-tight">SIM Humas</h1>
-                        <p class="text-xs text-slate-500">BPS Prov. Kalbar</p>
+                        <h1 class="font-extrabold text-slate-900 leading-tight tracking-tight">SIM Humas</h1>
+                        <p class="text-[10px] font-bold text-indigo-650 uppercase tracking-widest">BPS Prov. Kalbar</p>
                     </div>
                 </div>
-                <button onclick="closeMobileSidebar()" class="text-slate-400 hover:text-slate-600">
-                    <i class="fa-solid fa-times text-xl"></i>
+                <button onclick="closeMobileSidebar()" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-all">
+                    <i class="fa-solid fa-times text-lg"></i>
                 </button>
             </div>
 
-            <!-- User Profile & Simulator (Mobile) -->
-            <div class="p-4 border-b border-slate-100 bg-slate-50 flex flex-col gap-2">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2 overflow-hidden">
-                        <div class="w-8 h-8 rounded-full bg-stats-600 flex items-center justify-center text-white font-bold text-xs"
-                            id="mobile-avatar">U</div>
-                        <div class="overflow-hidden">
-                            <p class="text-xs font-bold text-slate-800 truncate" id="mobile-username-display">-</p>
-                            <p class="text-[10px] text-slate-500 capitalize" id="mobile-role-display">-</p>
-                        </div>
+            <!-- User Profile Card (Mobile) -->
+            <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-150 flex items-center justify-center text-indigo-750 font-black text-sm shadow-xs" id="mobile-avatar">U</div>
+                    <div class="overflow-hidden">
+                        <p class="text-xs font-black text-slate-800 truncate" id="mobile-username-display">-</p>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5" id="mobile-role-display">-</p>
                     </div>
-                    <button onclick="handleLogout()" class="text-slate-400 hover:text-red-600 text-sm p-1"
-                        title="Keluar">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                    </button>
                 </div>
-                <div class="flex items-center gap-1.5 pt-1 border-t border-slate-100/50">
-                    <span class="text-[9px] text-slate-400 uppercase font-bold">Simulasi Peran:</span>
-                    <select id="mobile-role-simulator" onchange="simulateRole(this.value)"
-                        class="text-[10px] py-0.5 px-1 bg-white border border-slate-200 rounded text-slate-600">
-                        <option value="admin">Super Admin</option>
-                        <option value="ketua">Ketua Tim</option>
-                        <option value="staf">Staf Humas</option>
-                        <option value="internal">User Internal</option>
-                    </select>
-                </div>
+                <button onclick="handleLogout()" class="w-8 h-8 rounded-xl border border-slate-200 bg-white hover:text-rose-600 text-slate-400 text-xs shadow-xs flex items-center justify-center transition-all" title="Keluar">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
             </div>
 
             <nav class="flex-1 overflow-y-auto p-4 space-y-1">
                 <button onclick="router('dashboard'); closeMobileSidebar();" id="mobile-nav-dashboard"
                     data-roles="admin,ketua,staf,internal"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-gauge-high w-5"></i> Dashboard
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-gauge-high w-5 text-sm"></i> Dashboard
                 </button>
                 <button onclick="router('planner'); closeMobileSidebar();" id="mobile-nav-planner"
                     data-roles="admin,ketua,staf"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-list-check w-5"></i> Content Planner
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-list-check w-5 text-sm"></i> Content Planner
                 </button>
                 <button onclick="router('schedule'); closeMobileSidebar();" id="mobile-nav-schedule"
                     data-roles="admin,ketua,staf"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-regular fa-calendar-days w-5"></i> Jadwal Rilis (BRS)
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-regular fa-calendar-days w-5 text-sm"></i> Jadwal Rilis (BRS)
                 </button>
                 <button onclick="router('protocol'); closeMobileSidebar();" id="mobile-nav-protocol"
                     data-roles="admin,ketua,staf"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-user-tie w-5"></i> Protokoler & MC
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-user-tie w-5 text-sm"></i> Protokoler & MC
                 </button>
                 <button onclick="router('tickets'); closeMobileSidebar();" id="mobile-nav-tickets"
                     data-roles="admin,ketua,staf,internal"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-ticket w-5"></i> Permintaan Layanan
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-ticket w-5 text-sm"></i> Permintaan Layanan
                 </button>
                 <button onclick="router('assets'); closeMobileSidebar();" id="mobile-nav-assets"
                     data-roles="admin,ketua,staf,internal"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-folder-open w-5"></i> Bank Desain
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-folder-open w-5 text-sm"></i> Bank Desain
                 </button>
                 <button onclick="router('monitoring'); closeMobileSidebar();" id="mobile-nav-monitoring"
                     data-roles="admin,ketua,staf"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-magnifying-glass-chart w-5"></i> Media Monitoring
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-magnifying-glass-chart w-5 text-sm"></i> Media Monitoring
                 </button>
                 <button onclick="router('team'); closeMobileSidebar();" id="mobile-nav-team" data-roles="admin,ketua"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-users w-5"></i> Direktori Tim
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-users w-5 text-sm"></i> Direktori Tim
                 </button>
             </nav>
             <div class="p-4 border-t border-slate-100">
-                <div class="bg-gradient-to-br from-stats-50 to-stats-100 rounded-lg p-4">
-                    <p class="text-xs font-semibold text-stats-800 mb-2">Status Data</p>
-                    <div class="flex items-center justify-between text-xs text-stats-700 mb-1">
+                <div class="bg-slate-50/80 rounded-2xl p-4 border border-slate-100">
+                    <p class="text-[9px] uppercase font-extrabold text-indigo-650 tracking-widest">Sinkronisasi</p>
+                    <div class="flex items-center justify-between text-[10px] text-slate-500 mt-2 font-medium">
                         <span><i class="fa-regular fa-clock mr-1"></i> Terakhir:</span>
-                        <span id="mobile-last-sync-date" class="font-medium">-</span>
+                        <span id="mobile-last-sync-date" class="font-bold text-slate-700">-</span>
                     </div>
                     <button onclick="syncData(); closeMobileSidebar();"
-                        class="mt-3 w-full bg-white border border-stats-200 hover:bg-stats-50 text-stats-700 text-xs py-2 rounded-lg shadow-sm transition-all flex justify-center items-center gap-2 font-medium">
-                        <i class="fa-solid fa-rotate"></i> Sinkron Database
+                        class="mt-3.5 w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[10px] font-bold uppercase tracking-wider py-2 rounded-xl shadow-xs transition-all flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-rotate"></i> Sinkron
                     </button>
                 </div>
             </div>
@@ -388,108 +373,93 @@
         <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10 hidden md:flex">
             <div class="p-6 border-b border-slate-100 flex items-center gap-3">
                 <div
-                    class="w-10 h-10 bg-gradient-to-br from-stats-500 to-stats-700 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                    <i class="fa-solid fa-chart-pie"></i>
+                    class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-100">
+                    <i class="fa-solid fa-chart-pie text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg text-stats-900 leading-tight">SIM Humas</h1>
-                    <p class="text-xs text-slate-500">BPS Prov. Kalbar</p>
+                    <h1 class="font-extrabold text-slate-900 leading-tight tracking-tight">SIM Humas</h1>
+                    <p class="text-[10px] font-bold text-indigo-655 uppercase tracking-widest">BPS Prov. Kalbar</p>
                 </div>
             </div>
 
-            <!-- User Profile & Simulator (Desktop) -->
-            <div class="p-4 border-b border-slate-100 bg-slate-50 flex flex-col gap-2">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2 overflow-hidden">
-                        <div class="w-8 h-8 rounded-full bg-stats-600 flex items-center justify-center text-white font-bold text-xs"
-                            id="desktop-avatar">U</div>
-                        <div class="overflow-hidden">
-                            <p class="text-xs font-bold text-slate-800 truncate" id="desktop-username-display">-</p>
-                            <p class="text-[10px] text-slate-500 capitalize" id="desktop-role-display">-</p>
-                        </div>
+            <!-- User Profile Card (Desktop) -->
+            <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-150 flex items-center justify-center text-indigo-750 font-black text-sm shadow-xs" id="desktop-avatar">U</div>
+                    <div class="overflow-hidden">
+                        <p class="text-xs font-black text-slate-800 truncate" id="desktop-username-display">-</p>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5" id="desktop-role-display">-</p>
                     </div>
-                    <button onclick="handleLogout()" class="text-slate-400 hover:text-red-600 text-sm p-1"
-                        title="Keluar">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                    </button>
                 </div>
-                <div class="flex items-center gap-1.5 pt-1 border-t border-slate-100/50">
-                    <span class="text-[9px] text-slate-400 uppercase font-bold">Simulasi Peran:</span>
-                    <select id="desktop-role-simulator" onchange="simulateRole(this.value)"
-                        class="text-[10px] py-0.5 px-1 bg-white border border-slate-200 rounded text-slate-600 flex-1">
-                        <option value="admin">Super Admin</option>
-                        <option value="ketua">Ketua Tim</option>
-                        <option value="staf">Staf Humas</option>
-                        <option value="internal">User Internal</option>
-                    </select>
-                </div>
+                <button onclick="handleLogout()" class="w-8 h-8 rounded-xl border border-slate-200 bg-white hover:text-rose-600 text-slate-450 hover:border-slate-350 text-xs shadow-xs flex items-center justify-center transition-all" title="Keluar">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
             </div>
 
             <nav class="flex-1 overflow-y-auto p-4 space-y-1">
                 <button onclick="router('dashboard')" id="nav-dashboard" data-roles="admin,ketua,staf,internal"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-gauge-high w-5"></i> Dashboard
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-gauge-high w-5 text-sm"></i> Dashboard
                 </button>
                 <button onclick="router('planner')" id="nav-planner" data-roles="admin,ketua,staf"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-list-check w-5"></i> Content Planner
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-list-check w-5 text-sm"></i> Content Planner
                 </button>
                 <button onclick="router('schedule')" id="nav-schedule" data-roles="admin,ketua,staf"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-regular fa-calendar-days w-5"></i> Jadwal Rilis (BRS)
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-regular fa-calendar-days w-5 text-sm"></i> Jadwal Rilis (BRS)
                 </button>
                 <button onclick="router('protocol')" id="nav-protocol" data-roles="admin,ketua,staf"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-user-tie w-5"></i> Protokoler & MC
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-user-tie w-5 text-sm"></i> Protokoler & MC
                 </button>
                 <button onclick="router('tickets')" id="nav-tickets" data-roles="admin,ketua,staf,internal"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-ticket w-5"></i> Permintaan Layanan
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-ticket w-5 text-sm"></i> Permintaan Layanan
                 </button>
                 <button onclick="router('assets')" id="nav-assets" data-roles="admin,ketua,staf,internal"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-folder-open w-5"></i> Bank Desain
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-folder-open w-5 text-sm"></i> Bank Desain
                 </button>
                 <button onclick="router('monitoring')" id="nav-monitoring" data-roles="admin,ketua,staf"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-magnifying-glass-chart w-5"></i> Media Monitoring
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-magnifying-glass-chart w-5 text-sm"></i> Media Monitoring
                 </button>
                 <button onclick="router('team')" id="nav-team" data-roles="admin,ketua"
-                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-users w-5"></i> Direktori Tim
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-users w-5 text-sm"></i> Direktori Tim
                 </button>
             </nav>
 
             <div class="p-4 border-t border-slate-100">
-                <div class="bg-gradient-to-br from-stats-50 to-stats-100 rounded-lg p-4">
-                    <p class="text-xs font-semibold text-stats-800 mb-2">Status Data</p>
-                    <div class="flex items-center justify-between text-xs text-stats-700 mb-1">
+                <div class="bg-slate-50/80 rounded-2xl p-4 border border-slate-100">
+                    <p class="text-[9px] uppercase font-extrabold text-indigo-655 tracking-widest">Sinkronisasi</p>
+                    <div class="flex items-center justify-between text-[10px] text-slate-500 mt-2 font-medium">
                         <span><i class="fa-regular fa-clock mr-1"></i> Terakhir:</span>
-                        <span id="last-sync-date" class="font-medium">-</span>
+                        <span id="last-sync-date" class="font-bold text-slate-750">-</span>
                     </div>
                     <button onclick="syncData()"
-                        class="mt-3 w-full bg-white border border-stats-200 hover:bg-stats-50 text-stats-700 text-xs py-2 rounded-lg shadow-sm transition-all flex justify-center items-center gap-2 font-medium">
-                        <i class="fa-solid fa-rotate"></i> Sinkron Database
+                        class="mt-3.5 w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[10px] font-bold uppercase tracking-wider py-2 rounded-xl shadow-xs transition-all flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-rotate"></i> Sinkron
                     </button>
                 </div>
             </div>
         </aside>
 
         <!-- Main Content -->
-        <main
-            class="flex-1 flex flex-col h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 relative">
+        <main class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative">
             <header
-                class="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center shadow-sm">
-                <div class="font-bold text-stats-900 text-lg">SIM Humas BPS Kalbar</div>
-                <button onclick="openMobileSidebar()" class="text-slate-600 focus:outline-none">
-                    <i class="fa-solid fa-bars text-2xl"></i>
+                class="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center shadow-xs">
+                <div class="font-extrabold text-indigo-700 text-sm uppercase tracking-wider">SIM Humas BPS Kalbar</div>
+                <button onclick="openMobileSidebar()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-650 hover:bg-slate-50 focus:outline-none transition-all">
+                    <i class="fa-solid fa-bars text-xl"></i>
                 </button>
             </header>
 
             <div id="app-content" class="flex-1 overflow-y-auto p-4 md:p-8 fade-in">
-                <div class="flex justify-center items-center h-64">
-                    <div class="loading-spinner"></div>
-                    <span class="ml-3 text-slate-600 font-medium">Memuat data dari server...</span>
+                <div class="flex flex-col justify-center items-center h-full">
+                    <div class="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                    <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Menghubungkan ke server database...</span>
                 </div>
             </div>
         </main>
