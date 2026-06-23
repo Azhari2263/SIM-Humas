@@ -837,17 +837,8 @@ function renderRekapRutin(container) {
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Daftar rekapitulasi, monitoring sebaran tugas harian, dan rubrikasi berkala kehumasan.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="downloadTemplate(['Tanggal', 'Hari', 'Rubrikasi', 'Kegiatan', 'Petugas', 'Status'], 'Template_Rekap_Rutin.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-arrow-down"></i> Template
-                </button>
-                <button onclick="exportRutinReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-csv"></i> CSV
-                </button>
                 <button onclick="exportRutinReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
                     <i class="fa-solid fa-file-excel"></i> Excel
-                </button>
-                <button onclick="exportRutinReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak
                 </button>
                 ${!isKepala && isUserAdminOrKetua() ? `
                     <button onclick="openModal('rekap_rutin')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
@@ -984,17 +975,8 @@ function renderAdHoc(container) {
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola monitoring penugasan dinamis (multi-person), beban kerja, dan tim satuan tugas khusus.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="downloadTemplate(['Tanggal', 'Hari', 'Nama Kegiatan', 'Jumlah Bertugas', 'Nama Petugas', 'Keterangan', 'Status'], 'Template_AdHoc_2026.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-arrow-down"></i> Template
-                </button>
-                <button onclick="exportAdHocReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-csv"></i> CSV
-                </button>
                 <button onclick="exportAdHocReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
                     <i class="fa-solid fa-file-excel"></i> Excel
-                </button>
-                <button onclick="exportAdHocReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak
                 </button>
                 ${!isKepala && isUserAdminOrKetua() ? `
                     <button onclick="openModal('ad_hoc')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
@@ -1120,17 +1102,8 @@ function renderProtokolerSeparate(container) {
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Agenda pendampingan protokol pimpinan BPS Provinsi Kalbar pada acara internal maupun eksternal.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="downloadTemplate(['Tanggal', 'Bulan', 'Nama Kegiatan', 'Lokasi', 'Jam Mulai', 'Jenis', 'Level', 'Petugas', 'Keterangan', 'Status'], 'Template_Protokoler.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-arrow-down"></i> Template
-                </button>
-                <button onclick="exportProtokolerReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-csv"></i> CSV
-                </button>
                 <button onclick="exportProtokolerReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
                     <i class="fa-solid fa-file-excel"></i> Excel
-                </button>
-                <button onclick="exportProtokolerReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak
                 </button>
                 ${!isKepala && isUserAdminOrKetua() ? `
                     <button onclick="openModal('protokoler')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
@@ -1270,17 +1243,8 @@ function renderMcSeparate(container) {
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Agenda penugasan dan monitoring petugas pembawa acara (MC) BPS Provinsi Kalimantan Barat.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="downloadTemplate(['Tanggal', 'Bulan', 'Nama Kegiatan', 'Lokasi', 'Jam Mulai', 'Jenis', 'Level', 'Petugas', 'Keterangan', 'Status'], 'Template_MC.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-arrow-down"></i> Template
-                </button>
-                <button onclick="exportMcReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-csv"></i> CSV
-                </button>
                 <button onclick="exportMcReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
                     <i class="fa-solid fa-file-excel"></i> Excel
-                </button>
-                <button onclick="exportMcReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak
                 </button>
                 ${!isKepala && isUserAdminOrKetua() ? `
                     <button onclick="openModal('mc')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
@@ -1419,17 +1383,8 @@ function renderBrsRilis(container) {
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola dokumen rilis BRS, infografis, dokumentasi YouTube/Zoom, dan kelengkapan highlight data.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="downloadTemplate(['Tanggal Rilis', 'Judul', 'PIC Poster dan Infografis', 'PIC Dokumentasi Dalam Ruang', 'PIC Dokumentasi YouTube dan Zoom', 'Highlight'], 'Template_BRS.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-arrow-down"></i> Template
-                </button>
-                <button onclick="exportBrsReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-csv"></i> CSV
-                </button>
                 <button onclick="exportBrsReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
                     <i class="fa-solid fa-file-excel"></i> Excel
-                </button>
-                <button onclick="exportBrsReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak
                 </button>
                 ${!isKepala && isUserAdminOrKetua() ? `
                     <button onclick="openModal('brs_rilis')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
@@ -1548,17 +1503,8 @@ function renderHariBesar(container) {
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Daftar agenda ucapan hari besar nasional/keagamaan, kalender perayaan, serta PIC pembuat konten.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="downloadTemplate(['Tanggal', 'Hari Besar', 'Pembuat Konten (PIC)', 'Status', 'Data Pendukung'], 'Template_Hari_Besar.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-arrow-down"></i> Template
-                </button>
-                <button onclick="exportHariBesarReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-csv"></i> CSV
-                </button>
                 <button onclick="exportHariBesarReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
                     <i class="fa-solid fa-file-excel"></i> Excel
-                </button>
-                <button onclick="exportHariBesarReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak
                 </button>
                 ${!isKepala && isUserAdminOrKetua() ? `
                     <button onclick="openModal('hari_besar')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
@@ -1868,104 +1814,8 @@ function renderIntegratedCalendar(container) {
 }
 
 // -------------------------------------------------------------
-// 11. AUDIT TRAIL VIEW
+// 11. AUDIT TRAIL VIEW (DELETED)
 // -------------------------------------------------------------
-let auditSearch = '';
-let auditPage = 1;
-const auditLimit = 10;
-
-function renderAuditTrail(container) {
-    container.innerHTML = `
-        <div class="mb-8 animate-fade-in">
-            <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Audit Trail & Activity Log</h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Riwayat penambahan, modifikasi, penghapusan data, dan log audit aktivitas pengguna sistem.</p>
-        </div>
-
-        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex justify-between items-center shadow-xs">
-            <div class="relative w-full max-w-xs">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
-                <input type="text" oninput="auditSearch = this.value; drawAuditTrail();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari log atau user...">
-            </div>
-        </div>
-
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
-            <div class="overflow-x-auto">
-                <table class="w-full text-xs text-left text-slate-655 dark:text-slate-350">
-                    <thead class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50/60 dark:bg-slate-900/40 uppercase border-b border-slate-200 dark:border-slate-700 font-black tracking-wider">
-                        <tr>
-                            <th class="px-6 py-4">Waktu</th>
-                            <th class="px-6 py-4">Pengguna</th>
-                            <th class="px-6 py-4">Aksi</th>
-                            <th class="px-6 py-4">Rincian Perubahan / Detail</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="audit-table-body">
-                        <!-- Filled by drawAuditTrail -->
-                    </tbody>
-                </table>
-            </div>
-            <div class="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between" id="audit-pagination">
-                <!-- Filled dynamically -->
-            </div>
-        </div>
-    `;
-    drawAuditTrail();
-}
-
-function drawAuditTrail() {
-    const body = document.getElementById('audit-table-body');
-    const pagination = document.getElementById('audit-pagination');
-    if (!body || !pagination) return;
-
-    let filtered = db.auditTrail;
-    if (auditSearch.trim()) {
-        const q = auditSearch.toLowerCase();
-        filtered = filtered.filter(log => 
-            (log.user && log.user.toLowerCase().includes(q)) || 
-            (log.detail && log.detail.toLowerCase().includes(q)) || 
-            (log.action && log.action.toLowerCase().includes(q))
-        );
-    }
-
-    filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-    const totalCount = filtered.length;
-    const totalPages = Math.ceil(totalCount / auditLimit) || 1;
-    if (auditPage > totalPages) auditPage = totalPages;
-    const offset = (auditPage - 1) * auditLimit;
-    const paginatedItems = filtered.slice(offset, offset + auditLimit);
-
-    if (paginatedItems.length === 0) {
-        body.innerHTML = `
-            <tr><td colspan="4" class="py-16 text-center text-slate-450 dark:text-slate-550"><i class="fa-solid fa-shoe-prints text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Log audit kosong.</p></td></tr>
-        `;
-        pagination.innerHTML = '';
-        return;
-    }
-
-    body.innerHTML = paginatedItems.map(log => `
-        <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
-            <td class="px-6 py-3.5 font-semibold text-slate-500 whitespace-nowrap">${new Date(log.timestamp).toLocaleString('id-ID')}</td>
-            <td class="px-6 py-3.5 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">${log.user}</td>
-            <td class="px-6 py-3.5 whitespace-nowrap"><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-650 dark:text-slate-300 font-bold uppercase tracking-wide text-[8px] rounded border border-slate-200 dark:border-slate-600">${log.action}</span></td>
-            <td class="px-6 py-3.5 font-medium text-slate-755 dark:text-slate-250 leading-relaxed">${log.detail}</td>
-        </tr>
-    `).join('');
-
-    pagination.innerHTML = `
-        <span class="text-[10px] font-semibold text-slate-450">Menampilkan ${offset + 1} - ${Math.min(offset + auditLimit, totalCount)} dari ${totalCount} log</span>
-        <div class="flex gap-2">
-            <button onclick="changeAuditPage(${auditPage - 1})" ${auditPage === 1 ? 'disabled' : ''} class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-550 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-all"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
-            <button onclick="changeAuditPage(${auditPage + 1})" ${auditPage === totalPages ? 'disabled' : ''} class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-550 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-all"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
-        </div>
-    `;
-
-    window.changeAuditPage = function(p) {
-        if (p < 1 || p > totalPages) return;
-        auditPage = p;
-        drawAuditTrail();
-    };
-}
 
 // -------------------------------------------------------------
 // 12. CONFIGURATION & DATABASE BACKUP/RESTORE VIEW
@@ -2210,17 +2060,8 @@ function renderTickets(container) {
             </div>
             <div class="flex flex-wrap gap-2">
                 ${!isInternal ? `
-                    <button onclick="downloadTemplate(['Pengaju', 'Seksi/Bidang', 'Layanan', 'Judul Pengajuan', 'Batas Waktu', 'Status', 'PIC Ditunjuk'], 'Template_Tiket.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                        <i class="fa-solid fa-file-arrow-down"></i> Template
-                    </button>
-                    <button onclick="exportTicketsReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                        <i class="fa-solid fa-file-csv"></i> CSV
-                    </button>
                     <button onclick="exportTicketsReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
                         <i class="fa-solid fa-file-excel"></i> Excel
-                    </button>
-                    <button onclick="exportTicketsReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                        <i class="fa-solid fa-print"></i> Cetak
                     </button>
                 ` : ''}
                 ${isInternal ? `
@@ -2420,17 +2261,8 @@ function renderMonitoring(container) {
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pantau pemberitaan rilis data BPS Provinsi Kalimantan Barat di berbagai portal berita online lokal.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="downloadTemplate(['Portal Media', 'Headline Kliping', 'Kutipan Ringkasan', 'Tanggal Kliping', 'Indeks Sentimen', 'Tautan URL'], 'Template_Media_Monitoring.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-arrow-down"></i> Template
-                </button>
-                <button onclick="exportMonitoringReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-file-csv"></i> CSV
-                </button>
                 <button onclick="exportMonitoringReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
                     <i class="fa-solid fa-file-excel"></i> Excel
-                </button>
-                <button onclick="exportMonitoringReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak
                 </button>
                 ${!isKepala && isUserAdminOrKetua() ? `
                     <button onclick="openAddMonitoringModal()" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">

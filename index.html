@@ -372,6 +372,9 @@
                 <button onclick="router('dashboard'); closeMobileSidebar();" id="mobile-nav-dashboard" data-roles="admin,kepala,koordinator,tim,pemohon" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-gauge-high w-5 text-sm"></i> Dashboard
                 </button>
+                <button onclick="router('calendar'); closeMobileSidebar();" id="mobile-nav-calendar" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-regular fa-calendar-days w-5 text-sm"></i> Kalender Kegiatan
+                </button>
                 <button onclick="router('planner'); closeMobileSidebar();" id="mobile-nav-planner" data-roles="admin,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-list-check w-5 text-sm"></i> Content Planner
                 </button>
@@ -393,23 +396,17 @@
                 <button onclick="router('hari_besar'); closeMobileSidebar();" id="mobile-nav-hari_besar" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-heart w-5 text-sm"></i> Ucapan Hari Besar
                 </button>
-                <button onclick="router('rekap_kegiatan'); closeMobileSidebar();" id="mobile-nav-rekap_kegiatan" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-chart-simple w-5 text-sm"></i> SLA & Rekap Tugas
-                </button>
                 <button onclick="router('tickets'); closeMobileSidebar();" id="mobile-nav-tickets" data-roles="admin,kepala,koordinator,tim,pemohon" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-ticket w-5 text-sm"></i> Layanan Humas
                 </button>
                 <button onclick="router('monitoring'); closeMobileSidebar();" id="mobile-nav-monitoring" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-magnifying-glass-chart w-5 text-sm"></i> Media Monitoring
                 </button>
+                <button onclick="router('rekap_kegiatan'); closeMobileSidebar();" id="mobile-nav-rekap_kegiatan" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-chart-simple w-5 text-sm"></i> SLA & Rekap Tugas
+                </button>
                 <button onclick="router('team'); closeMobileSidebar();" id="mobile-nav-team" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-users w-5 text-sm"></i> Direktori Tim
-                </button>
-                <button onclick="router('calendar'); closeMobileSidebar();" id="mobile-nav-calendar" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-regular fa-calendar-days w-5 text-sm"></i> Kalender Kegiatan
-                </button>
-                <button onclick="router('audit_trail'); closeMobileSidebar();" id="mobile-nav-audit_trail" data-roles="admin,kepala,koordinator" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-shoe-prints w-5 text-sm"></i> Audit Trail
                 </button>
                 <button onclick="router('settings'); closeMobileSidebar();" id="mobile-nav-settings" data-roles="admin" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-gears w-5 text-sm"></i> Master & Backup
@@ -460,6 +457,9 @@
                 <button onclick="router('dashboard')" id="nav-dashboard" data-roles="admin,kepala,koordinator,tim,pemohon" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-gauge-high w-5 text-sm"></i> Dashboard
                 </button>
+                <button onclick="router('calendar')" id="nav-calendar" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-regular fa-calendar-days w-5 text-sm"></i> Kalender Kegiatan
+                </button>
                 <button onclick="router('planner')" id="nav-planner" data-roles="admin,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-list-check w-5 text-sm"></i> Content Planner
                 </button>
@@ -481,23 +481,17 @@
                 <button onclick="router('hari_besar')" id="nav-hari_besar" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-heart w-5 text-sm"></i> Ucapan Hari Besar
                 </button>
-                <button onclick="router('rekap_kegiatan')" id="nav-rekap_kegiatan" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-chart-simple w-5 text-sm"></i> SLA & Rekap Tugas
-                </button>
                 <button onclick="router('tickets')" id="nav-tickets" data-roles="admin,kepala,koordinator,tim,pemohon" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-ticket w-5 text-sm"></i> Layanan Humas
                 </button>
                 <button onclick="router('monitoring')" id="nav-monitoring" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-magnifying-glass-chart w-5 text-sm"></i> Media Monitoring
                 </button>
+                <button onclick="router('rekap_kegiatan')" id="nav-rekap_kegiatan" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-chart-simple w-5 text-sm"></i> SLA & Rekap Tugas
+                </button>
                 <button onclick="router('team')" id="nav-team" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-users w-5 text-sm"></i> Direktori Tim
-                </button>
-                <button onclick="router('calendar')" id="nav-calendar" data-roles="admin,kepala,koordinator,tim" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-regular fa-calendar-days w-5 text-sm"></i> Kalender Kegiatan
-                </button>
-                <button onclick="router('audit_trail')" id="nav-audit_trail" data-roles="admin,kepala,koordinator" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-shoe-prints w-5 text-sm"></i> Audit Trail
                 </button>
                 <button onclick="router('settings')" id="nav-settings" data-roles="admin" class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-gears w-5 text-sm"></i> Master & Backup

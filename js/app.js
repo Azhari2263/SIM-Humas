@@ -222,15 +222,9 @@ function handleGlobalSearch(query) {
     } else if (currentState === 'tickets') {
         ticketSearch = query;
         drawTicketsGrid();
-    } else if (currentState === 'monitoring') {
-        monitoringSearch = query;
-        drawMonitoringTable();
     } else if (currentState === 'team') {
         teamSearch = query;
         drawTeamGrid();
-    } else if (currentState === 'audit_trail') {
-        auditSearch = query;
-        drawAuditTrail();
     }
 }
 
@@ -1026,9 +1020,9 @@ function showDetail(type, item) {
 // Navigation & Routing System
 function router(page) {
     const allowedPages = {
-        admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'audit_trail', 'settings'],
-        kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'audit_trail'],
-        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'audit_trail'],
+        admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'settings'],
+        kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar'],
+        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar'],
         tim: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar'],
         pemohon: ['dashboard', 'tickets']
     };
@@ -1116,7 +1110,6 @@ function router(page) {
         case 'monitoring': renderMonitoring(contentDiv); break;
         case 'team': renderTeam(contentDiv); break;
         case 'calendar': renderIntegratedCalendar(contentDiv); break;
-        case 'audit_trail': renderAuditTrail(contentDiv); break;
         case 'settings': renderSettingsPage(contentDiv); break;
     }
 }
