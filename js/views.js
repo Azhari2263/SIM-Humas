@@ -2638,7 +2638,10 @@ function drawMonitoringTable() {
             actionButton = `
                 <td class="px-6 py-4 text-center whitespace-nowrap" onclick="event.stopPropagation()">
                     <div class="flex items-center justify-center gap-1.5">
-                        ${isUserAdminOrKetua() ? `<button onclick="deleteItem('monitoring', ${m.id})" title="Hapus Kliping" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>` : ''}
+                        ${isUserAdminOrKetua() ? `
+                            <button onclick="openEditMonitoringModal(${m.id})" title="Edit Kliping" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                            <button onclick="deleteItem('monitoring', ${m.id})" title="Hapus Kliping" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                        ` : ''}
                         <a href="${m.url}" target="_blank" class="text-indigo-655 hover:text-indigo-850 flex items-center justify-center gap-1 uppercase tracking-wider text-[8px] bg-slate-50 dark:bg-slate-750 dark:text-indigo-300 hover:bg-indigo-50 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-lg font-bold transition-all">
                             <i class="fa-solid fa-external-link"></i> Buka
                         </a>

@@ -122,6 +122,61 @@
             background: #94a3b8;
         }
 
+        /* === DESKTOP SIDEBAR COLLAPSE === */
+        #desktop-sidebar {
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        #desktop-sidebar.collapsed {
+            width: 68px !important;
+            min-width: 68px !important;
+        }
+
+        #desktop-sidebar.collapsed .sidebar-text {
+            display: none !important;
+        }
+
+        #desktop-sidebar.collapsed .sidebar-logo-text {
+            display: none !important;
+        }
+
+        #desktop-sidebar.collapsed .sidebar-link {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+            border-left: none !important;
+            border-radius: 0.75rem !important;
+        }
+
+        #desktop-sidebar.collapsed .sidebar-link.active {
+            border-left: none !important;
+            border-radius: 0.75rem !important;
+        }
+
+        #desktop-sidebar.collapsed .sidebar-link i {
+            width: auto;
+            font-size: 1rem;
+        }
+
+        #desktop-sidebar.collapsed .sidebar-user-section {
+            display: none !important;
+        }
+
+        #desktop-sidebar.collapsed .sidebar-sync-section {
+            display: none !important;
+        }
+
+        #desktop-sidebar.collapsed #desktop-nav {
+            padding: 0.75rem 0.5rem;
+        }
+
+        #desktop-sidebar.collapsed .sidebar-logo-section {
+            justify-content: center;
+            padding: 1rem 0.5rem;
+        }
+
+        /* === TOAST NOTIFICATIONS === */
         #toast-container {
             position: fixed;
             bottom: 24px;
@@ -177,13 +232,8 @@
         }
 
         @keyframes fadeInModal {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .modal-content {
@@ -207,10 +257,54 @@
                 transform: translateY(20px) scale(0.95);
                 opacity: 0;
             }
-
             to {
                 transform: translateY(0) scale(1);
                 opacity: 1;
+            }
+        }
+
+        /* === CUSTOM CONFIRM MODAL === */
+        .confirm-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1060;
+            animation: fadeInModal 0.2s ease;
+        }
+
+        .confirm-modal-box {
+            background: white;
+            border-radius: 20px;
+            padding: 28px 28px 24px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 25px 60px -12px rgba(15, 23, 42, 0.35);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            animation: slideUpModal 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .dark .confirm-modal-box {
+            background: #1e293b;
+            border-color: #334155;
+        }
+
+        /* === NOTIFICATION PANEL === */
+        #notif-panel {
+            min-width: 320px;
+        }
+
+        @media (max-width: 640px) {
+            #notif-panel {
+                position: fixed !important;
+                right: 8px !important;
+                left: 8px !important;
+                top: 56px !important;
+                min-width: unset;
+                width: auto;
             }
         }
 
@@ -494,24 +588,22 @@
         </div>
 
         <!-- Desktop Sidebar -->
-        <aside
+        <aside id="desktop-sidebar"
             class="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col shadow-sm z-10 hidden md:flex shrink-0">
-            <div class="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <!-- Logo Section -->
+            <div class="sidebar-logo-section p-5 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
                 <div
-                    class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-100">
+                    class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-100 shrink-0">
                     <i class="fa-solid fa-chart-pie text-lg"></i>
                 </div>
-                <div>
-                    <h1 class="font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">SIM Humas
-                    </h1>
-                    <p class="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">BPS
-                        Prov. Kalbar</p>
+                <div class="sidebar-logo-text">
+                    <h1 class="font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">SIM Humas</h1>
+                    <p class="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">BPS Prov. Kalbar</p>
                 </div>
             </div>
 
             <!-- User Profile Card (Desktop) -->
-            <div
-                class="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
+            <div class="sidebar-user-section p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-9 h-9 rounded-xl bg-indigo-55 border border-indigo-150 dark:border-slate-700 flex items-center justify-center text-indigo-750 dark:text-indigo-300 font-black text-sm"
                         id="desktop-avatar">U</div>
@@ -523,7 +615,7 @@
                     </div>
                 </div>
                 <button onclick="handleLogout()"
-                    class="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:text-rose-600 text-slate-400 dark:text-slate-300 text-xs shadow-xs flex items-center justify-center transition-all animate-none"
+                    class="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:text-rose-600 text-slate-400 dark:text-slate-300 text-xs shadow-xs flex items-center justify-center transition-all"
                     title="Keluar">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
@@ -533,71 +625,68 @@
                 <button onclick="router('dashboard')" id="nav-dashboard"
                     data-roles="admin,kepala,koordinator,tim,pemohon"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-gauge-high w-5 text-sm"></i> Dashboard
+                    <i class="fa-solid fa-gauge-high w-5 text-sm shrink-0"></i> <span class="sidebar-text">Dashboard</span>
                 </button>
                 <button onclick="router('calendar')" id="nav-calendar" data-roles="admin,kepala,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-regular fa-calendar-days w-5 text-sm"></i> Kalender Kegiatan
+                    <i class="fa-regular fa-calendar-days w-5 text-sm shrink-0"></i> <span class="sidebar-text">Kalender Kegiatan</span>
                 </button>
                 <button onclick="router('planner')" id="nav-planner" data-roles="admin,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-list-check w-5 text-sm"></i> Content Planner
+                    <i class="fa-solid fa-list-check w-5 text-sm shrink-0"></i> <span class="sidebar-text">Content Planner</span>
                 </button>
                 <button onclick="router('rekap_rutin')" id="nav-rekap_rutin" data-roles="admin,kepala,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-circle-nodes w-5 text-sm"></i> Rekap Rutin
+                    <i class="fa-solid fa-circle-nodes w-5 text-sm shrink-0"></i> <span class="sidebar-text">Rekap Rutin</span>
                 </button>
                 <button onclick="router('ad_hoc')" id="nav-ad_hoc" data-roles="admin,kepala,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-business-time w-5 text-sm"></i> Ad Hoc 2026
+                    <i class="fa-solid fa-business-time w-5 text-sm shrink-0"></i> <span class="sidebar-text">Ad Hoc 2026</span>
                 </button>
                 <button onclick="router('protokoler_sep')" id="nav-protokoler_sep"
                     data-roles="admin,kepala,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-crown w-5 text-sm"></i> Protokoler
+                    <i class="fa-solid fa-crown w-5 text-sm shrink-0"></i> <span class="sidebar-text">Protokoler</span>
                 </button>
                 <button onclick="router('mc_sep')" id="nav-mc_sep" data-roles="admin,kepala,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-microphone-lines w-5 text-sm"></i> Master of Ceremony
+                    <i class="fa-solid fa-microphone-lines w-5 text-sm shrink-0"></i> <span class="sidebar-text">Master of Ceremony</span>
                 </button>
                 <button onclick="router('brs_rilis')" id="nav-brs_rilis" data-roles="admin,kepala,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-bullhorn w-5 text-sm"></i> BRS Rilis
+                    <i class="fa-solid fa-bullhorn w-5 text-sm shrink-0"></i> <span class="sidebar-text">BRS Rilis</span>
                 </button>
                 <button onclick="router('hari_besar')" id="nav-hari_besar" data-roles="admin,kepala,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-heart w-5 text-sm"></i> Ucapan Hari Besar
+                    <i class="fa-solid fa-heart w-5 text-sm shrink-0"></i> <span class="sidebar-text">Ucapan Hari Besar</span>
                 </button>
                 <button onclick="router('tickets')" id="nav-tickets" data-roles="admin,kepala,koordinator,tim,pemohon"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-ticket w-5 text-sm"></i> Layanan Humas
+                    <i class="fa-solid fa-ticket w-5 text-sm shrink-0"></i> <span class="sidebar-text">Layanan Humas</span>
                 </button>
                 <button onclick="router('monitoring')" id="nav-monitoring" data-roles="admin,kepala,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-magnifying-glass-chart w-5 text-sm"></i> Media Monitoring
+                    <i class="fa-solid fa-magnifying-glass-chart w-5 text-sm shrink-0"></i> <span class="sidebar-text">Media Monitoring</span>
                 </button>
                 <button onclick="router('rekap_kegiatan')" id="nav-rekap_kegiatan"
                     data-roles="admin,kepala,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-chart-simple w-5 text-sm"></i> SLA & Rekap Tugas
+                    <i class="fa-solid fa-chart-simple w-5 text-sm shrink-0"></i> <span class="sidebar-text">SLA & Rekap Tugas</span>
                 </button>
                 <button onclick="router('team')" id="nav-team" data-roles="admin,kepala,koordinator,tim"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-users w-5 text-sm"></i> Direktori Tim
+                    <i class="fa-solid fa-users w-5 text-sm shrink-0"></i> <span class="sidebar-text">Direktori Tim</span>
                 </button>
                 <button onclick="router('settings')" id="nav-settings" data-roles="admin"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-gears w-5 text-sm"></i> Master & Backup
+                    <i class="fa-solid fa-gears w-5 text-sm shrink-0"></i> <span class="sidebar-text">Master & Backup</span>
                 </button>
             </nav>
 
-            <div class="p-4 border-t border-slate-100 dark:border-slate-700">
-                <div
-                    class="bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
-                    <p class="text-[9px] uppercase font-extrabold text-indigo-650 dark:text-indigo-400 tracking-widest">
-                        Sinkronisasi</p>
-                    <div
-                        class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-medium">
+            <div class="sidebar-sync-section p-4 border-t border-slate-100 dark:border-slate-700">
+                <div class="bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+                    <p class="text-[9px] uppercase font-extrabold text-indigo-650 dark:text-indigo-400 tracking-widest">Sinkronisasi</p>
+                    <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-medium">
                         <span><i class="fa-regular fa-clock mr-1"></i> Terakhir:</span>
                         <span id="last-sync-date" class="font-bold text-slate-700 dark:text-slate-200">-</span>
                     </div>
@@ -614,17 +703,24 @@
             class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 relative transition-colors duration-300">
             <!-- Global Header for Search, Dark Mode, Notification -->
             <header
-                class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-3.5 flex justify-between items-center shadow-xs shrink-0 z-20 transition-colors duration-300">
-                <div class="flex items-center gap-4">
+                class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 md:px-6 py-3 md:py-3.5 flex justify-between items-center shadow-xs shrink-0 z-20 transition-colors duration-300">
+                <div class="flex items-center gap-2 md:gap-4">
+                    <!-- Mobile: hamburger -->
                     <button onclick="openMobileSidebar()"
                         class="md:hidden w-8 h-8 rounded-xl flex items-center justify-center text-slate-550 hover:bg-slate-50 dark:hover:bg-slate-700 dark:text-slate-300 transition-all">
                         <i class="fa-solid fa-bars text-lg"></i>
                     </button>
+                    <!-- Desktop: sidebar toggle -->
+                    <button onclick="toggleDesktopSidebar()" id="sidebar-toggle-btn"
+                        class="hidden md:flex w-8 h-8 rounded-xl items-center justify-center text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all"
+                        title="Tampilkan/Sembunyikan Sidebar">
+                        <i class="fa-solid fa-sidebar text-sm" id="sidebar-toggle-icon"></i>
+                    </button>
                     <div>
-                        <h2
-                            class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                        <h2 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
                             <i class="fa-solid fa-shield-halved text-indigo-500 hidden md:inline"></i>
-                            SIM Humas BPS Kalbar
+                            <span class="hidden sm:inline">SIM Humas BPS Kalbar</span>
+                            <span class="sm:hidden">SIM Humas</span>
                         </h2>
                     </div>
                 </div>
@@ -651,7 +747,7 @@
 
                         <!-- Panel Dropdown -->
                         <div id="notif-panel"
-                            class="absolute right-0 mt-3.5 w-76 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl hidden z-50 overflow-hidden">
+                            class="absolute right-0 mt-3.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl hidden z-50 overflow-hidden" style="width:320px">
                             <div
                                 class="p-3.5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
                                 <h4
@@ -659,11 +755,11 @@
                                     <i class="fa-solid fa-bell text-indigo-500"></i> Notifikasi
                                 </h4>
                                 <button onclick="markAllNotificationsRead()"
-                                    class="text-[9px] font-black text-indigo-650 dark:text-indigo-400 hover:underline">Tandai
-                                    dibaca</button>
+                                    class="text-[9px] font-black text-indigo-650 dark:text-indigo-400 hover:text-indigo-800 hover:underline">Tandai
+                                    Semua Dibaca</button>
                             </div>
                             <div id="notif-list"
-                                class="max-h-64 overflow-y-auto p-2 space-y-1.5 bg-white dark:bg-slate-800">
+                                class="max-h-72 overflow-y-auto p-2 space-y-1 bg-white dark:bg-slate-800">
                                 <!-- Populated dynamically -->
                             </div>
                         </div>

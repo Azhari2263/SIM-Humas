@@ -13,26 +13,26 @@ function showToast(message, type = 'success') {
     if (!container) return;
 
     const toast = document.createElement('div');
-    toast.className = 'toast flex items-center gap-2.5 px-4.5 py-3 rounded-xl shadow-lg border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 transition-all duration-300 transform translate-y-2 opacity-0 shrink-0 max-w-sm';
+    toast.className = 'toast flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 transition-all duration-300 transform translate-y-2 opacity-0 shrink-0 max-w-sm';
 
     let icon = '';
     let borderColor = '';
     if (type === 'success') {
         icon = '<i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>';
-        borderColor = 'border-emerald-250 dark:border-emerald-900 shadow-emerald-100/30';
+        borderColor = 'border-l-4 border-l-emerald-500';
     } else if (type === 'error') {
         icon = '<i class="fa-solid fa-circle-exclamation text-rose-500 text-lg"></i>';
-        borderColor = 'border-rose-250 dark:border-rose-900 shadow-rose-100/30';
+        borderColor = 'border-l-4 border-l-rose-500';
     } else if (type === 'warning') {
         icon = '<i class="fa-solid fa-triangle-exclamation text-amber-500 text-lg"></i>';
-        borderColor = 'border-amber-250 dark:border-amber-900 shadow-amber-100/30';
+        borderColor = 'border-l-4 border-l-amber-500';
     } else {
         icon = '<i class="fa-solid fa-circle-info text-blue-500 text-lg"></i>';
-        borderColor = 'border-blue-250 dark:border-blue-900 shadow-blue-100/30';
+        borderColor = 'border-l-4 border-l-blue-500';
     }
 
     toast.className += ` ${borderColor}`;
-    toast.innerHTML = `${icon} <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">${message}</span>`;
+    toast.innerHTML = `${icon} <span class="text-xs font-semibold text-slate-800 dark:text-slate-200 flex-1">${message}</span>`;
     container.appendChild(toast);
 
     // Trigger transition
@@ -45,6 +45,67 @@ function showToast(message, type = 'success') {
         toast.classList.add('translate-y-[-10px]', 'opacity-0');
         setTimeout(() => toast.remove(), 300);
     }, 3200);
+}
+
+// UI Helper: Custom Confirmation Modal (menggantikan confirm() browser)
+function showConfirmModal(message, onConfirm, options = {}) {
+    const existingModal = document.getElementById('confirm-modal');
+    if (existingModal) existingModal.remove();
+
+    const {
+        title = 'Konfirmasi',
+        confirmText = 'Ya, Lanjutkan',
+        cancelText = 'Batal',
+        type = 'danger', // 'danger' | 'warning' | 'info'
+        icon = 'fa-triangle-exclamation'
+    } = options;
+
+    const iconColors = {
+        danger: 'bg-rose-100 dark:bg-rose-950 text-rose-600',
+        warning: 'bg-amber-100 dark:bg-amber-950 text-amber-600',
+        info: 'bg-blue-100 dark:bg-blue-950 text-blue-600'
+    };
+
+    const btnColors = {
+        danger: 'bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-rose-100 dark:shadow-rose-900',
+        warning: 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white',
+        info: 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white'
+    };
+
+    const modal = document.createElement('div');
+    modal.id = 'confirm-modal';
+    modal.className = 'confirm-modal';
+    modal.innerHTML = `
+        <div class="confirm-modal-box">
+            <div class="flex items-start gap-4 mb-5">
+                <div class="w-12 h-12 rounded-2xl ${iconColors[type]} flex items-center justify-center shrink-0">
+                    <i class="fa-solid ${icon} text-xl"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-black text-slate-900 dark:text-white text-sm tracking-tight">${title}</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">${message}</p>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button id="confirm-modal-ok" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md ${btnColors[type]}">
+                    <i class="fa-solid ${type === 'danger' ? 'fa-trash' : 'fa-check'} mr-1.5"></i>${confirmText}
+                </button>
+                <button id="confirm-modal-cancel" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all">
+                    <i class="fa-solid fa-xmark mr-1.5"></i>${cancelText}
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Bind actions
+    document.getElementById('confirm-modal-ok').onclick = () => {
+        modal.remove();
+        if (typeof onConfirm === 'function') onConfirm();
+    };
+    document.getElementById('confirm-modal-cancel').onclick = () => modal.remove();
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 }
 
 // UI Helper: Date Formatting & Parsing
@@ -229,12 +290,37 @@ function closeMobileSidebar() {
     }
 }
 
-// Global System Notifications
-function addNotification(title, message, role = 'all') {
+// Desktop Sidebar Toggle
+function toggleDesktopSidebar() {
+    const sidebar = document.getElementById('desktop-sidebar');
+    const icon = document.getElementById('sidebar-toggle-icon');
+    if (!sidebar) return;
+
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+    localStorage.setItem('sim_humas_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+
+    if (icon) {
+        icon.className = isCollapsed ? 'fa-solid fa-sidebar-flip text-sm' : 'fa-solid fa-sidebar text-sm';
+    }
+}
+
+function initSidebarState() {
+    const sidebar = document.getElementById('desktop-sidebar');
+    const icon = document.getElementById('sidebar-toggle-icon');
+    const isCollapsed = localStorage.getItem('sim_humas_sidebar_collapsed') === 'true';
+    if (sidebar && isCollapsed) {
+        sidebar.classList.add('collapsed');
+        if (icon) icon.className = 'fa-solid fa-sidebar-flip text-sm';
+    }
+}
+
+// Global System Notifications (Per-User Targeting)
+function addNotification(title, message, target = 'all') {
+    // target bisa berupa: 'all', role ('admin','tim',dll), atau username spesifik
     const timestamp = new Date().toISOString();
     const newNotif = {
-        id: db.notifications.length + 1,
-        user_role: role,
+        id: Date.now(), // unique ID
+        user_target: target, // username spesifik, role, atau 'all'
         title: title,
         message: message,
         timestamp: timestamp,
@@ -250,55 +336,141 @@ function addNotification(title, message, role = 'all') {
     sendDataToServer('add', 'notifications', newNotif);
 }
 
+function getReadNotifIds() {
+    if (!currentUser) return new Set();
+    const key = 'sim_humas_read_notifs_' + (currentUser.username || 'guest');
+    try {
+        return new Set(JSON.parse(localStorage.getItem(key) || '[]'));
+    } catch (e) {
+        return new Set();
+    }
+}
+
+function saveReadNotifId(id) {
+    if (!currentUser) return;
+    const key = 'sim_humas_read_notifs_' + (currentUser.username || 'guest');
+    const readIds = getReadNotifIds();
+    readIds.add(Number(id));
+    // Simpan max 200 ID terakhir
+    const arr = Array.from(readIds).slice(-200);
+    localStorage.setItem(key, JSON.stringify(arr));
+}
+
+function isNotifForMe(n) {
+    if (!currentUser) return false;
+    const target = String(n.user_target || n.user_role || 'all').toLowerCase();
+    if (target === 'all') return true;
+    // Cek berdasarkan username
+    if (target === (currentUser.username || '').toLowerCase()) return true;
+    // Cek berdasarkan nama
+    if (target === (currentUser.name || '').toLowerCase()) return true;
+    // Cek berdasarkan role
+    if (target === (currentUser.role || '').toLowerCase()) return true;
+    return false;
+}
+
 function renderNotificationsUI() {
     const badge = document.getElementById('notif-badge');
     const list = document.getElementById('notif-list');
     if (!list) return;
 
-    // Filter by role
-    const myNotifs = db.notifications.filter(n => n.user_role === 'all' || n.user_role === currentUser?.role);
-    const unreadCount = myNotifs.filter(n => !n.is_read).length;
+    const readIds = getReadNotifIds();
+
+    // Filter notifikasi yang relevan untuk user ini
+    const myNotifs = db.notifications.filter(n => isNotifForMe(n));
+
+    // Tandai is_read berdasarkan localStorage (bukan field di db yang bisa overwrite)
+    const notifWithReadState = myNotifs.map(n => ({
+        ...n,
+        isReadLocal: readIds.has(Number(n.id))
+    }));
+
+    const unreadCount = notifWithReadState.filter(n => !n.isReadLocal).length;
 
     // Badge
     if (badge) {
         if (unreadCount > 0) {
-            badge.textContent = unreadCount;
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
             badge.classList.remove('hidden');
         } else {
             badge.classList.add('hidden');
         }
     }
 
-    // Populate dropdown list
-    myNotifs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    if (myNotifs.length === 0) {
-        list.innerHTML = `<div class="p-4 text-center text-[10px] text-slate-400 font-bold">Tidak ada notifikasi baru.</div>`;
+    // Sort by newest first
+    notifWithReadState.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    if (notifWithReadState.length === 0) {
+        list.innerHTML = `
+            <div class="py-8 text-center">
+                <div class="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                    <i class="fa-regular fa-bell-slash text-slate-400 text-xl"></i>
+                </div>
+                <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500">Tidak ada notifikasi.</p>
+            </div>
+        `;
         return;
     }
 
-    list.innerHTML = myNotifs.slice(0, 5).map(n => `
-        <div class="p-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/40 rounded-xl transition-all border-b border-slate-100 dark:border-slate-700 last:border-none ${!n.is_read ? 'bg-indigo-50/30 dark:bg-indigo-950/20' : ''}">
-            <h5 class="font-extrabold text-[10px] text-slate-800 dark:text-slate-200">${n.title}</h5>
-            <p class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">${n.message}</p>
-            <span class="text-[8px] text-slate-400 font-medium block mt-1"><i class="fa-regular fa-clock"></i> ${new Date(n.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+    list.innerHTML = notifWithReadState.slice(0, 8).map(n => {
+        const timeAgo = formatTimeAgo(n.timestamp);
+        return `
+        <div class="p-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 rounded-xl transition-all cursor-default ${!n.isReadLocal ? 'bg-indigo-50/60 dark:bg-indigo-950/30 border-l-2 border-indigo-400' : 'opacity-70'}">
+            <div class="flex items-start gap-2.5">
+                <div class="w-7 h-7 rounded-lg ${!n.isReadLocal ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'} flex items-center justify-center shrink-0 mt-0.5">
+                    <i class="fa-solid fa-bell text-[10px]"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-[10px] text-slate-800 dark:text-slate-200 leading-snug">${n.title}</p>
+                    <p class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed line-clamp-2">${n.message}</p>
+                    <span class="text-[8px] text-slate-400 font-medium block mt-1">
+                        <i class="fa-regular fa-clock mr-0.5"></i>${timeAgo}
+                    </span>
+                </div>
+                ${!n.isReadLocal ? `
+                <div class="w-2 h-2 rounded-full bg-indigo-500 shrink-0 mt-1"></div>
+                ` : ''}
+            </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
+
+function formatTimeAgo(timestamp) {
+    if (!timestamp) return '-';
+    const now = new Date();
+    const then = new Date(timestamp);
+    const diffMs = now - then;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Baru saja';
+    if (diffMins < 60) return `${diffMins} menit lalu`;
+    if (diffHours < 24) return `${diffHours} jam lalu`;
+    if (diffDays < 7) return `${diffDays} hari lalu`;
+    return then.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+}
+
 
 function toggleNotificationPanel() {
     const panel = document.getElementById('notif-panel');
     if (panel) panel.classList.toggle('hidden');
+    // Re-render when opening
+    if (panel && !panel.classList.contains('hidden')) {
+        renderNotificationsUI();
+    }
 }
 
 function markAllNotificationsRead() {
-    db.notifications.forEach(n => {
-        if (n.user_role === 'all' || n.user_role === currentUser?.role) {
-            n.is_read = true;
-        }
+    const readIds = getReadNotifIds();
+    db.notifications.filter(n => isNotifForMe(n)).forEach(n => {
+        readIds.add(Number(n.id));
+        saveReadNotifId(n.id);
     });
-    saveLocalFallback('notifications');
     renderNotificationsUI();
-    showToast('Notifikasi ditandai dibaca.');
+    showToast('Semua notifikasi ditandai dibaca.');
+    document.getElementById('notif-panel')?.classList.add('hidden');
 }
 
 // Dark Mode Toggler
@@ -889,11 +1061,31 @@ async function saveData(event) {
 
     const sheetName = sheetMapping[currentModalType];
 
-    // Notification Triggers
+    // Notification Triggers - kirim ke pegawai yang ditugaskan
     if (action === 'add' && item.petugas) {
-        addNotification('Penugasan Baru', `Anda menugaskan ${item.petugas} pada kegiatan: ${item.judul || item.kegiatan || item.hari_besar}.`, 'all');
+        // Cari username dari nama pegawai
+        const petugasUser = db.users.find(u => u.nama === item.petugas);
+        const targetUsername = petugasUser ? petugasUser.username : item.petugas;
+        addNotification(
+            'Penugasan Baru Untukmu',
+            `Kamu ditugaskan pada kegiatan: ${item.judul || item.kegiatan || item.hari_besar || 'Baru'}.`,
+            targetUsername
+        );
+    } else if (action === 'add' && (item.assignedTo || item.pembuat_konten)) {
+        const petugasNama = item.assignedTo || item.pembuat_konten;
+        const petugasUser = db.users.find(u => u.nama === petugasNama);
+        const targetUsername = petugasUser ? petugasUser.username : petugasNama;
+        addNotification(
+            'Tugas Baru Untukmu',
+            `Kamu ditugaskan sebagai PIC: ${item.judul || item.kegiatan || item.hari_besar || 'Baru'}.`,
+            targetUsername
+        );
     } else if (action === 'update' && item.status && currentEditItem?.status !== item.status) {
-        addNotification('Pembaruan Status', `Status tugas "${item.judul || item.kegiatan}" diubah menjadi: ${item.status}.`, 'all');
+        addNotification(
+            'Pembaruan Status Tugas',
+            `Status "${item.judul || item.kegiatan}" diubah menjadi: ${item.status}.`,
+            'koordinator'
+        );
     }
 
     // Audit Log Trigger
@@ -930,8 +1122,6 @@ async function saveData(event) {
 
 // Global Delete Handler
 function deleteItem(type, id) {
-    if (!confirm('Apakah Anda yakin ingin menghapus data ini secara permanen dari database?')) return;
-
     const sheetMapping = {
         'content': 'content_planner',
         'rekap_rutin': 'rekap_rutin',
@@ -951,23 +1141,30 @@ function deleteItem(type, id) {
     const sheetName = sheetMapping[type];
     const varName = SHEET_TO_VAR[sheetName] || type;
 
-    // Log Activity before deleting
-    const item = db[varName].find(i => Number(i.id) === Number(id));
-    const itemDesc = item ? (item.judul || item.kegiatan || item.nama || item.hari_besar) : `ID ${id}`;
+    // Get item description before deleting
+    const item = db[varName]?.find(i => Number(i.id) === Number(id));
+    const itemDesc = item ? (item.judul || item.kegiatan || item.nama || item.hari_besar || item.media || `ID ${id}`) : `ID ${id}`;
 
-    logActivity(
-        'Hapus Data',
-        `Menghapus item dari ${sheetName}: "${itemDesc}".`
+    showConfirmModal(
+        `Data "<strong>${itemDesc}</strong>" akan dihapus secara permanen dari database dan tidak dapat dikembalikan.`,
+        () => {
+            logActivity('Hapus Data', `Menghapus item dari ${sheetName}: "${itemDesc}".`);
+            sendDataToServer('delete', sheetName, { id: Number(id) }).catch(err => {
+                console.error('Delete sync error:', err);
+            });
+            showToast('Data berhasil dihapus!');
+            router(currentState);
+        },
+        {
+            title: 'Hapus Data Permanen',
+            confirmText: 'Ya, Hapus',
+            cancelText: 'Batal',
+            type: 'danger',
+            icon: 'fa-trash'
+        }
     );
-
-    // Call server asynchronously in background
-    sendDataToServer('delete', sheetName, { id: Number(id) }).catch(err => {
-        console.error('Delete sync error:', err);
-    });
-
-    showToast('Data berhasil dihapus lokal (Sedang disinkronkan)...');
-    router(currentState);
 }
+
 
 // Tickets Subsystems
 window.saveTicketRequest = async function (event) {
@@ -1026,7 +1223,26 @@ window.confirmApproveTicket = async function (event, id) {
     };
 
     logActivity('Approve Tiket', `Menyetujui permintaan layanan "${ticket.judul}" dan menugaskan ${pic}.`);
-    addNotification('Penugasan Tugas Baru', `Anda ditugaskan sebagai PIC pengerjaan: "${ticket.judul}".`, 'tim');
+
+    // Kirim notifikasi ke PIC yang ditugaskan (bukan ke semua 'tim')
+    // Cari username dari nama PIC
+    const picUser = db.users.find(u => u.nama === pic || u.username === pic);
+    const targetUsername = picUser ? picUser.username : (pic || 'tim');
+    addNotification(
+        'Penugasan Tugas Baru',
+        `Anda ditugaskan sebagai PIC pengerjaan layanan: "${ticket.judul}".`,
+        targetUsername
+    );
+
+    // Notifikasi ke pengaju bahwa tiket disetujui
+    const pengajuUser = db.users.find(u => u.nama === ticket.pengaju || u.username === ticket.pengaju);
+    if (pengajuUser) {
+        addNotification(
+            'Pengajuan Disetujui',
+            `Permintaan layanan "${ticket.judul}" telah disetujui dan dikerjakan oleh ${pic}.`,
+            pengajuUser.username
+        );
+    }
 
     await sendDataToServer('update', 'tickets', ticket);
     await sendDataToServer('add', 'content_planner', newContent);
@@ -1036,22 +1252,111 @@ window.confirmApproveTicket = async function (event, id) {
     router(currentState);
 };
 
+
 window.rejectTicket = async function (id) {
-    if (!confirm('Apakah Anda yakin ingin menolak pengajuan ini?')) return;
     const ticket = db.tickets.find(t => t.id === id);
     if (!ticket) return;
 
-    ticket.status = 'Rejected';
-    logActivity('Tolak Tiket', `Menolak permintaan layanan "${ticket.judul}".`);
+    showConfirmModal(
+        `Pengajuan "<strong>${ticket.judul}</strong>" akan ditolak. Pemohon akan diberitahu.`,
+        async () => {
+            ticket.status = 'Rejected';
+            logActivity('Tolak Tiket', `Menolak permintaan layanan "${ticket.judul}".`);
 
-    await sendDataToServer('update', 'tickets', ticket);
-    showToast('Pengajuan ditolak.');
-    router(currentState);
+            // Notifikasi ke pengaju
+            const pengajuUser = db.users.find(u => u.nama === ticket.pengaju || u.username === ticket.pengaju);
+            if (pengajuUser) {
+                addNotification(
+                    'Pengajuan Ditolak',
+                    `Maaf, permintaan layanan "${ticket.judul}" tidak dapat diproses saat ini.`,
+                    pengajuUser.username
+                );
+            }
+
+            await sendDataToServer('update', 'tickets', ticket);
+            showToast('Pengajuan ditolak.');
+            router(currentState);
+        },
+        {
+            title: 'Tolak Pengajuan',
+            confirmText: 'Ya, Tolak',
+            type: 'warning',
+            icon: 'fa-ban'
+        }
+    );
 };
 
 
-// Media Monitoring Simulator
-window.saveMonitoringItem = async function (event) {
+
+// Media Monitoring CRUD
+function _buildMonitoringModalHTML(item = null) {
+    return `
+        <div class="modal" id="dynamic-modal">
+            <div class="modal-content p-7 relative">
+                <button onclick="closeModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 transition-all">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="mb-5 flex items-center gap-3">
+                    <div class="w-10 h-10 bg-indigo-50 dark:bg-indigo-950 rounded-xl flex items-center justify-center text-indigo-650 text-lg">
+                        <i class="fa-solid fa-newspaper"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-slate-900 dark:text-white text-base tracking-tight">${item ? 'Edit Kliping Berita' : 'Tambah Kliping Berita'}</h3>
+                        <p class="text-[10px] text-slate-400 font-semibold">Media Monitoring</p>
+                    </div>
+                </div>
+                <form onsubmit="saveMonitoringItem(event, ${item ? item.id : 'null'})" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Portal Media <span class="text-rose-500">*</span></label>
+                            <input type="text" id="mon-media" value="${item?.media || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-lg text-xs font-medium dark:text-white" placeholder="Contoh: Tribun Pontianak" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Sentimen <span class="text-rose-500">*</span></label>
+                            <select id="mon-sentiment" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-lg text-xs dark:text-white" required>
+                                <option ${item?.sentimen === 'Positif' ? 'selected' : ''} value="Positif">Positif</option>
+                                <option ${item?.sentimen === 'Netral' ? 'selected' : ''} value="Netral">Netral</option>
+                                <option ${item?.sentimen === 'Negatif' ? 'selected' : ''} value="Negatif">Negatif</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Judul Berita / Kliping <span class="text-rose-500">*</span></label>
+                        <input type="text" id="mon-title" value="${item?.judul || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-lg text-xs font-medium dark:text-white" placeholder="Contoh: BPS Kalbar Rilis Data Kemiskinan 2026" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kutipan Ringkasan</label>
+                        <textarea id="mon-summary" rows="2" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-lg text-xs dark:text-white" placeholder="Ringkasan isi berita...">${item?.ringkasan || ''}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan URL Artikel</label>
+                        <input type="url" id="mon-url" value="${item?.url || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-lg text-xs dark:text-white" placeholder="https://www.pontianak.tribunnews.com/...">
+                    </div>
+                    <div class="flex gap-3 pt-4">
+                        <button type="submit" class="flex-1 btn-primary py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                            <i class="fa-solid ${item ? 'fa-floppy-disk' : 'fa-plus'}"></i> ${item ? 'Simpan Perubahan' : 'Tambah Kliping'}
+                        </button>
+                        <button type="button" onclick="closeModal()" class="px-5 btn-secondary text-xs font-bold uppercase tracking-wider rounded-xl">Batal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+}
+
+window.openAddMonitoringModal = function () {
+    document.getElementById('dynamic-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', _buildMonitoringModalHTML(null));
+};
+
+window.openEditMonitoringModal = function (id) {
+    const item = db.monitoring.find(m => m.id === id);
+    if (!item) return;
+    document.getElementById('dynamic-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', _buildMonitoringModalHTML(item));
+};
+
+window.saveMonitoringItem = async function (event, editId = null) {
     event.preventDefault();
     const media = document.getElementById('mon-media').value;
     const title = document.getElementById('mon-title').value;
@@ -1059,20 +1364,35 @@ window.saveMonitoringItem = async function (event) {
     const summary = document.getElementById('mon-summary').value;
     const url = document.getElementById('mon-url').value;
 
-    const newItem = {
-        id: db.monitoring.length + 1,
-        media: media,
-        judul: title,
-        tanggal: new Date().toISOString().split('T')[0],
-        sentimen: sentiment,
-        ringkasan: summary,
-        url: url
-    };
+    if (editId) {
+        // Edit mode
+        const existing = db.monitoring.find(m => m.id === editId);
+        if (!existing) return;
+        existing.media = media;
+        existing.judul = title;
+        existing.sentimen = sentiment;
+        existing.ringkasan = summary;
+        existing.url = url;
+        logActivity('Edit Kliping', `Mengubah kliping media: "${title}" (${media}).`);
+        await sendDataToServer('update', 'monitoring', existing);
+        showToast('Kliping berhasil diperbarui!');
+    } else {
+        // Add mode
+        const newItem = {
+            id: Date.now(),
+            media: media,
+            judul: title,
+            tanggal: new Date().toISOString().split('T')[0],
+            sentimen: sentiment,
+            ringkasan: summary,
+            url: url
+        };
+        logActivity('Tambah Kliping', `Menambahkan kliping media baru: "${title}" (${media}).`);
+        await sendDataToServer('add', 'monitoring', newItem);
+        showToast('Kliping berita berhasil disimpan!');
+    }
 
-    logActivity('Tambah Kliping', `Menambahkan kliping media baru: "${title}" (${media}).`);
-    await sendDataToServer('add', 'monitoring', newItem);
     closeModal();
-    showToast('Kliping berita berhasil disimpan!');
     router(currentState);
 };
 
@@ -1283,7 +1603,17 @@ window.showDetail = showDetail;
 // App Initialization
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
+    initSidebarState();
     checkAuth();
+
+    // Close notification panel when clicking outside
+    document.addEventListener('click', (e) => {
+        const notifPanel = document.getElementById('notif-panel');
+        const notifBtn = e.target.closest('[onclick="toggleNotificationPanel()"]');
+        if (notifPanel && !notifPanel.classList.contains('hidden') && !notifPanel.contains(e.target) && !notifBtn) {
+            notifPanel.classList.add('hidden');
+        }
+    });
 
     // Periodically update notifications UI if user is logged in
     setInterval(() => {
