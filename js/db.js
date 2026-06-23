@@ -316,7 +316,7 @@ async function processSyncQueue() {
             const response = await fetch(GOOGLE_SHEETS_API_URL, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'text/plain;charset=utf-8'
+                    'Content-Type': 'text/plain'
                 },
                 body: JSON.stringify(payload)
             });
