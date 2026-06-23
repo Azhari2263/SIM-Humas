@@ -1835,7 +1835,7 @@ window.showCalendarDayEvents = function (dateStr) {
 
     db.mc.filter(isTaskForCurrentUser).forEach(e => {
         if (e.tanggal && e.tanggal.includes(dateStr)) {
-            dayEvents.push({ type: 'mc', label: 'Modul MC', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-sky-500' });
+            dayEvents.push({ type: 'mc', label: 'Master of Ceremony', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-sky-500' });
         }
     });
 
