@@ -535,7 +535,6 @@ function renderPemohonDashboard(container) {
     const totalTickets = myTickets.length;
     const pendingTickets = myTickets.filter(t => t.status === 'Pending').length;
     const approvedTickets = myTickets.filter(t => t.status === 'Approved').length;
-    const totalAssets = db.assets.length;
 
     container.innerHTML = `
         <div class="mb-8 animate-fade-in">
@@ -543,7 +542,7 @@ function renderPemohonDashboard(container) {
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Selamat datang kembali, <span class="font-bold text-indigo-650 dark:text-indigo-400">${currentUser.name}</span>. Ajukan dan pantau status permohonan kehumasan Anda.</p>
         </div>
 
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
                 <div class="w-11 h-11 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center justify-center text-indigo-655 shrink-0"><i class="fa-solid fa-ticket text-lg"></i></div>
                 <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Pengajuan</p><p class="text-xl font-extrabold text-slate-800 dark:text-white mt-0.5">${totalTickets}</p></div>
@@ -555,10 +554,6 @@ function renderPemohonDashboard(container) {
             <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
                 <div class="w-11 h-11 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded-xl flex items-center justify-center text-emerald-655 shrink-0"><i class="fa-solid fa-circle-check text-lg"></i></div>
                 <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Disetujui / PIC</p><p class="text-xl font-extrabold text-slate-800 dark:text-white mt-0.5">${approvedTickets}</p></div>
-            </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-11 h-11 bg-violet-50 dark:bg-violet-950 border border-violet-100 dark:border-violet-900 rounded-xl flex items-center justify-center text-violet-655 shrink-0"><i class="fa-solid fa-folder-open text-lg"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Aset Bank Desain</p><p class="text-xl font-extrabold text-slate-800 dark:text-white mt-0.5">${totalAssets}</p></div>
             </div>
         </div>
 
@@ -2409,152 +2404,6 @@ function drawTicketsGrid() {
     };
 }
 
-let assetSearch = '';
-let assetCatFilter = 'Semua';
-
-function renderAssets(container) {
-    const categories = ['Semua', 'Template', 'Logo', 'Foto', 'Dokumen'];
-    const isKepala = currentUser.role === 'kepala';
-
-    container.innerHTML = `
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
-            <div>
-                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Bank Desain & Dokumentasi</h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Penyimpanan berkas aset visual resmi, logo brand kit BPS, template feeds, dan dokumentasi visual Humas.</p>
-            </div>
-            ${!isKepala ? `
-                <button onclick="openAssetUploadModal()" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                    <i class="fa-solid fa-upload text-xs"></i> Unggah Aset Visual
-                </button>
-            ` : ''}
-        </div>
-
-        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-xs">
-            <div class="relative w-full md:max-w-xs">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-455"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
-                <input type="text" id="asset-search-input" oninput="handleAssetSearch(this.value)" value="${assetSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-medium focus:bg-white focus:outline-none placeholder-slate-450 text-slate-700 dark:text-white transition-all" placeholder="Cari nama aset visual...">
-            </div>
-            <div class="flex flex-wrap gap-1.5" id="assets-filter-bar">
-                ${categories.map(c => `
-                    <button onclick="filterAssets('${c}', this)" class="asset-filter-btn px-4.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border ${
-                        c === assetCatFilter ? 'bg-indigo-650 text-white border-indigo-650 shadow-sm shadow-indigo-100' : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-750 dark:border-slate-700 dark:text-slate-350 hover:bg-slate-50'
-                    } transition-all">${c}</button>
-                `).join('')}
-            </div>
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 animate-fade-in" id="assets-grid">
-            <!-- Drawn dynamically -->
-        </div>
-    `;
-
-    drawAssetsGrid();
-}
-
-function handleAssetSearch(val) {
-    assetSearch = val;
-    drawAssetsGrid();
-}
-
-window.filterAssets = function (cat, btn) {
-    assetCatFilter = cat;
-    document.querySelectorAll('.asset-filter-btn').forEach(b => {
-        b.className = 'asset-filter-btn px-4.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border bg-white text-slate-600 border-slate-200 dark:bg-slate-750 dark:border-slate-700 dark:text-slate-350 hover:bg-slate-50 transition-all';
-    });
-    btn.className = 'asset-filter-btn px-4.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border bg-indigo-650 text-white border-indigo-650 shadow-sm shadow-indigo-100 transition-all';
-    drawAssetsGrid();
-};
-
-function drawAssetsGrid() {
-    const grid = document.getElementById('assets-grid');
-    if (!grid) return;
-
-    let filtered = db.assets;
-    if (assetCatFilter !== 'Semua') {
-        filtered = filtered.filter(a => a.kategori === assetCatFilter);
-    }
-    if (assetSearch.trim()) {
-        const query = assetSearch.toLowerCase();
-        filtered = filtered.filter(a => a.nama && a.nama.toLowerCase().includes(query));
-    }
-
-    filtered.sort((a, b) => b.id - a.id);
-
-    const isKepala = currentUser.role === 'kepala';
-
-    if (filtered.length === 0) {
-        grid.innerHTML = `
-            <div class="col-span-full bg-white dark:bg-slate-800 p-16 text-center text-slate-400 dark:text-slate-500 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
-                <i class="fa-solid fa-folder-open text-4xl mb-2.5 text-slate-350 dark:text-slate-700"></i>
-                <p class="text-xs font-bold">Belum ada aset digital.</p>
-            </div>
-        `;
-        return;
-    }
-
-    grid.innerHTML = filtered.map(a => `
-        <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-205 dark:border-slate-700 overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-300 flex flex-col group">
-            <div class="h-32 bg-slate-100 dark:bg-slate-800 relative overflow-hidden shrink-0 border-b border-slate-100 dark:border-slate-700">
-                <img src="${a.preview}" alt="${a.nama}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-                <span class="absolute top-2 left-2 px-2.5 py-0.5 bg-black/60 backdrop-blur-md text-white rounded-md text-[8px] font-bold uppercase tracking-widest">${a.kategori}</span>
-            </div>
-            <div class="p-4 flex-1 flex flex-col justify-between">
-                <div>
-                    <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs truncate leading-snug" title="${a.nama}">${a.nama}</h4>
-                    <p class="text-[9px] text-slate-455 dark:text-slate-450 mt-1 font-semibold uppercase tracking-wider">Ukuran: ${a.ukuran} • Oleh: ${a.pengunggah}</p>
-                </div>
-                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-[9px]">
-                    <span class="text-slate-400 font-semibold uppercase tracking-wider"><i class="fa-regular fa-calendar mr-1"></i>${formatDate(a.tanggal)}</span>
-                    <div class="flex items-center gap-1.5">
-                        ${!isKepala && isUserAdminOrKetua() ? `<button onclick="deleteItem('assets', ${a.id})" title="Hapus Berkas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>` : ''}
-                        <a href="${a.preview}" target="_blank" class="text-indigo-650 dark:text-indigo-400 hover:text-indigo-850 font-bold flex items-center gap-1 uppercase tracking-wider text-[8px] bg-indigo-50 dark:bg-indigo-950/20 px-2 py-1 rounded-lg border border-indigo-150 dark:border-indigo-900 transition-all">
-                            <i class="fa-solid fa-eye"></i> Lihat
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-window.openAssetUploadModal = function () {
-    currentModalType = 'asset_upload';
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.id = 'dynamic-modal';
-    modal.innerHTML = `
-        <div class="modal-content p-6 shadow-2xl border border-slate-100 dark:border-slate-700">
-            <div class="flex justify-between items-center mb-5 border-b border-slate-100 dark:border-slate-700 pb-3">
-                <h3 class="text-lg font-black text-slate-900 dark:text-white">Unggah Aset Visual</h3>
-                <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
-            </div>
-            <form onsubmit="saveAssetUpload(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Aset / Judul Berkas <span class="text-rose-500">*</span></label>
-                    <input type="text" id="asset-name" class="w-full px-4 py-2.5 bg-white border border-slate-200 dark:bg-slate-750 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all font-medium text-slate-800 dark:text-white" placeholder="Contoh: Logo Hari Statistik.png" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kategori Aset</label>
-                    <select id="asset-cat" class="w-full px-4 py-2.5 bg-white border border-slate-200 dark:bg-slate-750 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all">
-                        <option value="Template">Template Desain</option>
-                        <option value="Logo">Logo & Brand Kit</option>
-                        <option value="Foto">Foto Dokumentasi</option>
-                        <option value="Dokumen">Dokumen (Press Release / PDF)</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Pilih Berkas <span class="text-rose-500">*</span></label>
-                    <input type="file" id="asset-file" class="w-full border border-dashed border-slate-300 dark:border-slate-600 p-6 rounded-xl bg-slate-50 dark:bg-slate-900 cursor-pointer text-xs focus:outline-none hover:bg-slate-100 dark:hover:bg-slate-800 transition-all" required>
-                </div>
-                <div class="flex gap-3 mt-8 pt-4 border-t border-slate-100 dark:border-slate-700">
-                    <button type="submit" class="btn-primary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider"><i class="fa-solid fa-upload mr-1.5"></i> Unggah</button>
-                    <button type="button" onclick="closeModal()" class="btn-secondary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider">Batal</button>
-                </div>
-            </form>
-        </div>
-    `;
-    document.body.appendChild(modal);
-};
 
 let monitoringSearch = '';
 let monitoringSentimentFilter = '';

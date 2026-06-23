@@ -222,9 +222,6 @@ function handleGlobalSearch(query) {
     } else if (currentState === 'tickets') {
         ticketSearch = query;
         drawTicketsGrid();
-    } else if (currentState === 'assets') {
-        assetSearch = query;
-        drawAssetsGrid();
     } else if (currentState === 'monitoring') {
         monitoringSearch = query;
         drawMonitoringTable();
@@ -926,36 +923,6 @@ window.rejectTicket = async function(id) {
     router(currentState);
 };
 
-// Assets Upload Simulator
-window.saveAssetUpload = async function(event) {
-    event.preventDefault();
-    const name = document.getElementById('asset-name').value;
-    const category = document.getElementById('asset-cat').value;
-    
-    // Simulate image upload preview paths
-    const previews = {
-        'Template': 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&q=80',
-        'Logo': 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400&q=80',
-        'Foto': 'https://images.unsplash.com/photo-1542744094-3a31f103e35f?w=400&q=80',
-        'Dokumen': 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=400&q=80'
-    };
-
-    const newAsset = {
-        id: db.assets.length + 1,
-        nama: name,
-        kategori: category,
-        ukuran: '1.2 MB',
-        pengunggah: currentUser.name,
-        tanggal: new Date().toISOString().split('T')[0],
-        preview: previews[category]
-    };
-
-    logActivity('Unggah Aset', `Mengunggah aset visual baru ke bank desain: "${name}".`);
-    await sendDataToServer('add', 'assets', newAsset);
-    closeModal();
-    showToast('Aset berhasil diunggah!');
-    router(currentState);
-};
 
 // Media Monitoring Simulator
 window.saveMonitoringItem = async function(event) {
@@ -1059,11 +1026,11 @@ function showDetail(type, item) {
 // Navigation & Routing System
 function router(page) {
     const allowedPages = {
-        admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'assets', 'monitoring', 'team', 'calendar', 'audit_trail', 'settings'],
-        kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'assets', 'monitoring', 'team', 'calendar', 'audit_trail'],
-        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'assets', 'monitoring', 'team', 'calendar', 'audit_trail'],
-        tim: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'assets', 'monitoring', 'team', 'calendar'],
-        pemohon: ['dashboard', 'tickets', 'assets']
+        admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'audit_trail', 'settings'],
+        kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'audit_trail'],
+        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'audit_trail'],
+        tim: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar'],
+        pemohon: ['dashboard', 'tickets']
     };
 
     const userRole = currentUser ? currentUser.role : 'pemohon';
@@ -1146,7 +1113,6 @@ function router(page) {
         case 'hari_besar': renderHariBesar(contentDiv); break;
         case 'rekap_kegiatan': renderRekapKegiatan(contentDiv); break;
         case 'tickets': renderTickets(contentDiv); break;
-        case 'assets': renderAssets(contentDiv); break;
         case 'monitoring': renderMonitoring(contentDiv); break;
         case 'team': renderTeam(contentDiv); break;
         case 'calendar': renderIntegratedCalendar(contentDiv); break;
