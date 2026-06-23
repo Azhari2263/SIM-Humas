@@ -1743,9 +1743,12 @@ function renderRekapKegiatan(container) {
 // 10. INTEGRATED CALENDAR VIEW
 // -------------------------------------------------------------
 function renderIntegratedCalendar(container) {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    if (!window.calendarCurrentDate) {
+        window.calendarCurrentDate = new Date();
+    }
+    if (!window.calendarMode) {
+        window.calendarMode = 'month';
+    }
 
     const events = [];
     db.rekapRutin.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Rutin] ${e.kegiatan}`, date: e.tanggal, color: 'bg-indigo-500' }));
@@ -1754,65 +1757,158 @@ function renderIntegratedCalendar(container) {
     db.mc.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[MC] ${e.kegiatan}`, date: e.tanggal, color: 'bg-sky-500' }));
     db.brsRilis.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[BRS] ${e.judul}`, date: e.tanggal_rilis, color: 'bg-rose-500' }));
     db.hariBesar.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[HariBesar] ${e.hari_besar}`, date: e.tanggal, color: 'bg-amber-500' }));
+    db.contentPlanner.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Konten] ${e.judul}`, date: e.jadwal, color: 'bg-teal-600' }));
 
-    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    let headerTitle = '';
     let daysHtml = [];
-    for (let i = 0; i < firstDay; i++) {
-        daysHtml.push(`<div class="h-28 border border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10 p-1"></div>`);
-    }
 
-    for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const dayEvents = events.filter(e => e.date && e.date.includes(dateStr));
-        const eventsListHtml = dayEvents.map(e => `
-            <div class="text-[8px] font-bold ${e.color} text-white px-1.5 py-0.5 rounded truncate mt-1" title="${e.title}">${e.title}</div>
-        `).join('');
+    if (window.calendarMode === 'month') {
+        const currentMonth = window.calendarCurrentDate.getMonth();
+        const currentYear = window.calendarCurrentDate.getFullYear();
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-        daysHtml.push(`
-            <div onclick="showCalendarDayEvents('${dateStr}')" class="h-28 border border-slate-100 dark:border-slate-800 p-2 bg-white dark:bg-slate-850 flex flex-col justify-between overflow-y-auto cursor-pointer hover:bg-indigo-50/40 dark:hover:bg-slate-800/80 hover:border-indigo-200 dark:hover:border-slate-700 transition-all">
-                <span class="text-xs font-black text-slate-700 dark:text-slate-350">${d}</span>
-                <div class="flex-1 overflow-y-auto mt-1">${eventsListHtml}</div>
-            </div>
-        `);
+        headerTitle = `${monthNames[currentMonth]} ${currentYear}`;
+
+        for (let i = 0; i < firstDay; i++) {
+            daysHtml.push(`<div class="h-28 border border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10 p-1"></div>`);
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const dayEvents = events.filter(e => e.date && e.date.includes(dateStr));
+            const eventsListHtml = dayEvents.map(e => `
+                <div class="text-[8px] font-bold ${e.color} text-white px-1.5 py-0.5 rounded truncate mt-1" title="${e.title}">${e.title}</div>
+            `).join('');
+
+            const isToday = new Date(currentYear, currentMonth, d).toDateString() === new Date().toDateString();
+
+            daysHtml.push(`
+                <div onclick="showCalendarDayEvents('${dateStr}')" class="h-28 border border-slate-100 dark:border-slate-800 p-2 bg-white dark:bg-slate-850 flex flex-col justify-between overflow-y-auto cursor-pointer hover:bg-indigo-50/40 dark:hover:bg-slate-800/80 hover:border-indigo-200 dark:hover:border-slate-700 transition-all ${isToday ? 'ring-2 ring-indigo-500 ring-inset' : ''}">
+                    <span class="text-xs font-black ${isToday ? 'text-indigo-650 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-350'}">${d}</span>
+                    <div class="flex-1 overflow-y-auto mt-1">${eventsListHtml}</div>
+                </div>
+            `);
+        }
+    } else {
+        const startOfWeek = new Date(window.calendarCurrentDate);
+        const dayIndex = startOfWeek.getDay();
+        startOfWeek.setDate(startOfWeek.getDate() - dayIndex);
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+        if (startOfWeek.getFullYear() === endOfWeek.getFullYear()) {
+            if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
+                headerTitle = `${startOfWeek.getDate()} - ${endOfWeek.getDate()} ${monthNames[startOfWeek.getMonth()]} ${startOfWeek.getFullYear()}`;
+            } else {
+                headerTitle = `${startOfWeek.getDate()} ${monthNames[startOfWeek.getMonth()].slice(0, 3)} - ${endOfWeek.getDate()} ${monthNames[endOfWeek.getMonth()].slice(0, 3)} ${startOfWeek.getFullYear()}`;
+            }
+        } else {
+            headerTitle = `${startOfWeek.getDate()} ${monthNames[startOfWeek.getMonth()].slice(0, 3)} ${startOfWeek.getFullYear()} - ${endOfWeek.getDate()} ${monthNames[endOfWeek.getMonth()].slice(0, 3)} ${endOfWeek.getFullYear()}`;
+        }
+
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(startOfWeek);
+            d.setDate(startOfWeek.getDate() + i);
+
+            const dateStrFixed = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const dayEvents = events.filter(e => e.date && e.date.includes(dateStrFixed));
+            const eventsListHtml = dayEvents.map(e => `
+                <div class="text-[8px] font-bold ${e.color} text-white px-1.5 py-0.5 rounded truncate mt-1" title="${e.title}">${e.title}</div>
+            `).join('');
+
+            const isToday = d.toDateString() === new Date().toDateString();
+
+            daysHtml.push(`
+                <div onclick="showCalendarDayEvents('${dateStrFixed}')" class="h-64 border border-slate-100 dark:border-slate-800 p-3 bg-white dark:bg-slate-850 flex flex-col justify-between overflow-y-auto cursor-pointer hover:bg-indigo-50/40 dark:hover:bg-slate-800/80 hover:border-indigo-200 dark:hover:border-slate-700 transition-all ${isToday ? 'ring-2 ring-indigo-500 ring-inset' : ''}">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-black ${isToday ? 'text-indigo-650 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-350'}">${d.getDate()}</span>
+                        <span class="text-[9px] font-bold text-slate-400">${monthNames[d.getMonth()].slice(0, 3)}</span>
+                    </div>
+                    <div class="flex-1 overflow-y-auto mt-2">${eventsListHtml}</div>
+                </div>
+            `);
+        }
     }
 
     container.innerHTML = `
         <div class="mb-8 animate-fade-in">
             <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Kalender Kegiatan Terintegrasi</h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Jadwal agenda harian, rilis BRS, ucapan hari besar, dan kegiatan protokoler pimpinan Kalbar.</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Jadwal agenda harian, rilis BRS, ucapan hari besar, kegiatan protokoler pimpinan Kalbar, dan rencana konten.</p>
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="font-black text-slate-800 dark:text-white text-base uppercase tracking-wider">${now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</h3>
-                <div class="text-[9px] font-bold uppercase tracking-wider flex flex-wrap gap-2">
-                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-indigo-500 rounded-md mr-1"></span> Rutin</span>
-                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-emerald-500 rounded-md mr-1"></span> Ad Hoc</span>
-                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-violet-500 rounded-md mr-1"></span> Protokol</span>
-                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-rose-500 rounded-md mr-1"></span> BRS</span>
-                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-amber-500 rounded-md mr-1"></span> Hari Besar</span>
+            <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-6 gap-4">
+                <div class="flex items-center gap-3">
+                    <button onclick="prevCalendar()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 border border-slate-150 dark:border-slate-700 text-slate-605 dark:text-slate-200 transition-all shadow-xs" title="Sebelumnya"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                    <h3 class="font-black text-slate-800 dark:text-white text-base uppercase tracking-wider min-w-[180px] text-center sm:text-left">${headerTitle}</h3>
+                    <button onclick="nextCalendar()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 border border-slate-150 dark:border-slate-700 text-slate-605 dark:text-slate-200 transition-all shadow-xs" title="Berikutnya"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                    <button onclick="todayCalendar()" class="px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-655 dark:text-indigo-400 border border-indigo-150 dark:border-indigo-900/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-all ml-1" title="Kembali ke hari ini">Hari Ini</button>
+                </div>
+
+                <div class="flex items-center justify-between sm:justify-end gap-4">
+                    <div class="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl text-[9px] font-bold uppercase tracking-wider border border-slate-200 dark:border-slate-750 shrink-0">
+                        <button onclick="changeCalendarMode('month')" class="px-4 py-1.5 rounded-lg transition-all ${window.calendarMode === 'month' ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-655 dark:text-white' : 'text-slate-550 dark:text-slate-400'}">Bulanan</button>
+                        <button onclick="changeCalendarMode('week')" class="px-4 py-1.5 rounded-lg transition-all ${window.calendarMode === 'week' ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-655 dark:text-white' : 'text-slate-555 dark:text-slate-400'}">Mingguan</button>
+                    </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-700 text-center text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 py-3 rounded-t-xl shrink-0">
+            <div class="text-[9px] font-bold uppercase tracking-wider flex flex-wrap gap-x-4 gap-y-2 mb-6 border-b border-slate-100 dark:border-slate-750 pb-4">
+                <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-indigo-500 rounded-md mr-1.5"></span> Rutin</span>
+                <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-emerald-500 rounded-md mr-1.5"></span> Ad Hoc</span>
+                <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-violet-500 rounded-md mr-1.5"></span> Protokol</span>
+                <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-sky-500 rounded-md mr-1.5"></span> MC</span>
+                <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-rose-500 rounded-md mr-1.5"></span> BRS</span>
+                <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-amber-500 rounded-md mr-1.5"></span> Hari Besar</span>
+                <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-teal-600 rounded-md mr-1.5"></span> Konten</span>
+            </div>
+
+            <div class="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-700 text-center text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 py-3 rounded-t-2xl shrink-0">
                 <div>Minggu</div><div>Senin</div><div>Selasa</div><div>Rabu</div><div>Kamis</div><div>Jumat</div><div>Sabtu</div>
             </div>
 
-            <div class="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-700 rounded-b-xl overflow-hidden shadow-xs">
+            <div class="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-700 rounded-b-2xl overflow-hidden shadow-xs border-r border-l border-b border-slate-200 dark:border-slate-700">
                 ${daysHtml.join('')}
             </div>
         </div>
     `;
 }
 
-// Global Calendar Event Popup Modal
+window.prevCalendar = function () {
+    if (window.calendarMode === 'month') {
+        window.calendarCurrentDate.setMonth(window.calendarCurrentDate.getMonth() - 1);
+    } else {
+        window.calendarCurrentDate.setDate(window.calendarCurrentDate.getDate() - 7);
+    }
+    router(currentState);
+};
+
+window.nextCalendar = function () {
+    if (window.calendarMode === 'month') {
+        window.calendarCurrentDate.setMonth(window.calendarCurrentDate.getMonth() + 1);
+    } else {
+        window.calendarCurrentDate.setDate(window.calendarCurrentDate.getDate() + 7);
+    }
+    router(currentState);
+};
+
+window.todayCalendar = function () {
+    window.calendarCurrentDate = new Date();
+    router(currentState);
+};
+
+window.changeCalendarMode = function (mode) {
+    window.calendarMode = mode;
+    router(currentState);
+};
+
 window.showCalendarDayEvents = function (dateStr) {
     const formattedDate = new Date(dateStr).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const dayEvents = [];
 
-    // Filter events by role and date
     db.rekapRutin.filter(isTaskForCurrentUser).forEach(e => {
         if (e.tanggal && e.tanggal.includes(dateStr)) {
             dayEvents.push({ type: 'rekap_rutin', label: 'Rutin', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-indigo-500' });
@@ -1846,6 +1942,12 @@ window.showCalendarDayEvents = function (dateStr) {
     db.hariBesar.filter(isTaskForCurrentUser).forEach(e => {
         if (e.tanggal && e.tanggal.includes(dateStr)) {
             dayEvents.push({ type: 'hari_besar', label: 'Hari Besar', title: e.hari_besar, pic: e.pembuat_konten || '-', status: e.status, item: e, color: 'bg-amber-500' });
+        }
+    });
+
+    db.contentPlanner.filter(isTaskForCurrentUser).forEach(e => {
+        if (e.jadwal && e.jadwal.includes(dateStr)) {
+            dayEvents.push({ type: 'content', label: 'Konten', title: e.judul, pic: e.assignedTo || '-', status: e.status, item: e, color: 'bg-teal-600' });
         }
     });
 

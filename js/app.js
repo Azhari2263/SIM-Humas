@@ -486,7 +486,7 @@ function openModal(type, item = null) {
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jam Mulai <span class="text-rose-500">*</span></label>
-                        <input type="text" id="jam_mulai" value="${item?.jam_mulai || '08:30'}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="HH:MM" required>
+                        <input type="time" id="jam_mulai" value="${item?.jam_mulai || '08:30'}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
@@ -511,7 +511,10 @@ function openModal(type, item = null) {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Petugas Ditunjuk</label>
-                        <input type="text" id="petugas" value="${item?.petugas || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold" placeholder="Contoh: Siska, Dian">
+                        <select id="petugas" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
+                            <option value="">Pilih Anggota...</option>
+                            ${db.team.map(m => `<option ${item?.petugas === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
+                        </select>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status Kegiatan</label>
@@ -872,7 +875,7 @@ async function saveData(event) {
 }
 
 // Global Delete Handler
-async function deleteItem(type, id) {
+function deleteItem(type, id) {
     if (!confirm('Apakah Anda yakin ingin menghapus data ini secara permanen dari database?')) return;
 
     const sheetMapping = {
@@ -903,9 +906,12 @@ async function deleteItem(type, id) {
         `Menghapus item dari ${sheetName}: "${itemDesc}".`
     );
 
-    // Call server
-    await sendDataToServer('delete', sheetName, { id: Number(id) });
-    showToast('Data berhasil dihapus dari database!');
+    // Call server asynchronously in background
+    sendDataToServer('delete', sheetName, { id: Number(id) }).catch(err => {
+        console.error('Delete sync error:', err);
+    });
+
+    showToast('Data berhasil dihapus lokal (Sedang disinkronkan)...');
     router(currentState);
 }
 
