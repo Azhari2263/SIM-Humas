@@ -2879,21 +2879,19 @@ function drawMonitoringTable() {
             });
         }
     }, 50);
-
-    window.exportMonitoringReport = function (type) {
-        const headers = ["Portal Media", "Headline Kliping", "Kutipan Ringkasan", "Tanggal Kliping", "Indeks Sentimen", "Tautan URL"];
-        const rows = filtered.map(item => [item.media || '-', item.judul || '-', item.ringkasan || '-', formatDate(item.tanggal), item.sentimen || '-', item.url || '-']);
-        if (type === 'csv') downloadCSV(headers, rows, `Kliping_Berita_${new Date().toISOString().split('T')[0]}.csv`);
-        else if (type === 'excel') downloadExcel(headers, rows, `Kliping_Berita_${new Date().toISOString().split('T')[0]}.xls`);
-        else openPrintReportWindow("Kliping Media Monitoring BPS Kalbar", headers, rows);
-    };
 }
 
+window.exportMonitoringReport = function (type) {
+    const headers = ["Portal Media", "Headline Kliping", "Kutipan Ringkasan", "Tanggal Kliping", "Indeks Sentimen", "Tautan URL"];
+    const rows = filtered.map(item => [item.media || '-', item.judul || '-', item.ringkasan || '-', formatDate(item.tanggal), item.sentimen || '-', item.url || '-']);
+    if (type === 'csv') downloadCSV(headers, rows, `Kliping_Berita_${new Date().toISOString().split('T')[0]}.csv`);
+    else if (type === 'excel') downloadExcel(headers, rows, `Kliping_Berita_${new Date().toISOString().split('T')[0]}.xls`);
+    else openPrintReportWindow("Kliping Media Monitoring BPS Kalbar", headers, rows);
+};
 // -------------------------------------------------------------
 // 12. ASSIGNMENT VIEW
 // -------------------------------------------------------------
 let assignmentSearch = '';
-let assignmentPicFilter = '';
 let assignmentPriorityFilter = '';
 let assignmentStatusFilter = '';
 let assignmentSortField = 'deadline';
@@ -2903,11 +2901,6 @@ function renderAssignmentPage(container) {
     const isKepala = currentUser.role === 'kepala';
     const isTim = currentUser.role === 'tim';
 
-    // If role is 'tim', PIC filter is locked to their own name
-    if (isTim) {
-        assignmentPicFilter = currentUser.name;
-    }
-
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
@@ -2915,13 +2908,8 @@ function renderAssignmentPage(container) {
                     <i class="fa-solid fa-clipboard-list text-indigo-650 dark:text-indigo-400"></i>
                     Penugasan Tugas (Assignment)
                 </h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pantau, kelola, dan perbarui tugas tim Humas BPS Provinsi Kalimantan Barat.</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Daftar seluruh tugas, kegiatan, dan peran kehumasan yang ditugaskan kepada Anda.</p>
             </div>
-            ${!isKepala && !isTim ? `
-                <button onclick="openModal('assignment')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                    <i class="fa-solid fa-plus text-xs"></i> Tambah Tugas Baru
-                </button>
-            ` : ''}
         </div>
 
         <!-- KPI SUMMARY CARDS -->
@@ -2930,7 +2918,7 @@ function renderAssignmentPage(container) {
         </div>
 
         <!-- FILTERS -->
-        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 grid grid-cols-1 sm:grid-cols-5 gap-4 shadow-xs">
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-4 shadow-xs">
             <div class="relative">
                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
                 <input type="text" id="assignment-search-input" oninput="handleAssignmentSearch(this.value)" value="${assignmentSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:bg-white focus:outline-none placeholder-slate-450 dark:text-white text-slate-750 transition-all" placeholder="Cari nama tugas atau deskripsi...">
@@ -2943,6 +2931,11 @@ function renderAssignmentPage(container) {
                     <option ${assignmentStatusFilter === 'Sedang Dikerjakan' ? 'selected' : ''} value="Sedang Dikerjakan">Sedang Dikerjakan</option>
                     <option ${assignmentStatusFilter === 'Selesai' ? 'selected' : ''} value="Selesai">Selesai</option>
                     <option ${assignmentStatusFilter === 'Revisi' ? 'selected' : ''} value="Revisi">Revisi</option>
+                    <option ${assignmentStatusFilter === 'Draft' ? 'selected' : ''} value="Draft">Draft</option>
+                    <option ${assignmentStatusFilter === 'In Progress' ? 'selected' : ''} value="In Progress">In Progress</option>
+                    <option ${assignmentStatusFilter === 'Done' ? 'selected' : ''} value="Done">Done</option>
+                    <option ${assignmentStatusFilter === 'Posted' ? 'selected' : ''} value="Posted">Posted</option>
+                    <option ${assignmentStatusFilter === 'Ditugaskan' ? 'selected' : ''} value="Ditugaskan">Ditugaskan</option>
                 </select>
             </div>
             <div class="flex items-center gap-2">
@@ -2952,17 +2945,6 @@ function renderAssignmentPage(container) {
                     <option ${assignmentPriorityFilter === 'Tinggi' ? 'selected' : ''} value="Tinggi">Tinggi</option>
                     <option ${assignmentPriorityFilter === 'Sedang' ? 'selected' : ''} value="Sedang">Sedang</option>
                     <option ${assignmentPriorityFilter === 'Rendah' ? 'selected' : ''} value="Rendah">Rendah</option>
-                </select>
-            </div>
-            <div class="flex items-center gap-2">
-                <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-user mr-1 text-slate-400"></i> PIC:</span>
-                <select id="assignment-pic-select" onchange="handleAssignmentPicFilter(this.value)" ${isTim ? 'disabled' : ''} class="w-full text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-655 dark:text-slate-200 focus:outline-none shadow-xs disabled:bg-slate-100 disabled:dark:bg-slate-805 disabled:cursor-not-allowed">
-                    ${isTim ? `
-                        <option value="${currentUser.name}">${currentUser.name}</option>
-                    ` : `
-                        <option value="">Semua PIC</option>
-                        ${db.team.map(m => `<option ${assignmentPicFilter === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
-                    `}
                 </select>
             </div>
             <div class="flex justify-end items-center">
@@ -2982,7 +2964,7 @@ function renderAssignmentPage(container) {
                             <th onclick="handleAssignmentSort('tugas')" class="py-3.5 px-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 min-w-[150px]">
                                 Nama Tugas <span id="sort-icon-tugas" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
                             </th>
-                            <th class="py-3.5 px-4 min-w-[200px]">Deskripsi Detail</th>
+                            <th class="py-3.5 px-4 min-w-[200px]">Deskripsi Detail / Modul</th>
                             <th onclick="handleAssignmentSort('prioritas')" class="py-3.5 px-4 w-28 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 text-center">
                                 Prioritas <span id="sort-icon-prioritas" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
                             </th>
@@ -3020,39 +3002,152 @@ window.drawAssignmentTable = function() {
     const kpiContainer = document.getElementById('assignment-kpi-container');
     if (!tableBody) return;
 
-    // 1. Get filtered list base (using isTaskForCurrentUser for RBAC scoping)
-    let filtered = db.assignments.filter(isTaskForCurrentUser);
+    // 1. Gather all tasks from different tables assigned to current logged-in user
+    let aggregated = [
+        ...db.assignments.filter(isTaskForCurrentUser).map(item => ({
+            id: `asgn-${item.id}`,
+            originalType: 'assignment',
+            originalId: item.id,
+            tugas: item.tugas,
+            deskripsi: item.deskripsi || '-',
+            prioritas: item.prioritas || 'Sedang',
+            status: item.status || 'Belum Mulai',
+            tanggal_penugasan: item.tanggal_penugasan,
+            deadline: item.deadline,
+            progres: item.progres || 0,
+            lampiran: item.lampiran || '',
+            assigned_to: item.assigned_to || '-'
+        })),
+        ...db.contentPlanner.filter(isTaskForCurrentUser).map(item => ({
+            id: `planner-${item.id}`,
+            originalType: 'content',
+            originalId: item.id,
+            tugas: `[Rencana Konten] ${item.judul}`,
+            deskripsi: item.konsep || '-',
+            prioritas: 'Sedang',
+            status: item.status || 'Draft',
+            tanggal_penugasan: item.jadwal,
+            deadline: item.jadwal,
+            progres: item.progres || 0,
+            lampiran: item.lampiran || '',
+            assigned_to: item.assignedTo || '-'
+        })),
+        ...db.rekapRutin.filter(isTaskForCurrentUser).map(item => ({
+            id: `rutin-${item.id}`,
+            originalType: 'rekap_rutin',
+            originalId: item.id,
+            tugas: `[Rutin] ${item.kegiatan}`,
+            deskripsi: item.rubrikasi || '-',
+            prioritas: 'Sedang',
+            status: item.status || 'Ditugaskan',
+            tanggal_penugasan: item.tanggal,
+            deadline: item.tanggal,
+            progres: item.status === 'Selesai' ? 100 : 0,
+            lampiran: '',
+            assigned_to: item.petugas || '-'
+        })),
+        ...db.adHoc.filter(isTaskForCurrentUser).map(item => ({
+            id: `adhoc-${item.id}`,
+            originalType: 'ad_hoc',
+            originalId: item.id,
+            tugas: `[AdHoc] ${item.kegiatan}`,
+            deskripsi: item.keterangan || '-',
+            prioritas: 'Sedang',
+            status: item.status || 'Ditugaskan',
+            tanggal_penugasan: item.tanggal,
+            deadline: item.tanggal,
+            progres: item.status === 'Selesai' ? 100 : 0,
+            lampiran: '',
+            assigned_to: item.petugas || '-'
+        })),
+        ...db.protokoler.filter(isTaskForCurrentUser).map(item => ({
+            id: `protokoler-${item.id}`,
+            originalType: 'protokoler',
+            originalId: item.id,
+            tugas: `[Protokoler] ${item.kegiatan}`,
+            deskripsi: `Lokasi: ${item.lokasi || '-'}. ${item.keterangan || ''}`,
+            prioritas: item.level === 'VVIP' || item.level === 'VIP' ? 'Tinggi' : 'Sedang',
+            status: item.status || 'Ditugaskan',
+            tanggal_penugasan: item.tanggal,
+            deadline: item.tanggal,
+            progres: item.status === 'Selesai' ? 100 : 0,
+            lampiran: '',
+            assigned_to: item.petugas || '-'
+        })),
+        ...db.mc.filter(isTaskForCurrentUser).map(item => ({
+            id: `mc-${item.id}`,
+            originalType: 'mc',
+            originalId: item.id,
+            tugas: `[MC] ${item.kegiatan}`,
+            deskripsi: `Lokasi: ${item.lokasi || '-'}. ${item.keterangan || ''}`,
+            prioritas: item.level === 'VIP' ? 'Tinggi' : 'Sedang',
+            status: item.status || 'Ditugaskan',
+            tanggal_penugasan: item.tanggal,
+            deadline: item.tanggal,
+            progres: item.status === 'Selesai' ? 100 : 0,
+            lampiran: '',
+            assigned_to: item.petugas || '-'
+        })),
+        ...db.brsRilis.filter(isTaskForCurrentUser).map(item => ({
+            id: `brs-${item.id}`,
+            originalType: 'brs_rilis',
+            originalId: item.id,
+            tugas: `[BRS] ${item.judul}`,
+            deskripsi: `Poster: ${item.pic_poster_info || '-'}. Dok: ${item.pic_doc_ruang || '-'}. Zoom/YT: ${item.pic_doc_yt_zoom || '-'}`,
+            prioritas: 'Tinggi',
+            status: 'Rilis',
+            tanggal_penugasan: item.tanggal_rilis,
+            deadline: item.tanggal_rilis,
+            progres: 100,
+            lampiran: item.highlight || '',
+            assigned_to: `${item.pic_poster_info || ''} ${item.pic_doc_ruang || ''} ${item.pic_doc_yt_zoom || ''}`.trim() || '-'
+        })),
+        ...db.hariBesar.filter(isTaskForCurrentUser).map(item => ({
+            id: `hb-${item.id}`,
+            originalType: 'hari_besar',
+            originalId: item.id,
+            tugas: `[HariBesar] ${item.hari_besar}`,
+            deskripsi: `Ucapan Hari Besar`,
+            prioritas: 'Sedang',
+            status: item.status || 'Draft',
+            tanggal_penugasan: item.tanggal,
+            deadline: item.tanggal,
+            progres: item.status === 'Posted' ? 100 : 0,
+            lampiran: item.data_pendukung || '',
+            assigned_to: item.pembuat_konten || '-'
+        }))
+    ];
 
-    // 2. Count statistics for KPI cards (using the RBAC-filtered list so a member sees stats only for their tasks, while coord/admin sees overall stats)
-    const totalCount = filtered.length;
-    const pendingCount = filtered.filter(item => item.status === 'Belum Mulai').length;
-    const progressCount = filtered.filter(item => item.status === 'Sedang Dikerjakan').length;
-    const completedCount = filtered.filter(item => item.status === 'Selesai').length;
+    // 2. Count statistics for KPI cards (using the aggregated list)
+    const totalCount = aggregated.length;
+    const pendingCount = aggregated.filter(item => ['Belum Mulai', 'Draft', 'Ditugaskan'].includes(item.status)).length;
+    const progressCount = aggregated.filter(item => ['Sedang Dikerjakan', 'In Progress', 'Revisi'].includes(item.status)).length;
+    const completedCount = aggregated.filter(item => ['Selesai', 'Done', 'Posted', 'Rilis'].includes(item.status)).length;
 
     if (kpiContainer) {
         kpiContainer.innerHTML = `
-            <div class="kpi-card flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs animate-fade-in">
+            <div class="kpi-card flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-705 shadow-xs animate-fade-in">
                 <div>
                     <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Tugas</h4>
                     <p class="text-2xl font-black text-slate-800 dark:text-white mt-1.5">${totalCount}</p>
                 </div>
                 <div class="w-11 h-11 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl flex items-center justify-center text-indigo-655 dark:text-indigo-400 font-bold text-lg"><i class="fa-solid fa-clipboard-list"></i></div>
             </div>
-            <div class="kpi-card flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs animate-fade-in">
+            <div class="kpi-card flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-705 shadow-xs animate-fade-in">
                 <div>
                     <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Belum Mulai</h4>
                     <p class="text-2xl font-black text-slate-800 dark:text-white mt-1.5">${pendingCount}</p>
                 </div>
                 <div class="w-11 h-11 bg-slate-50 dark:bg-slate-900/60 rounded-xl flex items-center justify-center text-slate-500 dark:text-slate-455 font-bold text-lg"><i class="fa-regular fa-circle-play"></i></div>
             </div>
-            <div class="kpi-card flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs animate-fade-in">
+            <div class="kpi-card flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-705 shadow-xs animate-fade-in">
                 <div>
                     <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sedang Dikerjakan</h4>
                     <p class="text-2xl font-black text-slate-800 dark:text-white mt-1.5">${progressCount}</p>
                 </div>
                 <div class="w-11 h-11 bg-blue-50 dark:bg-blue-955/40 rounded-xl flex items-center justify-center text-blue-655 dark:text-blue-400 font-bold text-lg"><i class="fa-solid fa-arrows-spin animate-spin-slow"></i></div>
             </div>
-            <div class="kpi-card flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs animate-fade-in">
+            <div class="kpi-card flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-705 shadow-xs animate-fade-in">
                 <div>
                     <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Selesai</h4>
                     <p class="text-2xl font-black text-slate-800 dark:text-white mt-1.5">${completedCount}</p>
@@ -3065,7 +3160,7 @@ window.drawAssignmentTable = function() {
     // 3. Search filter
     if (assignmentSearch.trim()) {
         const query = assignmentSearch.toLowerCase();
-        filtered = filtered.filter(item =>
+        aggregated = aggregated.filter(item =>
             (item.tugas && item.tugas.toLowerCase().includes(query)) ||
             (item.deskripsi && item.deskripsi.toLowerCase().includes(query))
         );
@@ -3073,21 +3168,16 @@ window.drawAssignmentTable = function() {
 
     // 4. Status filter
     if (assignmentStatusFilter) {
-        filtered = filtered.filter(item => item.status === assignmentStatusFilter);
+        aggregated = aggregated.filter(item => item.status === assignmentStatusFilter);
     }
 
     // 5. Priority filter
     if (assignmentPriorityFilter) {
-        filtered = filtered.filter(item => item.prioritas === assignmentPriorityFilter);
+        aggregated = aggregated.filter(item => item.prioritas === assignmentPriorityFilter);
     }
 
-    // 6. PIC filter (if not already filtered by isTaskForCurrentUser)
-    if (assignmentPicFilter && currentUser.role !== 'tim') {
-        filtered = filtered.filter(item => item.assigned_to === assignmentPicFilter);
-    }
-
-    // 7. Sorting
-    filtered.sort((a, b) => {
+    // 6. Sorting
+    aggregated.sort((a, b) => {
         let valA = a[assignmentSortField] || '';
         let valB = b[assignmentSortField] || '';
 
@@ -3107,7 +3197,7 @@ window.drawAssignmentTable = function() {
         return 0;
     });
 
-    // 8. Update sort icons
+    // 7. Update sort icons
     const sortFields = ['tugas', 'prioritas', 'status', 'tanggal_penugasan', 'deadline', 'progres', 'assigned_to'];
     sortFields.forEach(f => {
         const idName = f === 'status' ? 'sort-icon-status-asgn' : (f === 'progres' ? 'sort-icon-progres-asgn' : `sort-icon-${f}`);
@@ -3123,14 +3213,14 @@ window.drawAssignmentTable = function() {
 
     const isKepala = currentUser.role === 'kepala';
 
-    if (filtered.length === 0) {
+    if (aggregated.length === 0) {
         tableBody.innerHTML = `
             <tr>
                 <td colspan="10" class="py-12 text-center text-slate-400 dark:text-slate-500">
                     <div class="flex flex-col items-center justify-center">
                         <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-350 dark:text-slate-600"></i>
                         <p class="text-xs font-bold uppercase tracking-wider">Data Penugasan Kosong</p>
-                        <p class="text-[10px] mt-0.5">Cobalah mengubah kata kunci pencarian atau filter</p>
+                        <p class="text-[10px] mt-0.5">Belum ada tugas atau peran yang ditugaskan kepada Anda</p>
                     </div>
                 </td>
             </tr>
@@ -3138,7 +3228,7 @@ window.drawAssignmentTable = function() {
         return;
     }
 
-    tableBody.innerHTML = filtered.map((item, index) => {
+    tableBody.innerHTML = aggregated.map((item, index) => {
         const initials = getPicInitials(item.assigned_to);
         const avatarBg = getAvatarBg(item.assigned_to);
 
@@ -3146,13 +3236,19 @@ window.drawAssignmentTable = function() {
         let statusBadge = '';
         switch (item.status) {
             case 'Belum Mulai':
-                statusBadge = '<span class="px-2.5 py-1 bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-655">Belum Mulai</span>';
+            case 'Draft':
+                statusBadge = `<span class="px-2.5 py-1 bg-slate-105 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-655">${item.status}</span>`;
                 break;
             case 'Sedang Dikerjakan':
-                statusBadge = '<span class="px-2.5 py-1 bg-blue-50 text-blue-700 dark:bg-blue-955/40 dark:text-blue-300 rounded-full text-[10px] font-bold border border-blue-105 dark:border-blue-900/65">Sedang Dikerjakan</span>';
+            case 'In Progress':
+            case 'Ditugaskan':
+                statusBadge = `<span class="px-2.5 py-1 bg-blue-50 text-blue-700 dark:bg-blue-955/40 dark:text-blue-300 rounded-full text-[10px] font-bold border border-blue-105 dark:border-blue-900/65">${item.status}</span>`;
                 break;
             case 'Selesai':
-                statusBadge = '<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-955/40 dark:text-emerald-300 rounded-full text-[10px] font-bold border border-emerald-105 dark:border-emerald-900/65">Selesai</span>';
+            case 'Done':
+            case 'Posted':
+            case 'Rilis':
+                statusBadge = `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-955/40 dark:text-emerald-300 rounded-full text-[10px] font-bold border border-emerald-105 dark:border-emerald-900/65">${item.status}</span>`;
                 break;
             case 'Revisi':
                 statusBadge = '<span class="px-2.5 py-1 bg-rose-50 text-rose-700 dark:bg-rose-955/40 dark:text-rose-300 rounded-full text-[10px] font-bold border border-rose-105 dark:border-rose-900/65">Revisi</span>';
@@ -3165,10 +3261,10 @@ window.drawAssignmentTable = function() {
         let priorityBadge = '';
         switch (item.prioritas) {
             case 'Tinggi':
-                priorityBadge = '<span class="px-2 py-0.5 bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-100 dark:border-rose-900 rounded text-[9px] font-extrabold uppercase">Tinggi</span>';
+                priorityBadge = '<span class="px-2 py-0.5 bg-rose-50 text-rose-700 dark:bg-rose-955 dark:text-rose-300 border border-rose-100 dark:border-rose-900 rounded text-[9px] font-extrabold uppercase">Tinggi</span>';
                 break;
             case 'Sedang':
-                priorityBadge = '<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900 rounded text-[9px] font-extrabold uppercase">Sedang</span>';
+                priorityBadge = '<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-955 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900 rounded text-[9px] font-extrabold uppercase">Sedang</span>';
                 break;
             case 'Rendah':
                 priorityBadge = '<span class="px-2 py-0.5 bg-slate-50 text-slate-655 dark:bg-slate-700 dark:text-slate-350 border border-slate-200 dark:border-slate-655 rounded text-[9px] font-bold uppercase">Rendah</span>';
@@ -3177,36 +3273,26 @@ window.drawAssignmentTable = function() {
                 priorityBadge = `<span class="px-2 py-0.5 bg-slate-50 text-slate-655 rounded text-[9px] font-bold">${item.prioritas || '-'}</span>`;
         }
 
-        let actions = '';
-        actions = `
+        const actions = `
             <td class="py-3 px-4 text-center">
                 <div class="flex justify-center items-center gap-1.5">
                     ${!isKepala ? `
-                        <button onclick="openModalById('assignment', ${item.id})" title="Ubah data" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
+                        <button onclick="openModalById('${item.originalType}', ${item.originalId})" title="Ubah status & progres" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
                             <i class="fa-solid fa-pen text-[10px]"></i>
                         </button>
                     ` : ''}
-                    ${!isKepala && currentUser.role !== 'tim' ? `
-                        <button onclick="deleteItem('assignment', ${item.id})" title="Hapus data" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
-                            <i class="fa-solid fa-trash text-[10px]"></i>
-                        </button>
-                    ` : ''}
-                    ${isKepala ? `
-                        <button onclick="showDetailById('assignment', ${item.id})" title="Lihat detail" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
-                            <i class="fa-solid fa-eye text-[10px]"></i>
-                        </button>
-                    ` : ''}
+                    <button onclick="showDetailById('${item.originalType}', ${item.originalId})" title="Lihat rincian" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
+                        <i class="fa-solid fa-eye text-[10px]"></i>
+                    </button>
                 </div>
             </td>
         `;
-
-        const attachmentLink = item.lampiran ? `<a href="${item.lampiran}" target="_blank" class="inline-flex items-center gap-1 text-indigo-650 hover:underline"><i class="fa-solid fa-paperclip"></i> Tautan</a>` : '<span class="text-slate-400">-</span>';
 
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors">
                 <td class="py-3.5 px-4 text-center font-bold text-slate-400">${index + 1}</td>
                 <td class="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 min-w-[150px] max-w-[250px]">
-                    <span onclick="showDetailById('assignment', ${item.id})" class="hover:text-indigo-655 dark:hover:text-indigo-400 transition-colors cursor-pointer block truncate" title="${item.tugas}">${item.tugas}</span>
+                    <span onclick="showDetailById('${item.originalType}', ${item.originalId})" class="hover:text-indigo-655 dark:hover:text-indigo-400 transition-colors cursor-pointer block truncate" title="${item.tugas}">${item.tugas}</span>
                 </td>
                 <td class="py-3.5 px-4 text-slate-550 dark:text-slate-405 min-w-[200px] max-w-[300px]">
                     <p class="line-clamp-2 leading-relaxed" title="${item.deskripsi || ''}">${item.deskripsi || '-'}</p>
@@ -3244,11 +3330,6 @@ window.handleAssignmentSearch = function(val) {
     drawAssignmentTable();
 };
 
-window.handleAssignmentPicFilter = function(val) {
-    assignmentPicFilter = val;
-    drawAssignmentTable();
-};
-
 window.handleAssignmentStatusFilter = function(val) {
     assignmentStatusFilter = val;
     drawAssignmentTable();
@@ -3261,7 +3342,6 @@ window.handleAssignmentPriorityFilter = function(val) {
 
 window.resetAssignmentFilters = function() {
     assignmentSearch = '';
-    assignmentPicFilter = currentUser.role === 'tim' ? currentUser.name : '';
     assignmentStatusFilter = '';
     assignmentPriorityFilter = '';
     const searchInput = document.getElementById('assignment-search-input');
@@ -3270,8 +3350,6 @@ window.resetAssignmentFilters = function() {
     if (statusSelect) statusSelect.value = '';
     const prioritySelect = document.getElementById('assignment-priority-select');
     if (prioritySelect) prioritySelect.value = '';
-    const picSelect = document.getElementById('assignment-pic-select');
-    if (picSelect) picSelect.value = assignmentPicFilter;
     drawAssignmentTable();
 };
 

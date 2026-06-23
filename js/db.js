@@ -82,14 +82,18 @@ function loadLocalFallbacks() {
         saveLocalFallback('team');
     }
 
-    // Seed default users if empty
-    if (db.users.length === 0) {
+    // Seed default users if empty or missing specific team users
+    if (db.users.length === 0 || !db.users.some(u => u.username === 'rian')) {
         db.users = [
             { id: 1, username: "admin", nama: "Super Admin", role: "admin", bidang: "IT & Master" },
             { id: 2, username: "kepala", nama: "Kepala BPS Kalbar", role: "kepala", bidang: "Pimpinan" },
             { id: 3, username: "koordinator", nama: "Ketua Tim Humas", role: "koordinator", bidang: "Humas & Protokol" },
             { id: 4, username: "tim", nama: "Staf Humas", role: "tim", bidang: "Humas & Protokol" },
-            { id: 5, username: "pemohon", nama: "User Bidang", role: "pemohon", bidang: "Seksi Sosial" }
+            { id: 5, username: "pemohon", nama: "User Bidang", role: "pemohon", bidang: "Seksi Sosial" },
+            { id: 6, username: "rian", nama: "Rian", role: "tim", bidang: "Diseminasi Informasi" },
+            { id: 7, username: "siska", nama: "Siska", role: "tim", bidang: "Humas & Protokol" },
+            { id: 8, username: "dian", nama: "Dian", role: "tim", bidang: "Humas & Protokol" },
+            { id: 9, username: "azhari", nama: "Azhari", role: "tim", bidang: "Humas & Protokol" }
         ];
         saveLocalFallback('users');
     }
