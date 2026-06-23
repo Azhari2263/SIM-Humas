@@ -1,390 +1,427 @@
-// Views rendering module for SIM HUMAS BPS Kalbar (Clean, Premium, and Responsive UI)
+// Views rendering engine for SIM Humas & Protokol BPS Kalbar
 
-// Helpers
+// Helper: Get user avatar initials
 function getPicInitials(name) {
     if (!name) return '?';
-    return name.split(' ').map(n => n.charAt(0)).slice(0, 2).join('').toUpperCase();
-}
-
-function getAvatarBg(name) {
-    if (!name) return 'bg-slate-100 text-slate-650';
-    const colors = [
-        'bg-indigo-50 text-indigo-750 border-indigo-150',
-        'bg-emerald-50 text-emerald-750 border-emerald-150',
-        'bg-violet-50 text-violet-750 border-violet-150',
-        'bg-sky-50 text-sky-750 border-sky-150',
-        'bg-rose-50 text-rose-750 border-rose-150',
-        'bg-amber-50 text-amber-750 border-amber-150',
-        'bg-cyan-50 text-cyan-750 border-cyan-150'
-    ];
-    let sum = 0;
-    for (let i = 0; i < name.length; i++) {
-        sum += name.charCodeAt(i);
+    const parts = name.split(' ');
+    if (parts.length > 1) {
+        return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
     }
-    return colors[sum % colors.length];
+    return name.charAt(0).toUpperCase();
 }
 
-// Global Export Helper
+// Helper: Get avatar color scheme based on name hashing
+function getAvatarBg(name) {
+    if (!name) return 'bg-slate-100 text-slate-700';
+    const nameHash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const colors = [
+        'bg-indigo-50 text-indigo-750 border-indigo-150 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800',
+        'bg-emerald-50 text-emerald-750 border-emerald-150 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800',
+        'bg-amber-50 text-amber-750 border-amber-150 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
+        'bg-rose-55 text-rose-750 border-rose-150 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800',
+        'bg-violet-50 text-violet-750 border-violet-150 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800',
+        'bg-sky-50 text-sky-750 border-sky-150 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800'
+    ];
+    return colors[nameHash % colors.length];
+}
+
+// Helper: Generic CSV exporter
 function downloadCSV(headers, rows, filename) {
-    let csv = '\ufeff' + headers.join(',') + '\n';
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += headers.map(h => `"${h.replace(/"/g, '""')}"`).join(",") + "\n";
     rows.forEach(row => {
-        csv += row.map(v => {
-            const str = v === null || v === undefined ? '' : String(v);
-            return '"' + str.replace(/"/g, '""') + '"';
-        }).join(',') + '\n';
+        csvContent += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",") + "\n";
     });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', filename);
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
 
-// Print Report Window Helper
+// Helper: Generic Print window exporter
 function openPrintReportWindow(title, headers, rows) {
     const printWindow = window.open('', '_blank');
-    let html = `
+    if (!printWindow) return;
+
+    let headersHtml = headers.map(h => `<th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left; background-color: #f1f5f9; font-size: 11px; text-transform: uppercase;">${h}</th>`).join('');
+    let rowsHtml = rows.map(row => `
+        <tr style="page-break-inside: avoid;">
+            ${row.map(val => `<td style="padding: 10px; border: 1px solid #e2e8f0; font-size: 11px;">${val}</td>`).join('')}
+        </tr>
+    `).join('');
+
+    printWindow.document.write(`
         <html>
         <head>
             <title>${title}</title>
-            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
             <style>
-                body { font-family: 'Inter', sans-serif; color: #1e293b; padding: 40px; line-height: 1.5; }
-                .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
-                .header h1 { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0; }
-                .header p { font-size: 12px; color: #64748b; margin: 5px 0 0 0; letter-spacing: 0.5px; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; }
-                th { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; text-align: left; font-weight: 600; color: #334155; text-transform: uppercase; }
-                td { border: 1px solid #e2e8f0; padding: 10px; color: #475569; }
-                tr:nth-child(even) { background-color: #fafafa; }
-                .footer { margin-top: 40px; font-size: 10px; color: #94a3b8; text-align: center; }
+                body { font-family: 'Inter', sans-serif; color: #1e293b; padding: 40px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                h1 { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 3px solid #4f46e5; padding-bottom: 10px; }
+                p { font-size: 11px; color: #64748b; margin-top: -5px; }
+                .footer { margin-top: 40px; border-top: 1px solid #e2e8f0; pt: 10px; font-size: 9px; color: #94a3b8; text-align: right; }
             </style>
         </head>
         <body>
-            <div class="header">
-                <h1>${title}</h1>
-                <p>SIM HUMAS BPS PROVINSI KALIMANTAN BARAT • LAPORAN KINERJA REAL-TIME</p>
-                <p>Dicetak pada: ${new Date().toLocaleString('id-ID')}</p>
-            </div>
+            <h1>${title}</h1>
+            <p>Dicetak otomatis dari SIM Humas BPS Kalbar - Tanggal: ${new Date().toLocaleString('id-ID')}</p>
             <table>
-                <thead>
-                    <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
-                </thead>
-                <tbody>
-                    ${rows.map(row => `<tr>${row.map(cell => `<td>${cell || '-'}</td>`).join('')}</tr>`).join('')}
-                </tbody>
+                <thead><tr>${headersHtml}</tr></thead>
+                <tbody>${rowsHtml}</tbody>
             </table>
-            <div class="footer">
-                Laporan ini dibuat otomatis secara langsung dari database Google Sheets SIM Humas BPS Provinsi Kalimantan Barat.
-            </div>
-            <script>
-                window.onload = function() { window.print(); }
-            </script>
+            <div class="footer">SIM Humas & Protokol BPS Provinsi Kalimantan Barat</div>
+            <script>window.print();</script>
         </body>
         </html>
-    `;
-    printWindow.document.write(html);
+    `);
     printWindow.document.close();
 }
 
 // -------------------------------------------------------------
-// 1. Dashboard View
+// 1. INTEGRATED DASHBOARD VIEW
 // -------------------------------------------------------------
 function renderDashboard(container) {
-    const isInternal = currentUser.role === 'internal';
-
-    if (isInternal) {
-        // Internal User Dashboard
-        const myTickets = db.tickets.filter(t => t.pengaju.toLowerCase().includes(currentUser.name.toLowerCase()) || t.pengaju.includes("Seksi"));
-        const totalTickets = myTickets.length;
-        const pendingTickets = myTickets.filter(t => t.status === 'Pending').length;
-        const approvedTickets = myTickets.filter(t => t.status === 'Approved').length;
-        const totalAssets = db.assets.length;
-
-        container.innerHTML = `
-            <div class="mb-8 animate-fade-in">
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">Portal Layanan Humas</h2>
-                <p class="text-xs text-slate-500 mt-1">Selamat datang kembali, <span class="font-bold text-indigo-650">${currentUser.name}</span>. Kelola pengajuan desain, video, dan peliputan kegiatan Anda.</p>
-            </div>
-
-            <!-- Stats grid -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div class="bg-white/70 backdrop-blur-md p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300 flex items-center gap-4">
-                    <div class="w-11 h-11 bg-indigo-50/80 border border-indigo-100/50 rounded-xl flex items-center justify-center text-indigo-600 shrink-0"><i class="fa-solid fa-ticket text-lg"></i></div>
-                    <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Pengajuan</p><p class="text-xl font-extrabold text-slate-800 mt-0.5">${totalTickets}</p></div>
-                </div>
-                <div class="bg-white/70 backdrop-blur-md p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300 flex items-center gap-4">
-                    <div class="w-11 h-11 bg-amber-50/80 border border-amber-100/50 rounded-xl flex items-center justify-center text-amber-600 shrink-0"><i class="fa-solid fa-clock-rotate-left text-lg"></i></div>
-                    <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Menunggu Review</p><p class="text-xl font-extrabold text-slate-800 mt-0.5">${pendingTickets}</p></div>
-                </div>
-                <div class="bg-white/70 backdrop-blur-md p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300 flex items-center gap-4">
-                    <div class="w-11 h-11 bg-emerald-50/80 border border-emerald-100/50 rounded-xl flex items-center justify-center text-emerald-650 shrink-0"><i class="fa-solid fa-circle-check text-lg"></i></div>
-                    <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Disetujui / PIC</p><p class="text-xl font-extrabold text-slate-800 mt-0.5">${approvedTickets}</p></div>
-                </div>
-                <div class="bg-white/70 backdrop-blur-md p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300 flex items-center gap-4">
-                    <div class="w-11 h-11 bg-violet-50/80 border border-violet-100/50 rounded-xl flex items-center justify-center text-violet-600 shrink-0"><i class="fa-solid fa-folder-open text-lg"></i></div>
-                    <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aset Bank Desain</p><p class="text-xl font-extrabold text-slate-800 mt-0.5">${totalAssets}</p></div>
-                </div>
-            </div>
-
-            <!-- Lower Layout -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Ticket List -->
-                <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                    <div class="flex justify-between items-center mb-5 border-b pb-3.5 border-slate-100">
-                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-ticket-simple text-indigo-650"></i> Riwayat Pengajuan Layanan</h3>
-                        <button onclick="router('tickets')" class="text-xs font-semibold text-indigo-650 hover:text-indigo-800 hover:underline">Selengkapnya →</button>
-                    </div>
-                    <div class="space-y-4 max-h-[300px] overflow-y-auto pr-1">
-                        ${myTickets.length > 0 ? myTickets.slice(0, 5).map(item => `
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-3 last:border-none last:pb-0 hover:bg-slate-50/50 p-2 rounded-xl transition-all">
-                                <div>
-                                    <p class="font-bold text-xs text-slate-800">${item.judul}</p>
-                                    <p class="text-[10px] text-slate-450 mt-1 flex items-center gap-2">
-                                        <span class="px-2 py-0.5 bg-slate-100 border border-slate-150 rounded text-[9px] font-bold text-slate-650 uppercase tracking-wider">${item.jenis}</span>
-                                        <span>•</span>
-                                        <span>Batas: ${formatDate(item.deadline)}</span>
-                                    </p>
-                                </div>
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                    item.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 
-                                    item.status === 'Pending' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 
-                                    'bg-rose-105 text-rose-800 border border-rose-200'
-                                }">${item.status === 'Approved' ? 'Disetujui' : item.status === 'Pending' ? 'Menunggu' : 'Ditolak'}</span>
-                            </div>
-                        `).join('') : `
-                            <div class="text-center py-12 text-slate-400">
-                                <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-300"></i>
-                                <p class="text-xs font-semibold">Belum ada pengajuan layanan.</p>
-                                <button onclick="router('tickets')" class="mt-3 bg-indigo-50 border border-indigo-100 text-indigo-650 text-[10px] py-1.5 px-3 rounded-lg font-bold hover:bg-indigo-100/60 transition-all">BUAT PENGAJUAN BARU</button>
-                            </div>
-                        `}
-                    </div>
-                </div>
-
-                <!-- BRS List -->
-                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col">
-                    <h3 class="font-bold text-slate-800 text-sm mb-5 border-b pb-3.5 border-slate-100 flex items-center gap-2"><i class="fa-regular fa-calendar-days text-indigo-650"></i> BRS Terdekat</h3>
-                    <div class="space-y-4 flex-1">
-                        ${db.brsSchedule.length > 0 ? db.brsSchedule.slice(0, 3).map(item => `
-                            <div class="p-3.5 bg-slate-50 border border-slate-100 rounded-xl hover:shadow-xs hover:border-slate-200 transition-all">
-                                <p class="font-bold text-xs text-slate-800 line-clamp-1">${item.judul}</p>
-                                <p class="text-[10px] text-slate-400 mt-2 flex items-center gap-1.5 font-medium">
-                                    <i class="fa-solid fa-calendar-check text-slate-400"></i>${formatDate(item.tanggal)}
-                                </p>
-                            </div>
-                        `).join('') : `
-                            <div class="text-center py-8 text-slate-400">
-                                <p class="text-xs font-medium">Tidak ada rilis terdekat.</p>
-                            </div>
-                        `}
-                    </div>
-                </div>
-            </div>
-        `;
+    const userRole = currentUser.role;
+    
+    // Check if role is pemohon / internal
+    if (userRole === 'pemohon') {
+        renderPemohonDashboard(container);
         return;
     }
 
-    // Humas Team Dashboard (Admin, Ketua, Staf)
-    const totalContent = db.contentPlanner.length;
-    const postedContent = db.contentPlanner.filter(c => c.status === 'Posted').length;
-    const upcomingProtocol = db.protocol.length;
-    const activeTickets = db.tickets.filter(t => t.status === 'Pending').length;
+    // Dynamic metrics calculation
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
 
-    // Compile member tasks details
-    const memberTaskDetails = db.team.map(member => {
-        const contentTasks = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
-        const scheduleTasks = db.brsSchedule.filter(s =>
-            s.pic_poster === member.nama ||
-            s.pic_info === member.nama ||
-            s.pic_doc === member.nama ||
-            s.pic_high === member.nama
-        ).length;
-        const protocolTasks = db.protocol.filter(p =>
-            p.petugas && p.petugas.includes(member.nama.split(' ')[0])
-        ).length;
+    // Activities monthly filter
+    const getMonthFilter = (dStr) => {
+        if (!dStr) return false;
+        const d = new Date(dStr);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    };
 
+    const totalRutin = db.rekapRutin.filter(item => getMonthFilter(item.tanggal)).length;
+    const totalAdHoc = db.adHoc.filter(item => getMonthFilter(item.tanggal)).length;
+    const totalProto = db.protokoler.filter(item => getMonthFilter(item.tanggal)).length;
+    const totalMc = db.mc.filter(item => getMonthFilter(item.tanggal)).length;
+    const totalBrs = db.brsRilis.filter(item => getMonthFilter(item.tanggal_rilis)).length;
+    const totalHariBesar = db.hariBesar.filter(item => getMonthFilter(item.tanggal)).length;
+
+    const totalKegiatanBulanIni = totalRutin + totalAdHoc + totalProto + totalMc + totalBrs + totalHariBesar;
+
+    // Compile statuses
+    let selesaiCount = 0;
+    let progressCount = 0;
+    let revisiCount = 0;
+
+    const evalStatus = (status) => {
+        if (!status) return;
+        const st = status.toLowerCase();
+        if (st === 'selesai' || st === 'done' || st === 'posted') selesaiCount++;
+        else if (st === 'on progress' || st === 'in progress') progressCount++;
+        else if (st === 'revisi') revisiCount++;
+    };
+
+    db.rekapRutin.forEach(i => evalStatus(i.status));
+    db.adHoc.forEach(i => evalStatus(i.status));
+    db.protokoler.forEach(i => evalStatus(i.status));
+    db.mc.forEach(i => evalStatus(i.status));
+    db.hariBesar.forEach(i => evalStatus(i.status));
+    db.contentPlanner.forEach(i => evalStatus(i.status));
+
+    const totalPegawaiAktif = db.team.length;
+
+    // Task distribution data per team member
+    const memberTasks = db.team.map(member => {
+        const rutinTasks = db.rekapRutin.filter(r => r.petugas && r.petugas.includes(member.nama)).length;
+        const adhocTasks = db.adHoc.filter(a => a.petugas && a.petugas.includes(member.nama)).length;
+        const protoTasks = db.protokoler.filter(p => p.petugas && p.petugas.includes(member.nama)).length;
+        const mcTasks = db.mc.filter(m => m.petugas && m.petugas.includes(member.nama)).length;
+        const plannerTasks = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
+        
         return {
             name: member.nama.split(' ')[0],
-            fullName: member.nama,
-            contentTasks,
-            scheduleTasks,
-            protocolTasks,
-            total: contentTasks + scheduleTasks + protocolTasks
+            rutinTasks,
+            adhocTasks,
+            protoTasks,
+            mcTasks,
+            plannerTasks,
+            total: rutinTasks + adhocTasks + protoTasks + mcTasks + plannerTasks
         };
     });
 
-    const labels = memberTaskDetails.map(m => m.name);
-    const contentData = memberTaskDetails.map(m => m.contentTasks);
-    const scheduleData = memberTaskDetails.map(m => m.scheduleTasks);
-    const protocolData = memberTaskDetails.map(m => m.protocolTasks);
+    const labels = memberTasks.map(m => m.name);
+    const rutinData = memberTasks.map(m => m.rutinTasks);
+    const adhocData = memberTasks.map(m => m.adhocTasks);
+    const protoData = memberTasks.map(m => m.protoTasks + m.mcTasks);
+    const plannerData = memberTasks.map(m => m.plannerTasks);
+
+    // Closest Deadlines (content planner or tickets)
+    const upcomingDeadlines = [...db.contentPlanner, ...db.tickets.filter(t => t.status === 'Approved')]
+        .map(item => ({
+            judul: item.judul,
+            tanggal: item.jadwal || item.deadline,
+            sumber: item.jadwal ? 'Konten' : 'Layanan',
+            pic: item.assignedTo || item.pic || '-'
+        }))
+        .filter(item => item.tanggal && new Date(item.tanggal) >= new Date().setHours(0,0,0,0))
+        .sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal))
+        .slice(0, 4);
+
+    // Overdue tasks
+    const overdueTasks = [...db.contentPlanner, ...db.rekapRutin, ...db.adHoc]
+        .map(item => ({
+            judul: item.judul || item.kegiatan,
+            tanggal: item.jadwal || item.tanggal,
+            status: item.status,
+            pic: item.assignedTo || item.petugas || '-'
+        }))
+        .filter(item => item.tanggal && new Date(item.tanggal) < new Date().setHours(0,0,0,0) && !['Selesai', 'Done', 'Posted'].includes(item.status))
+        .slice(0, 4);
+
+    // Today's activities
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayActivities = [
+        ...db.rekapRutin.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Rutin', jam: 'Rutin', pic: i.petugas })),
+        ...db.adHoc.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Ad Hoc', jam: 'Ad Hoc', pic: i.petugas })),
+        ...db.protokoler.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Protokoler', jam: i.jam_mulai || '08:00', pic: i.petugas })),
+        ...db.mc.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'MC', jam: i.jam_mulai || '08:00', pic: i.petugas })),
+        ...db.brsRilis.filter(i => i.tanggal_rilis && i.tanggal_rilis.includes(todayStr)).map(i => ({ judul: i.judul, tipe: 'Rilis BRS', jam: '09:00', pic: 'Tim Humas' }))
+    ];
 
     container.innerHTML = `
+        <!-- Title and Quick Info -->
         <div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fade-in">
             <div>
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">Dashboard Overview</h2>
-                <p class="text-xs text-slate-500 mt-1">Ringkasan aktivitas dan beban kerja Tim Humas & Protokoler BPS Provinsi Kalimantan Barat</p>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line text-indigo-650 dark:text-indigo-400"></i>
+                    Executive Monitoring Dashboard
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Status kehumasan terintegrasi dan beban kerja pegawai BPS Provinsi Kalimantan Barat</p>
             </div>
-            ${activeTickets > 0 ? `
-                <div onclick="router('tickets')" class="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-850 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm animate-pulse transition-all">
-                    <i class="fa-solid fa-circle-exclamation text-amber-600 text-base"></i>
-                    <span>Ada <strong>${activeTickets}</strong> Permintaan Layanan menunggu persetujuan Anda!</span>
-                </div>
-            ` : ''}
-        </div>
-
-        <!-- Metric Grid -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 flex items-center gap-4">
-                <div class="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-650 shrink-0"><i class="fa-solid fa-chart-line text-lg"></i></div>
-                <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Konten</p><p class="text-2xl font-black text-slate-800 mt-0.5">${totalContent}</p></div>
-            </div>
-            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 flex items-center gap-4">
-                <div class="w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-center text-emerald-650 shrink-0"><i class="fa-solid fa-circle-check text-lg"></i></div>
-                <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Konten Posted</p><p class="text-2xl font-black text-slate-800 mt-0.5">${postedContent}</p></div>
-            </div>
-            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 flex items-center gap-4">
-                <div class="w-12 h-12 bg-violet-50 border border-violet-100 rounded-xl flex items-center justify-center text-violet-650 shrink-0"><i class="fa-solid fa-user-tie text-lg"></i></div>
-                <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Agenda Protokol</p><p class="text-2xl font-black text-slate-800 mt-0.5">${upcomingProtocol}</p></div>
-            </div>
-            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 flex items-center gap-4">
-                <div class="w-12 h-12 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-center text-rose-650 shrink-0"><i class="fa-solid fa-inbox text-lg"></i></div>
-                <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tiket Layanan</p><p class="text-2xl font-black text-slate-800 mt-0.5">${db.tickets.length}</p></div>
+            <div class="flex items-center gap-2">
+                <span class="px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-950 border border-indigo-150 dark:border-indigo-900 text-indigo-750 dark:text-indigo-300 font-extrabold text-[10px] uppercase rounded-xl tracking-wider shadow-sm flex items-center gap-1.5">
+                    <i class="fa-solid fa-calendar"></i> Bulan Ini: ${now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                </span>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <!-- Left Chart -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col justify-between shadow-sm">
-                <div class="flex justify-between items-center mb-5">
-                    <h3 class="font-bold text-slate-800 text-sm">Distribusi Beban Kerja Tim</h3>
-                    <div class="text-[9px] text-slate-500 flex gap-2 font-bold uppercase tracking-wider">
-                        <span class="inline-flex items-center"><span class="w-2 h-2 bg-indigo-500 rounded-full mr-1"></span> Konten</span>
-                        <span class="inline-flex items-center"><span class="w-2 h-2 bg-emerald-500 rounded-full mr-1"></span> Rilis</span>
-                        <span class="inline-flex items-center"><span class="w-2 h-2 bg-violet-500 rounded-full mr-1"></span> Protokol</span>
+        <!-- Dynamic Summary Metrics Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-4">
+                <div class="w-12 h-12 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center justify-center text-indigo-650 dark:text-indigo-400 shrink-0"><i class="fa-solid fa-calendar-check text-xl"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Kegiatan Baru</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${totalKegiatanBulanIni}</p></div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-4">
+                <div class="w-12 h-12 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded-xl flex items-center justify-center text-emerald-650 dark:text-emerald-400 shrink-0"><i class="fa-solid fa-circle-check text-xl"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Selesai</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${selesaiCount}</p></div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-4">
+                <div class="w-12 h-12 bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-xl flex items-center justify-center text-blue-650 dark:text-blue-400 shrink-0"><i class="fa-solid fa-spinner fa-spin text-xl"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Aktif Progress</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${progressCount}</p></div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-4">
+                <div class="w-12 h-12 bg-rose-50 dark:bg-rose-950 border border-rose-100 dark:border-rose-900 rounded-xl flex items-center justify-center text-rose-650 dark:text-rose-450 shrink-0"><i class="fa-solid fa-rotate-left text-xl"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Butuh Revisi</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${revisiCount}</p></div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-4">
+                <div class="w-12 h-12 bg-violet-50 dark:bg-violet-950 border border-violet-100 dark:border-violet-900 rounded-xl flex items-center justify-center text-violet-650 dark:text-violet-400 shrink-0"><i class="fa-solid fa-users text-xl"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pegawai Aktif</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${totalPegawaiAktif}</p></div>
+            </div>
+        </div>
+
+        <!-- Graphic Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Workload stack chart -->
+            <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs flex flex-col justify-between">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Distribusi Beban Kerja Tim</h3>
+                    <div class="text-[9px] font-bold text-slate-450 uppercase tracking-wider flex gap-2">
+                        <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-indigo-500 rounded-lg mr-1"></span> Rutin</span>
+                        <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-emerald-500 rounded-lg mr-1"></span> Ad Hoc</span>
+                        <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-violet-500 rounded-lg mr-1"></span> Protokol</span>
+                        <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-sky-500 rounded-lg mr-1"></span> Konten</span>
                     </div>
                 </div>
-                <div class="relative w-full h-[240px] flex items-center justify-center">
+                <div class="relative w-full h-[250px] flex items-center justify-center">
                     <canvas id="stackedTasksChart" class="w-full h-full"></canvas>
                 </div>
             </div>
-            
-            <!-- Right Content Progress -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col">
-                <div class="flex justify-between items-center mb-5 border-b pb-3.5 border-slate-100">
-                    <h3 class="font-bold text-slate-800 text-sm">Progres Pengerjaan Konten Terbaru</h3>
-                    <button onclick="router('planner')" class="text-xs font-semibold text-indigo-650 hover:text-indigo-800 hover:underline">Selengkapnya →</button>
+
+            <!-- Division contributions doughnut -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs flex flex-col justify-between">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4">Kontribusi Tugas Per Bidang</h3>
+                <div class="w-40 h-40 relative mx-auto flex items-center justify-center">
+                    <canvas id="bidangContributionChart" class="w-full h-full"></canvas>
                 </div>
-                <div class="space-y-4 flex-1 max-h-[240px] overflow-y-auto pr-1">
-                    ${db.contentPlanner.length > 0 ? db.contentPlanner.slice(0, 4).map(item => `
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 last:border-none last:pb-0 hover:bg-slate-50/50 p-1.5 rounded-xl transition-all">
-                            <div class="flex-1 mr-4 mb-1 sm:mb-0">
-                                <p class="font-bold text-xs text-slate-800">${item.judul}</p>
-                                <p class="text-[10px] text-slate-450 mt-1 flex items-center gap-1.5 font-medium">
-                                    <span>${item.postType}</span>
-                                    <span>•</span>
-                                    <span>Jadwal: ${formatDate(item.jadwal)}</span>
-                                    <span>•</span>
-                                    <span class="font-bold text-indigo-650">${item.assignedTo?.split(' ')[0] || '-'}</span>
-                                </p>
-                                <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2">
-                                    <div class="bg-indigo-500 h-1.5 rounded-full" style="width: ${item.progres}%"></div>
-                                </div>
+                <div class="mt-4 flex flex-col gap-2 w-full text-[10px] text-slate-650 dark:text-slate-400 font-bold uppercase tracking-wider" id="bidang-breakdown">
+                    <!-- populated below -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Modular Statistics Widgets -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-gradient-to-br from-indigo-500/10 to-indigo-650/10 border border-indigo-150 dark:border-indigo-950 p-5 rounded-2xl">
+                <div class="flex justify-between items-start">
+                    <h4 class="text-[10px] font-black text-indigo-750 dark:text-indigo-400 uppercase tracking-widest">Statistik MC</h4>
+                    <span class="px-2 py-0.5 bg-indigo-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalMc} Tugas</span>
+                </div>
+                <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalMc} <span class="text-xs font-semibold text-slate-450">bulan ini</span></p>
+                <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-3">
+                    <div class="bg-indigo-600 h-1 rounded-full" style="width: ${Math.min(100, totalMc*10)}%"></div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-violet-500/10 to-violet-650/10 border border-violet-150 dark:border-violet-950 p-5 rounded-2xl">
+                <div class="flex justify-between items-start">
+                    <h4 class="text-[10px] font-black text-violet-750 dark:text-violet-400 uppercase tracking-widest">Keprotokolan</h4>
+                    <span class="px-2 py-0.5 bg-violet-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalProto} Tugas</span>
+                </div>
+                <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalProto} <span class="text-xs font-semibold text-slate-450">agenda</span></p>
+                <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-3">
+                    <div class="bg-violet-600 h-1 rounded-full" style="width: ${Math.min(100, totalProto*10)}%"></div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-emerald-500/10 to-emerald-650/10 border border-emerald-150 dark:border-emerald-950 p-5 rounded-2xl">
+                <div class="flex justify-between items-start">
+                    <h4 class="text-[10px] font-black text-emerald-750 dark:text-emerald-400 uppercase tracking-widest">Rilis BRS</h4>
+                    <span class="px-2 py-0.5 bg-emerald-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalBrs} Dokumen</span>
+                </div>
+                <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalBrs} <span class="text-xs font-semibold text-slate-450">dirilis</span></p>
+                <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-3">
+                    <div class="bg-emerald-650 h-1 rounded-full" style="width: ${Math.min(100, totalBrs*15)}%"></div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-rose-500/10 to-rose-650/10 border border-rose-150 dark:border-rose-950 p-5 rounded-2xl">
+                <div class="flex justify-between items-start">
+                    <h4 class="text-[10px] font-black text-rose-750 dark:text-rose-450 uppercase tracking-widest">Hari Besar</h4>
+                    <span class="px-2 py-0.5 bg-rose-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalHariBesar} Konten</span>
+                </div>
+                <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalHariBesar} <span class="text-xs font-semibold text-slate-450">peringatan</span></p>
+                <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-3">
+                    <div class="bg-rose-500 h-1 rounded-full" style="width: ${Math.min(100, totalHariBesar*10)}%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monitoring Lists -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Left: Today's agenda -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-solid fa-bell-concierge text-indigo-500"></i> Agenda Hari Ini</h3>
+                <div class="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
+                    ${todayActivities.length > 0 ? todayActivities.map(act => `
+                        <div class="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl">
+                            <div class="flex justify-between items-center text-[8px] font-extrabold uppercase tracking-widest text-slate-400">
+                                <span>${act.tipe}</span>
+                                <span class="text-indigo-650 dark:text-indigo-400">${act.jam}</span>
                             </div>
-                            <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold text-center shrink-0 ${
-                                item.status === 'Posted' ? 'bg-emerald-100 text-emerald-800 border border-emerald-250' : 
-                                item.status === 'Done' ? 'bg-indigo-100 text-indigo-800 border border-indigo-250' : 
-                                item.status === 'In Progress' ? 'bg-blue-100 text-blue-800 border border-blue-250' : 'bg-slate-100 text-slate-600'
-                            }">${item.status}</span>
+                            <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 mt-1 line-clamp-1">${act.judul}</h4>
+                            <p class="text-[9px] text-slate-500 mt-1 font-semibold">Petugas: ${act.pic || '-'}</p>
                         </div>
                     `).join('') : `
                         <div class="text-center py-12 text-slate-400">
-                            <i class="fa-solid fa-clapperboard text-3xl mb-2 text-slate-350"></i>
-                            <p class="text-xs font-medium">Belum ada konten direncanakan.</p>
+                            <i class="fa-solid fa-mug-hot text-2xl mb-1 text-slate-350"></i>
+                            <p class="text-[10px] font-bold">Tidak ada agenda hari ini.</p>
+                        </div>
+                    `}
+                </div>
+            </div>
+
+            <!-- Center: Closest deadlines -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-regular fa-clock text-amber-500"></i> Batas Waktu Terdekat</h3>
+                <div class="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
+                    ${upcomingDeadlines.length > 0 ? upcomingDeadlines.map(dl => `
+                        <div class="p-3 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-200/50 dark:border-amber-900/55 rounded-xl flex items-center justify-between">
+                            <div>
+                                <span class="text-[8px] font-extrabold uppercase tracking-widest text-amber-600">${dl.sumber}</span>
+                                <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 mt-0.5 line-clamp-1">${dl.judul}</h4>
+                                <p class="text-[9px] text-slate-500 mt-0.5">PIC: ${dl.pic}</p>
+                            </div>
+                            <span class="text-[9px] font-bold text-amber-700 dark:text-amber-300 uppercase whitespace-nowrap bg-amber-100 dark:bg-amber-950 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">${formatDate(dl.tanggal)}</span>
+                        </div>
+                    `).join('') : `
+                        <div class="text-center py-12 text-slate-400">
+                            <i class="fa-solid fa-folder-open text-2xl mb-1 text-slate-350"></i>
+                            <p class="text-[10px] font-bold">Tidak ada tugas terdekat.</p>
+                        </div>
+                    `}
+                </div>
+            </div>
+
+            <!-- Right: Overdue tasks -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation text-rose-500"></i> Tugas Terlambat (Overdue)</h3>
+                <div class="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
+                    ${overdueTasks.length > 0 ? overdueTasks.map(ov => `
+                        <div class="p-3 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-200/50 dark:border-rose-900/55 rounded-xl flex items-center justify-between">
+                            <div>
+                                <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-1">${ov.judul}</h4>
+                                <p class="text-[9px] text-slate-500 mt-1 font-semibold">PIC: ${ov.pic} • Status: <span class="text-rose-600 font-bold">${ov.status || 'Draft'}</span></p>
+                            </div>
+                            <span class="text-[9px] font-bold text-rose-700 dark:text-rose-350 uppercase whitespace-nowrap bg-rose-100 dark:bg-rose-950 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800">${formatDate(ov.tanggal)}</span>
+                        </div>
+                    `).join('') : `
+                        <div class="text-center py-12 text-slate-400">
+                            <i class="fa-solid fa-circle-check text-2xl mb-1 text-emerald-500"></i>
+                            <p class="text-[10px] font-bold text-emerald-650">Kinerja Bagus! Semua tepat waktu.</p>
                         </div>
                     `}
                 </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- BRS Schedule Card -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col">
-                <h3 class="font-bold text-slate-800 text-sm mb-4 flex items-center gap-2"><i class="fa-solid fa-calendar-check text-indigo-650"></i> Jadwal Rilis BRS Terdekat</h3>
-                <div class="space-y-3 flex-1">
-                    ${db.brsSchedule.length > 0 ? db.brsSchedule.slice(0, 3).map(item => `
-                        <div class="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-xl hover:shadow-xs transition-all">
-                            <div>
-                                <p class="font-bold text-xs text-slate-800">${item.judul}</p>
-                                <p class="text-[10px] text-slate-400 mt-1.5 font-semibold flex items-center gap-1"><i class="fa-regular fa-calendar"></i>${formatDate(item.tanggal)}</p>
-                            </div>
-                            <span class="text-[9px] bg-white border border-slate-200 text-slate-600 px-2 py-1 rounded-lg font-bold shadow-xs">Poster: ${item.pic_poster?.split(' ')[0] || '-'}</span>
-                        </div>
-                    `).join('') : `
-                        <div class="text-center py-8 text-slate-400">
-                            <p class="text-xs font-medium">Belum ada jadwal rilis terdaftar.</p>
-                        </div>
-                    `}
-                </div>
+        <!-- Latest Activities / Audit Trail snippets -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs">
+            <div class="flex justify-between items-center mb-4 pb-2.5 border-b border-slate-100 dark:border-slate-700">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Aktivitas Sistem Terbaru</h3>
+                <button onclick="router('audit_trail')" class="text-xs font-semibold text-indigo-650 dark:text-indigo-400 hover:underline">Selengkapnya →</button>
             </div>
-            
-            <!-- Protocol Schedule Card -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col">
-                <h3 class="font-bold text-slate-800 text-sm mb-4 flex items-center gap-2"><i class="fa-solid fa-microphone-lines text-indigo-650"></i> Agenda Protokoler Mendatang</h3>
-                <div class="space-y-3 flex-1">
-                    ${db.protocol.length > 0 ? db.protocol.slice(0, 3).map(item => `
-                        <div class="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-xl hover:shadow-xs transition-all">
+            <div class="divide-y divide-slate-100 dark:divide-slate-700 space-y-3.5 pt-1 max-h-[220px] overflow-y-auto pr-1">
+                ${db.auditTrail.length > 0 ? db.auditTrail.slice(-4).reverse().map(log => `
+                    <div class="flex items-center justify-between text-xs py-2 last:pb-0">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg ${getAvatarBg(log.user)} flex items-center justify-center font-bold text-[10px] shrink-0">${getPicInitials(log.user)}</div>
                             <div>
-                                <p class="font-bold text-xs text-slate-800">${item.kegiatan}</p>
-                                <p class="text-[10px] text-slate-400 mt-1.5 font-semibold flex items-center gap-1"><i class="fa-solid fa-map-pin"></i>${item.lokasi}</p>
+                                <p class="font-bold text-slate-800 dark:text-slate-250">${log.detail}</p>
+                                <p class="text-[9px] text-slate-400 mt-0.5">Oleh: ${log.user} • Aksi: <strong class="text-indigo-650 dark:text-indigo-450 uppercase">${log.action}</strong></p>
                             </div>
-                            <span class="text-[9px] px-2 py-1 rounded-lg font-bold ${item.level === 'Formal' ? 'bg-indigo-50 text-indigo-750 border border-indigo-100' : 'bg-amber-50 text-amber-750 border border-amber-100'}">${item.level}</span>
                         </div>
-                    `).join('') : `
-                        <div class="text-center py-8 text-slate-400">
-                            <p class="text-xs font-medium">Belum ada agenda protokol mendatang.</p>
-                        </div>
-                    `}
-                </div>
+                        <span class="text-[9px] text-slate-450 whitespace-nowrap font-medium"><i class="fa-regular fa-clock mr-1"></i>${new Date(log.timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}</span>
+                    </div>
+                `).join('') : `
+                    <div class="text-center py-8 text-slate-400">
+                        <p class="text-xs font-semibold">Belum ada catatan aktivitas.</p>
+                    </div>
+                `}
             </div>
         </div>
     `;
 
-    // Initialize Stacked Bar Chart
+    // Render Charts
     setTimeout(() => {
-        const ctx = document.getElementById('stackedTasksChart')?.getContext('2d');
-        if (ctx) {
-            if (window.chartInstance) {
-                window.chartInstance.destroy();
-            }
-            window.chartInstance = new Chart(ctx, {
+        // Stacked Bar Chart: Workload per member
+        const ctxStack = document.getElementById('stackedTasksChart')?.getContext('2d');
+        if (ctxStack) {
+            if (window.chartInstance) window.chartInstance.destroy();
+            window.chartInstance = new Chart(ctxStack, {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [
-                        {
-                            label: 'Content Planner',
-                            data: contentData,
-                            backgroundColor: '#6366f1',
-                            borderRadius: 6,
-                            borderWidth: 0
-                        },
-                        {
-                            label: 'Jadwal Rilis',
-                            data: scheduleData,
-                            backgroundColor: '#10b981',
-                            borderRadius: 6,
-                            borderWidth: 0
-                        },
-                        {
-                            label: 'Protokol & MC',
-                            data: protocolData,
-                            backgroundColor: '#8b5cf6',
-                            borderRadius: 6,
-                            borderWidth: 0
-                        }
+                        { label: 'Rutin', data: rutinData, backgroundColor: '#6366f1', borderRadius: 4 },
+                        { label: 'Ad Hoc', data: adhocData, backgroundColor: '#10b981', borderRadius: 4 },
+                        { label: 'Protokol & MC', data: protoData, backgroundColor: '#8b5cf6', borderRadius: 4 },
+                        { label: 'Planner', data: plannerData, backgroundColor: '#0ea5e9', borderRadius: 4 }
                     ]
                 },
                 options: {
@@ -392,43 +429,164 @@ function renderDashboard(container) {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                            padding: 10,
-                            titleFont: { size: 12, weight: 'bold', family: 'Inter' },
-                            bodyFont: { size: 11, family: 'Inter' },
-                            callbacks: {
-                                label: function (context) {
-                                    return ` ${context.dataset.label}: ${context.raw} tugas`;
-                                }
-                            }
-                        }
+                        tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.95)', padding: 10 }
                     },
                     scales: {
-                        x: {
-                            stacked: true,
-                            grid: { display: false },
-                            ticks: { font: { size: 10, family: 'Inter', weight: 'bold' }, color: '#64748b' }
-                        },
-                        y: {
-                            stacked: true,
-                            grid: { color: '#f1f5f9' },
-                            beginAtZero: true,
-                            ticks: { 
-                                stepSize: 1, 
-                                font: { size: 9, family: 'Inter' }, 
-                                color: '#94a3b8' 
-                            }
-                        }
+                        x: { stacked: true, grid: { display: false }, ticks: { color: '#64748b', font: { size: 9, weight: 'bold' } } },
+                        y: { stacked: true, grid: { color: 'rgba(226, 232, 240, 0.2)' }, beginAtZero: true, ticks: { stepSize: 1, color: '#94a3b8', font: { size: 9 } } }
                     }
                 }
             });
         }
-    }, 50);
+
+        // Doughnut Chart: Contributions per bidang
+        // Calculate bidang counts
+        const bidangCounts = {};
+        db.rekapRutin.forEach(item => {
+            const b = item.rubrikasi || 'Umum';
+            bidangCounts[b] = (bidangCounts[b] || 0) + 1;
+        });
+        db.contentPlanner.forEach(item => {
+            const b = item.jenis || 'Umum';
+            bidangCounts[b] = (bidangCounts[b] || 0) + 1;
+        });
+
+        const bidangLabels = Object.keys(bidangCounts);
+        const bidangData = Object.values(bidangCounts);
+        const defaultColors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#0ea5e9'];
+
+        const ctxBidang = document.getElementById('bidangContributionChart')?.getContext('2d');
+        if (ctxBidang) {
+            if (window.sentimentChartInstance) window.sentimentChartInstance.destroy();
+            window.sentimentChartInstance = new Chart(ctxBidang, {
+                type: 'doughnut',
+                data: {
+                    labels: bidangLabels.length > 0 ? bidangLabels : ['Humas'],
+                    datasets: [{
+                        data: bidangData.length > 0 ? bidangData : [1],
+                        backgroundColor: defaultColors.slice(0, Math.max(1, bidangLabels.length)),
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.95)', padding: 8 }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // Populate Breakdown legend
+            const breakdownEl = document.getElementById('bidang-breakdown');
+            if (breakdownEl) {
+                breakdownEl.innerHTML = (bidangLabels.length > 0 ? bidangLabels : ['Humas']).map((l, idx) => {
+                    const c = defaultColors[idx % defaultColors.length];
+                    const v = bidangData[idx] || 0;
+                    return `<div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background-color: ${c}"></span> ${l}</span><strong>${v} tugas</strong></div>`;
+                }).join('');
+            }
+        }
+    }, 100);
 }
 
 // -------------------------------------------------------------
-// 2. Content Planner (Kanban Board) View
+// PEMOHON / INTERNAL USER DASHBOARD VIEW
+// -------------------------------------------------------------
+function renderPemohonDashboard(container) {
+    const myTickets = db.tickets.filter(t => t.pengaju.toLowerCase().includes(currentUser.name.toLowerCase()) || t.pengaju.toLowerCase().includes(currentUser.username.toLowerCase()));
+    const totalTickets = myTickets.length;
+    const pendingTickets = myTickets.filter(t => t.status === 'Pending').length;
+    const approvedTickets = myTickets.filter(t => t.status === 'Approved').length;
+    const totalAssets = db.assets.length;
+
+    container.innerHTML = `
+        <div class="mb-8 animate-fade-in">
+            <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Portal Layanan Humas</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Selamat datang kembali, <span class="font-bold text-indigo-650 dark:text-indigo-400">${currentUser.name}</span>. Ajukan dan pantau status permohonan kehumasan Anda.</p>
+        </div>
+
+        <!-- Metric grid -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md hover:border-slate-250 transition-all duration-300 flex items-center gap-4">
+                <div class="w-11 h-11 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center justify-center text-indigo-600 shrink-0"><i class="fa-solid fa-ticket text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Pengajuan</p><p class="text-xl font-extrabold text-slate-800 dark:text-white mt-0.5">${totalTickets}</p></div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md hover:border-slate-250 transition-all duration-300 flex items-center gap-4">
+                <div class="w-11 h-11 bg-amber-50 dark:bg-amber-950 border border-amber-100 dark:border-amber-900 rounded-xl flex items-center justify-center text-amber-600 shrink-0"><i class="fa-solid fa-clock-rotate-left text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Menunggu Review</p><p class="text-xl font-extrabold text-slate-800 dark:text-white mt-0.5">${pendingTickets}</p></div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md hover:border-slate-250 transition-all duration-300 flex items-center gap-4">
+                <div class="w-11 h-11 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded-xl flex items-center justify-center text-emerald-650 shrink-0"><i class="fa-solid fa-circle-check text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Disetujui / PIC</p><p class="text-xl font-extrabold text-slate-800 dark:text-white mt-0.5">${approvedTickets}</p></div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md hover:border-slate-250 transition-all duration-300 flex items-center gap-4">
+                <div class="w-11 h-11 bg-violet-50 dark:bg-violet-950 border border-violet-100 dark:border-violet-900 rounded-xl flex items-center justify-center text-violet-650 shrink-0"><i class="fa-solid fa-folder-open text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Aset Bank Desain</p><p class="text-xl font-extrabold text-slate-800 dark:text-white mt-0.5">${totalAssets}</p></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Ticket List -->
+            <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs">
+                <div class="flex justify-between items-center mb-5 border-b pb-3.5 border-slate-100 dark:border-slate-700">
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2"><i class="fa-solid fa-ticket-simple text-indigo-650 dark:text-indigo-400"></i> Riwayat Pengajuan Layanan Anda</h3>
+                    <button onclick="router('tickets')" class="text-xs font-semibold text-indigo-650 dark:text-indigo-400 hover:text-indigo-800 hover:underline">Selengkapnya →</button>
+                </div>
+                <div class="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                    ${myTickets.length > 0 ? myTickets.slice(0, 5).map(item => `
+                        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3 last:border-none last:pb-0 hover:bg-slate-50/50 dark:hover:bg-slate-900/30 p-2 rounded-xl transition-all">
+                            <div>
+                                <p class="font-bold text-xs text-slate-800 dark:text-slate-200">${item.judul}</p>
+                                <p class="text-[10px] text-slate-450 mt-1 flex items-center gap-2">
+                                    <span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 border border-slate-150 dark:border-slate-600 rounded text-[9px] font-bold text-slate-650 dark:text-slate-350 uppercase tracking-wider">${item.jenis}</span>
+                                    <span>•</span>
+                                    <span>Batas: ${formatDate(item.deadline)}</span>
+                                </p>
+                            </div>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                item.status === 'Approved' ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 
+                                item.status === 'Pending' ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800' : 
+                                'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-305 border border-rose-200 dark:border-rose-850'
+                            }">${item.status === 'Approved' ? 'Disetujui' : item.status === 'Pending' ? 'Menunggu' : 'Ditolak'}</span>
+                        </div>
+                    `).join('') : `
+                        <div class="text-center py-12 text-slate-400">
+                            <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-350"></i>
+                            <p class="text-xs font-semibold">Belum ada pengajuan layanan.</p>
+                            <button onclick="router('tickets')" class="mt-3 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 text-indigo-650 dark:text-indigo-400 text-[10px] py-1.5 px-3 rounded-lg font-bold hover:bg-indigo-100/60 transition-all">BUAT PENGAJUAN BARU</button>
+                        </div>
+                    `}
+                </div>
+            </div>
+
+            <!-- BRS List -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs flex flex-col">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-5 border-b pb-3.5 border-slate-100 dark:border-slate-700 flex items-center gap-2"><i class="fa-regular fa-calendar-days text-indigo-650 dark:text-indigo-400"></i> BRS Terdekat</h3>
+                <div class="space-y-4 flex-1">
+                    ${db.brsSchedule.length > 0 ? db.brsSchedule.slice(0, 3).map(item => `
+                        <div class="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl hover:shadow-xs hover:border-slate-200 transition-all">
+                            <p class="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-1">${item.judul}</p>
+                            <p class="text-[10px] text-slate-400 mt-2 flex items-center gap-1.5 font-medium">
+                                <i class="fa-solid fa-calendar-check text-slate-400"></i>${formatDate(item.tanggal)}
+                            </p>
+                        </div>
+                    `).join('') : `
+                        <div class="text-center py-8 text-slate-400">
+                            <p class="text-xs font-medium">Tidak ada rilis terdekat.</p>
+                        </div>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// -------------------------------------------------------------
+// 2. CONTENT PLANNER (KANBAN BOARD) VIEW
 // -------------------------------------------------------------
 let plannerSearch = '';
 let plannerPicFilter = '';
@@ -437,8 +595,8 @@ function renderPlanner(container) {
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">Content Planner</h2>
-                <p class="text-xs text-slate-500 mt-1">Kelola papan Kanban interaktif untuk melacak pembuatan dan penayangan konten visual.</p>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Content Planner</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola papan Kanban interaktif untuk melacak pembuatan dan penayangan konten visual.</p>
             </div>
             <button onclick="openModal('content')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
                 <i class="fa-solid fa-plus text-xs"></i> Tambah Konten Baru
@@ -446,16 +604,16 @@ function renderPlanner(container) {
         </div>
 
         <!-- Filter & Search Controls -->
-        <div class="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-xs">
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-xs">
             <div class="relative w-full sm:max-w-xs">
                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
                     <i class="fa-solid fa-magnifying-glass text-xs"></i>
                 </span>
-                <input type="text" id="planner-search-input" oninput="handlePlannerSearch(this.value)" value="${plannerSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-250 rounded-xl text-xs font-medium focus:bg-white focus:outline-none placeholder-slate-450 text-slate-700 transition-all" placeholder="Cari judul atau konsep...">
+                <input type="text" id="planner-search-input" oninput="handlePlannerSearch(this.value)" value="${plannerSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-medium focus:bg-white focus:outline-none placeholder-slate-450 dark:text-white text-slate-700 transition-all" placeholder="Cari judul atau konsep...">
             </div>
             <div class="flex items-center gap-2 w-full sm:w-auto">
-                <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-filter mr-1 text-slate-450"></i> Filter PIC:</span>
-                <select id="planner-pic-select" onchange="handlePlannerPicFilter(this.value)" class="text-xs font-bold py-2 px-3 bg-white border border-slate-250 rounded-xl text-slate-650 focus:outline-none min-w-[140px] shadow-xs">
+                <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-filter mr-1 text-slate-450"></i> Filter PIC:</span>
+                <select id="planner-pic-select" onchange="handlePlannerPicFilter(this.value)" class="text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-650 dark:text-slate-200 focus:outline-none min-w-[140px] shadow-xs">
                     <option value="">Semua PIC</option>
                     ${db.team.map(m => `<option ${plannerPicFilter === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
                 </select>
@@ -493,7 +651,6 @@ function drawPlannerBoard() {
     const board = document.getElementById('kanban-columns');
     if (!board) return;
 
-    // Filter items first
     let filtered = db.contentPlanner;
     if (plannerSearch.trim()) {
         const query = plannerSearch.toLowerCase();
@@ -508,7 +665,6 @@ function drawPlannerBoard() {
 
     board.innerHTML = statuses.map(status => {
         const cards = filtered.filter(c => c.status === status);
-        
         const cardsHtml = cards.map(item => {
             const avatarBg = getAvatarBg(item.assignedTo);
             const initials = getPicInitials(item.assignedTo);
@@ -518,17 +674,15 @@ function drawPlannerBoard() {
             let prevIndex = statuses.indexOf(status) - 1;
             
             let moveButtons = `
-                <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-150 rounded-lg p-0.5">
+                <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700 rounded-lg p-0.5">
                     ${prevIndex >= 0 ? `
-                        <button onclick="moveKanbanTask(${item.id}, '${statuses[prevIndex]}')" title="Pindahkan ke ${statuses[prevIndex]}" class="w-5 h-5 flex items-center justify-center bg-white border border-slate-200 rounded text-slate-500 hover:bg-slate-100 transition-colors">
+                        <button onclick="moveKanbanTask(${item.id}, '${statuses[prevIndex]}')" title="Pindahkan ke ${statuses[prevIndex]}" class="w-5 h-5 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded text-slate-500 hover:bg-slate-100 transition-colors">
                             <i class="fa-solid fa-chevron-left text-[9px]"></i>
                         </button>
                     ` : '<div class="w-5"></div>'}
-                    
-                    <span class="text-[9px] font-black text-slate-400 uppercase select-none px-1">Geser</span>
-                    
+                    <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase select-none px-1">Geser</span>
                     ${nextIndex < statuses.length ? `
-                        <button onclick="moveKanbanTask(${item.id}, '${statuses[nextIndex]}')" title="Pindahkan ke ${statuses[nextIndex]}" class="w-5 h-5 flex items-center justify-center bg-white border border-slate-200 rounded text-slate-500 hover:bg-slate-100 transition-colors">
+                        <button onclick="moveKanbanTask(${item.id}, '${statuses[nextIndex]}')" title="Pindahkan ke ${statuses[nextIndex]}" class="w-5 h-5 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded text-slate-500 hover:bg-slate-100 transition-colors">
                             <i class="fa-solid fa-chevron-right text-[9px]"></i>
                         </button>
                     ` : '<div class="w-5"></div>'}
@@ -536,42 +690,42 @@ function drawPlannerBoard() {
             `;
 
             return `
-                <div class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 group relative">
+                <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200/90 dark:border-slate-700 p-4 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-650 transition-all duration-200 group relative">
                     <div class="flex justify-between items-start mb-2 gap-2">
-                        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${item.jenis === 'Hard Selling' ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-indigo-50 text-indigo-750 border border-indigo-100'}">${item.jenis}</span>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${item.jenis === 'Hard Selling' ? 'bg-rose-50 text-rose-750 border border-rose-100 dark:bg-rose-950 dark:text-rose-300' : 'bg-indigo-50 text-indigo-750 border border-indigo-100 dark:bg-indigo-950 dark:text-indigo-300'}">${item.jenis}</span>
                         <span class="text-xs">${postTypeIcons[item.postType] || ''}</span>
                     </div>
 
-                    <h4 onclick="showDetail('content', ${itemJson})" class="font-bold text-slate-850 text-xs hover:text-indigo-650 transition-colors cursor-pointer line-clamp-2 leading-snug" title="${item.judul}">${item.judul}</h4>
-                    <p class="text-[10px] text-slate-500 mt-1.5 line-clamp-2 leading-relaxed" title="${item.konsep}">${item.konsep || 'Tidak ada deskripsi konsep.'}</p>
+                    <h4 onclick="showDetail('content', ${itemJson})" class="font-bold text-slate-850 dark:text-slate-200 text-xs hover:text-indigo-650 transition-colors cursor-pointer line-clamp-2 leading-snug" title="${item.judul}">${item.judul}</h4>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed" title="${item.konsep}">${item.konsep || 'Tidak ada deskripsi konsep.'}</p>
                     
                     <!-- Progress Bar -->
                     <div class="mt-3.5">
                         <div class="flex justify-between items-center text-[9px] text-slate-450 mb-1">
                             <span>Pengerjaan</span>
-                            <span class="font-bold text-slate-600">${item.progres}%</span>
+                            <span class="font-bold text-slate-600 dark:text-slate-400">${item.progres}%</span>
                         </div>
-                        <div class="w-full bg-slate-100 rounded-full h-1">
+                        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1">
                             <div class="bg-gradient-to-r from-indigo-500 to-violet-650 h-1 rounded-full" style="width: ${item.progres}%"></div>
                         </div>
                     </div>
 
                     <!-- Footer Info -->
-                    <div class="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <div class="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
                         <div class="flex items-center gap-1.5">
                             <div class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[9px] font-bold shadow-xs ${avatarBg}" title="${item.assignedTo}">${initials}</div>
                             <span class="text-[9px] text-slate-500 font-semibold truncate max-w-[65px]">${item.assignedTo?.split(' ')[0] || 'PIC'}</span>
                         </div>
-                        <span class="text-[9px] text-rose-600 font-bold flex items-center gap-1 bg-rose-50 px-1.5 py-0.5 rounded-md"><i class="fa-regular fa-clock"></i> ${formatDate(item.jadwal)}</span>
+                        <span class="text-[9px] text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1 bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 rounded-md"><i class="fa-regular fa-clock"></i> ${formatDate(item.jadwal)}</span>
                     </div>
 
                     <!-- Actions Panel -->
-                    <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1">
+                    <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-1">
                         <div class="flex items-center">
-                            <button onclick="openModal('content', ${itemJson})" title="Edit tugas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 transition-all">
+                            <button onclick="openModal('content', ${itemJson})" title="Edit tugas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
                                 <i class="fa-solid fa-pen text-[10px]"></i>
                             </button>
-                            <button onclick="deleteItem('content', ${item.id})" title="Hapus tugas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 transition-all">
+                            <button onclick="deleteItem('content', ${item.id})" title="Hapus tugas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
                                 <i class="fa-solid fa-trash text-[10px]"></i>
                             </button>
                         </div>
@@ -582,332 +736,349 @@ function drawPlannerBoard() {
         }).join('');
 
         return `
-            <div class="flex-1 min-w-[280px] max-w-[320px] bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col max-h-[660px]">
-                <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-200">
+            <div class="flex-1 min-w-[280px] max-w-[320px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col max-h-[660px]">
+                <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-200 dark:border-slate-800">
                     <div class="flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-full ${
-                            status === 'Draft' ? 'bg-slate-400' :
+                            status === 'Draft' ? 'bg-slate-450' :
                             status === 'In Progress' ? 'bg-blue-500' :
                             status === 'Done' ? 'bg-violet-500' : 'bg-emerald-500'
                         }"></span>
-                        <h3 class="font-black text-slate-700 text-xs tracking-wider uppercase">${status}</h3>
+                        <h3 class="font-black text-slate-700 dark:text-slate-350 text-xs tracking-wider uppercase">${status}</h3>
                     </div>
-                    <span class="bg-white border border-slate-200 px-2 py-0.5 rounded-lg text-[10px] font-bold text-slate-500 shadow-xs">${cards.length}</span>
+                    <span class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 shadow-xs">${cards.length}</span>
                 </div>
-                
                 <div class="space-y-3.5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
                     ${cardsHtml.length > 0 ? cardsHtml : `
-                        <div class="py-16 text-center text-slate-400 border border-dashed border-slate-250 rounded-2xl bg-white/40">
-                            <i class="fa-solid fa-folder-open text-2xl mb-1.5 text-slate-300"></i>
-                            <p class="text-[10px] font-bold text-slate-400">Kosong</p>
+                        <div class="py-16 text-center text-slate-400 dark:text-slate-550 border border-dashed border-slate-250 dark:border-slate-700 rounded-2xl bg-white/40 dark:bg-slate-850/40">
+                            <i class="fa-solid fa-folder-open text-2xl mb-1.5 text-slate-300 dark:text-slate-650"></i>
+                            <p class="text-[10px] font-bold">Kosong</p>
                         </div>
                     `}
                 </div>
             </div>
         `;
     }).join('');
-
-    window.moveKanbanTask = async function(taskId, newStatus) {
-        const item = db.contentPlanner.find(c => c.id === taskId);
-        if (!item) return;
-        
-        item.status = newStatus;
-        if (newStatus === 'Posted') item.progres = 100;
-        else if (newStatus === 'Draft' && item.progres === 100) item.progres = 30;
-        else if (newStatus === 'Done') item.progres = 100;
-        
-        showToast(`Tugas dipindahkan ke status: ${newStatus}`);
-        drawPlannerBoard();
-        
-        await sendDataToServer('update', 'content_planner', item);
-    };
 }
 
 // -------------------------------------------------------------
-// 3. Jadwal Rilis (BRS) View
+// 3. MODUL REKAP RUTIN VIEW
 // -------------------------------------------------------------
-let scheduleSearch = '';
-let schedulePicFilter = '';
-let schedulePage = 1;
-const scheduleLimit = 8;
+let rutinSearch = '';
+let rutinRubrikFilter = '';
+let rutinDateFilter = '';
 
-function renderSchedule(container) {
+function renderRekapRutin(container) {
+    // Unique rubrics
+    const rubrics = [...new Set(db.rekapRutin.map(r => r.rubrikasi).filter(Boolean))];
+
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">Jadwal Rilis BRS</h2>
-                <p class="text-xs text-slate-500 mt-1">Monitoring agenda rilis Berita Resmi Statistik (BRS) dan pembagian tugas publikasi.</p>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Rekap Kegiatan Rutin</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Daftar rekapitulasi, monitoring sebaran tugas harian, dan rubrikasi berkala kehumasan.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="exportScheduleReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                <button onclick="exportRutinReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
                     <i class="fa-solid fa-print"></i> Cetak Laporan
                 </button>
-                <button onclick="exportScheduleReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                <button onclick="exportRutinReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
                     <i class="fa-solid fa-download"></i> Ekspor CSV
                 </button>
-                <button onclick="openModal('schedule')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                    <i class="fa-solid fa-plus text-xs"></i> Tambah Jadwal BRS
+                <button onclick="openModal('rekap_rutin')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-plus text-xs"></i> Tambah Kegiatan
                 </button>
             </div>
         </div>
 
-        <!-- Filter & Search Controls -->
-        <div class="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-xs">
-            <div class="relative w-full sm:max-w-xs">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                </span>
-                <input type="text" id="schedule-search-input" oninput="handleScheduleSearch(this.value)" value="${scheduleSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-250 rounded-xl text-xs font-medium focus:bg-white focus:outline-none placeholder-slate-450 text-slate-700 transition-all" placeholder="Cari judul rilis...">
+        <!-- Filters Grid -->
+        <div class="bg-white/85 dark:bg-slate-800/85 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4 shadow-xs">
+            <!-- Search -->
+            <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <input type="text" oninput="rutinSearch = this.value; drawRutinTable();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari kegiatan/petugas...">
             </div>
-            <div class="flex items-center gap-2 w-full sm:w-auto">
-                <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-filter mr-1 text-slate-450"></i> Filter PIC:</span>
-                <select id="schedule-pic-select" onchange="handleSchedulePicFilter(this.value)" class="text-xs font-bold py-2 px-3 bg-white border border-slate-250 rounded-xl text-slate-650 focus:outline-none min-w-[140px] shadow-xs">
-                    <option value="">Semua PIC</option>
-                    ${db.team.map(m => `<option ${schedulePicFilter === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
+            <!-- Rubrik Filter -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-500 font-bold whitespace-nowrap"><i class="fa-solid fa-tags text-slate-400"></i> Rubrik:</span>
+                <select onchange="rutinRubrikFilter = this.value; drawRutinTable();" class="w-full text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-650 dark:text-slate-250 focus:outline-none">
+                    <option value="">Semua Rubrik</option>
+                    ${rubrics.map(r => `<option value="${r}">${r}</option>`).join('')}
                 </select>
+            </div>
+            <!-- Periode Filter -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-500 font-bold whitespace-nowrap"><i class="fa-regular fa-calendar-check text-slate-400"></i> Periode:</span>
+                <input type="date" onchange="rutinDateFilter = this.value; drawRutinTable();" class="w-full text-xs font-semibold py-1.5 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-650 dark:text-slate-250 focus:outline-none">
             </div>
         </div>
 
-        <!-- Table view -->
-        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm animate-fade-in flex flex-col">
+        <!-- Data table wrapper -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
             <div class="overflow-x-auto">
-                <table class="w-full text-xs text-left text-slate-600">
-                    <thead class="text-[10px] text-slate-500 uppercase bg-slate-50/80 border-b border-slate-200 font-bold tracking-wider">
+                <table class="w-full text-xs text-left text-slate-650 dark:text-slate-300">
+                    <thead class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50/60 dark:bg-slate-900/40 uppercase border-b border-slate-200 dark:border-slate-700 font-black tracking-wider">
                         <tr>
-                            <th class="px-6 py-4">Tanggal Rilis</th>
-                            <th class="px-6 py-4">Judul Rilis Statistik</th>
-                            <th class="px-6 py-4">PIC Poster</th>
-                            <th class="px-6 py-4">PIC Infografis / Informasi</th>
-                            <th class="px-6 py-4">PIC Dokumentasi</th>
-                            <th class="px-6 py-4">PIC Reels & Highlight</th>
+                            <th class="px-6 py-4">Tanggal</th>
+                            <th class="px-6 py-4">Hari</th>
+                            <th class="px-6 py-4">Rubrikasi</th>
+                            <th class="px-6 py-4">Kegiatan</th>
+                            <th class="px-6 py-4">Petugas</th>
+                            <th class="px-6 py-4 text-center">Status</th>
                             <th class="px-6 py-4 text-center">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100" id="schedule-table-body">
-                        <!-- Filled by drawScheduleTable() -->
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="rutin-table-body">
+                        <!-- Filled by drawRutinTable -->
                     </tbody>
                 </table>
             </div>
-            
-            <!-- Pagination wrapper -->
-            <div class="p-4 border-t border-slate-100 flex items-center justify-between" id="schedule-pagination">
-                <!-- Filled dynamically -->
-            </div>
         </div>
     `;
-
-    drawScheduleTable();
+    drawRutinTable();
 }
 
-function handleScheduleSearch(val) {
-    scheduleSearch = val;
-    schedulePage = 1;
-    drawScheduleTable();
-}
+function drawRutinTable() {
+    const body = document.getElementById('rutin-table-body');
+    if (!body) return;
 
-function handleSchedulePicFilter(val) {
-    schedulePicFilter = val;
-    schedulePage = 1;
-    drawScheduleTable();
-}
-
-function drawScheduleTable() {
-    const tableBody = document.getElementById('schedule-table-body');
-    const pagination = document.getElementById('schedule-pagination');
-    if (!tableBody || !pagination) return;
-
-    // Filter
-    let filtered = db.brsSchedule;
-    if (scheduleSearch.trim()) {
-        const query = scheduleSearch.toLowerCase();
-        filtered = filtered.filter(item => item.judul && item.judul.toLowerCase().includes(query));
-    }
-    if (schedulePicFilter) {
+    let filtered = db.rekapRutin;
+    if (rutinSearch.trim()) {
+        const q = rutinSearch.toLowerCase();
         filtered = filtered.filter(item => 
-            item.pic_poster === schedulePicFilter ||
-            item.pic_info === schedulePicFilter ||
-            item.pic_doc === schedulePicFilter ||
-            item.pic_high === schedulePicFilter
+            (item.kegiatan && item.kegiatan.toLowerCase().includes(q)) || 
+            (item.petugas && item.petugas.toLowerCase().includes(q))
         );
     }
+    if (rutinRubrikFilter) {
+        filtered = filtered.filter(item => item.rubrikasi === rutinRubrikFilter);
+    }
+    if (rutinDateFilter) {
+        filtered = filtered.filter(item => item.tanggal && item.tanggal.includes(rutinDateFilter));
+    }
 
-    // Sort by date ascending (soonest first)
-    filtered.sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
+    filtered.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
 
-    // Paginate
-    const totalItems = filtered.length;
-    const totalPages = Math.ceil(totalItems / scheduleLimit) || 1;
-    if (schedulePage > totalPages) schedulePage = totalPages;
-    const offset = (schedulePage - 1) * scheduleLimit;
-    const paginatedItems = filtered.slice(offset, offset + scheduleLimit);
-
-    if (paginatedItems.length === 0) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="7" class="py-16 text-center text-slate-400">
-                    <i class="fa-solid fa-calendar-xmark text-3xl mb-2 text-slate-300"></i>
-                    <p class="text-xs font-bold">Tidak ada jadwal rilis yang cocok.</p>
-                </td>
-            </tr>
+    if (filtered.length === 0) {
+        body.innerHTML = `
+            <tr><td colspan="7" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Tidak ada kegiatan rutin ditemukan.</p></td></tr>
         `;
-        pagination.innerHTML = '';
         return;
     }
 
-    tableBody.innerHTML = paginatedItems.map(item => {
+    body.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
+        let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
         return `
-            <tr class="hover:bg-slate-50/50 transition-colors cursor-pointer group" onclick="showDetail('schedule', ${itemJson})">
-                <td class="px-6 py-4 font-bold text-slate-800 whitespace-nowrap">
-                    <i class="fa-regular fa-calendar-check text-indigo-500 mr-2"></i>${formatDate(item.tanggal)}
-                </td>
-                <td class="px-6 py-4">
-                    <div class="font-bold text-slate-800 max-w-sm truncate" title="${item.judul}">${item.judul}</div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${item.pic_poster ? 'bg-indigo-50 text-indigo-855 border border-indigo-150' : 'bg-slate-50 text-slate-400 border border-slate-100'}">${item.pic_poster?.split(' ')[0] || '-'}</span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${item.pic_info ? 'bg-emerald-50 text-emerald-855 border border-emerald-150' : 'bg-slate-50 text-slate-400 border border-slate-100'}">${item.pic_info?.split(' ')[0] || '-'}</span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${item.pic_doc ? 'bg-violet-50 text-violet-855 border border-violet-150' : 'bg-slate-50 text-slate-400 border border-slate-100'}">${item.pic_doc?.split(' ')[0] || '-'}</span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${item.pic_high ? 'bg-amber-50 text-amber-855 border border-amber-150' : 'bg-slate-50 text-slate-400 border border-slate-100'}">${item.pic_high?.split(' ')[0] || '-'}</span>
-                </td>
-                <td class="px-6 py-4 text-center whitespace-nowrap" onclick="event.stopPropagation()">
-                    <div class="flex items-center justify-center gap-1.5">
-                        <button onclick="openModal('schedule', ${itemJson})" title="Edit Jadwal" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 transition-all"><i class="fa-solid fa-pen-to-square text-[10px]"></i></button>
-                        <button onclick="deleteItem('schedule', ${item.id})" title="Hapus Jadwal" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
+            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
+                <td class="px-6 py-4 font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">${formatDate(item.tanggal)}</td>
+                <td class="px-6 py-4 font-semibold text-slate-500 whitespace-nowrap">${item.hari || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-650 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-md font-bold uppercase text-[9px]">${item.rubrikasi || '-'}</span></td>
+                <td class="px-6 py-4 font-extrabold text-slate-800 dark:text-slate-250 leading-snug">${item.kegiatan}</td>
+                <td class="px-6 py-4 font-bold text-indigo-650 dark:text-indigo-400 whitespace-nowrap">${item.petugas || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-center"><span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Draft'}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                    <div class="flex items-center justify-center gap-1.5" onclick="event.stopPropagation()">
+                        <button onclick="openModal('rekap_rutin', ${itemJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        <button onclick="deleteItem('rekap_rutin', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Hapus"><i class="fa-solid fa-trash text-[10px]"></i></button>
                     </div>
                 </td>
             </tr>
         `;
     }).join('');
 
-    // Pagination HTML
-    pagination.innerHTML = `
-        <span class="text-[10px] font-semibold text-slate-450">Menampilkan ${offset + 1} - ${Math.min(offset + scheduleLimit, totalItems)} dari ${totalItems} baris</span>
-        <div class="flex gap-2">
-            <button onclick="changeSchedulePage(${schedulePage - 1})" ${schedulePage === 1 ? 'disabled' : ''} class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-550 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
-            <button onclick="changeSchedulePage(${schedulePage + 1})" ${schedulePage === totalPages ? 'disabled' : ''} class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-550 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
-        </div>
-    `;
-
-    window.changeSchedulePage = function(p) {
-        if (p < 1 || p > totalPages) return;
-        schedulePage = p;
-        drawScheduleTable();
-    };
-
-    window.exportScheduleReport = function(type) {
-        const headers = ["Tanggal Rilis", "Judul Rilis", "Poster PIC", "Infografis PIC", "Dokumentasi PIC", "Highlight PIC"];
-        const rows = filtered.map(item => [
-            formatDate(item.tanggal),
-            item.judul || '-',
-            item.pic_poster || '-',
-            item.pic_info || '-',
-            item.pic_doc || '-',
-            item.pic_high || '-'
-        ]);
-
-        if (type === 'csv') {
-            downloadCSV(headers, rows, `Jadwal_Rilis_BRS_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
-        } else {
-            openPrintReportWindow("Jadwal Rilis Berita Resmi Statistik (BRS)", headers, rows);
-        }
+    window.exportRutinReport = function(type) {
+        const headers = ["Tanggal", "Hari", "Rubrikasi", "Kegiatan", "Petugas", "Status"];
+        const rows = filtered.map(item => [formatDate(item.tanggal), item.hari || '-', item.rubrikasi || '-', item.kegiatan, item.petugas || '-', item.status || 'Draft']);
+        if (type === 'csv') downloadCSV(headers, rows, `Rekap_Rutin_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
+        else openPrintReportWindow("Rekap Kegiatan Rutin Kehumasan BPS Kalbar", headers, rows);
     };
 }
 
 // -------------------------------------------------------------
-// 4. Protokol & MC View
+// 4. MODUL AD HOC 2026 VIEW
 // -------------------------------------------------------------
-let protocolSearch = '';
-let protocolLevelFilter = '';
+let adHocSearch = '';
 
-function renderProtocol(container) {
+function renderAdHoc(container) {
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">Agenda Protokoler & MC</h2>
-                <p class="text-xs text-slate-500 mt-1">Kelola permohonan pendampingan protokol pimpinan, susunan acara, dan penugasan MC.</p>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Kegiatan Ad Hoc 2026</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola monitoring penugasan dinamis (multi-person), beban kerja, dan tim satuan tugas khusus.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="exportProtocolReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                <button onclick="exportAdHocReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
                     <i class="fa-solid fa-print"></i> Cetak Laporan
                 </button>
-                <button onclick="exportProtocolReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                <button onclick="exportAdHocReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
                     <i class="fa-solid fa-download"></i> Ekspor CSV
                 </button>
-                <button onclick="openModal('protocol')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                <button onclick="openModal('ad_hoc')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-plus text-xs"></i> Tambah Penugasan Ad Hoc
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex justify-between items-center shadow-xs">
+            <div class="relative w-full max-w-xs">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <input type="text" oninput="adHocSearch = this.value; drawAdHocTable();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari kegiatan atau petugas...">
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left text-slate-650 dark:text-slate-300">
+                    <thead class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50/60 dark:bg-slate-900/40 uppercase border-b border-slate-200 dark:border-slate-700 font-black tracking-wider">
+                        <tr>
+                            <th class="px-6 py-4">Tanggal</th>
+                            <th class="px-6 py-4">Hari</th>
+                            <th class="px-6 py-4">Nama Kegiatan</th>
+                            <th class="px-6 py-4 text-center">Jumlah Petugas</th>
+                            <th class="px-6 py-4">Nama Petugas</th>
+                            <th class="px-6 py-4">Keterangan</th>
+                            <th class="px-6 py-4 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="adhoc-table-body">
+                        <!-- Filled by drawAdHocTable -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    drawAdHocTable();
+}
+
+function drawAdHocTable() {
+    const body = document.getElementById('adhoc-table-body');
+    if (!body) return;
+
+    let filtered = db.adHoc;
+    if (adHocSearch.trim()) {
+        const q = adHocSearch.toLowerCase();
+        filtered = filtered.filter(item => 
+            (item.kegiatan && item.kegiatan.toLowerCase().includes(q)) || 
+            (item.petugas && item.petugas.toLowerCase().includes(q))
+        );
+    }
+
+    filtered.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+
+    if (filtered.length === 0) {
+        body.innerHTML = `
+            <tr><td colspan="7" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-users-slash text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Tidak ada penugasan ad hoc ditemukan.</p></td></tr>
+        `;
+        return;
+    }
+
+    body.innerHTML = filtered.map(item => {
+        const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
+        // Display multi-person badges
+        const staffList = item.petugas ? item.petugas.split(',') : [];
+        const staffBadges = staffList.map(st => `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900 rounded font-bold text-[9px]">${st.trim()}</span>`).join(' ');
+
+        return `
+            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
+                <td class="px-6 py-4 font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">${formatDate(item.tanggal)}</td>
+                <td class="px-6 py-4 font-semibold text-slate-500 whitespace-nowrap">${item.hari || '-'}</td>
+                <td class="px-6 py-4 font-extrabold text-slate-800 dark:text-slate-250 leading-snug">${item.kegiatan}</td>
+                <td class="px-6 py-4 text-center font-bold text-slate-800 dark:text-slate-100">${item.jumlah_bertugas || staffList.length} orang</td>
+                <td class="px-6 py-4 whitespace-normal"><div class="flex flex-wrap gap-1.5">${staffBadges || '-'}</div></td>
+                <td class="px-6 py-4 text-slate-500 max-w-xs truncate font-medium">${item.keterangan || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                    <div class="flex items-center justify-center gap-1.5" onclick="event.stopPropagation()">
+                        <button onclick="openModal('ad_hoc', ${itemJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        <button onclick="deleteItem('ad_hoc', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Hapus"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    window.exportAdHocReport = function(type) {
+        const headers = ["Tanggal", "Hari", "Nama Kegiatan", "Jumlah Bertugas", "Nama Petugas", "Keterangan"];
+        const rows = filtered.map(item => [formatDate(item.tanggal), item.hari || '-', item.kegiatan, item.jumlah_bertugas || '-', item.petugas || '-', item.keterangan || '-']);
+        if (type === 'csv') downloadCSV(headers, rows, `Rekap_AdHoc_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
+        else openPrintReportWindow("Daftar Penugasan Kerja Ad Hoc BPS Kalbar", headers, rows);
+    };
+}
+
+// -------------------------------------------------------------
+// 5. MODUL PROTOKOLER VIEW
+// -------------------------------------------------------------
+let protoSearch = '';
+let protoLevelFilter = '';
+
+function renderProtokolerSeparate(container) {
+    container.innerHTML = `
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
+            <div>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Keprotokolan Pimpinan</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Agenda pendampingan protokol pimpinan BPS Provinsi Kalbar pada acara internal maupun eksternal.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="exportProtokolerReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-print"></i> Cetak Laporan
+                </button>
+                <button onclick="exportProtokolerReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-download"></i> Ekspor CSV
+                </button>
+                <button onclick="openModal('protokoler')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
                     <i class="fa-solid fa-plus text-xs"></i> Tambah Agenda Protokol
                 </button>
             </div>
         </div>
 
-        <!-- Filter & Search Controls -->
-        <div class="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-xs">
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-xs">
             <div class="relative w-full sm:max-w-xs">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                </span>
-                <input type="text" id="protocol-search-input" oninput="handleProtocolSearch(this.value)" value="${protocolSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-250 rounded-xl text-xs font-medium focus:bg-white focus:outline-none placeholder-slate-450 text-slate-700 transition-all" placeholder="Cari kegiatan atau lokasi...">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <input type="text" oninput="protoSearch = this.value; drawProtokolerTable();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari kegiatan atau lokasi...">
             </div>
             <div class="flex items-center gap-2 w-full sm:w-auto">
-                <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-filter mr-1 text-slate-450"></i> Level Acara:</span>
-                <select id="protocol-level-select" onchange="handleProtocolLevelFilter(this.value)" class="text-xs font-bold py-2 px-3 bg-white border border-slate-250 rounded-xl text-slate-650 focus:outline-none min-w-[140px] shadow-xs">
+                <span class="text-xs text-slate-500 font-bold whitespace-nowrap"><i class="fa-solid fa-filter text-slate-450"></i> Level:</span>
+                <select onchange="protoLevelFilter = this.value; drawProtokolerTable();" class="text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-650 dark:text-slate-200 focus:outline-none min-w-[140px]">
                     <option value="">Semua Level</option>
-                    <option ${protocolLevelFilter === 'Formal' ? 'selected' : ''} value="Formal">Formal</option>
-                    <option ${protocolLevelFilter === 'Non-Formal' ? 'selected' : ''} value="Non-Formal">Non-Formal</option>
+                    <option value="Super Formal">Super Formal</option>
+                    <option value="Formal">Formal</option>
+                    <option value="Semi Formal">Semi Formal</option>
+                    <option value="Non Formal">Non Formal</option>
+                    <option value="Hiburan">Hiburan</option>
                 </select>
             </div>
         </div>
 
-        <!-- Card Grid -->
-        <div class="grid grid-cols-1 gap-4 animate-fade-in" id="protocol-list">
-            <!-- Filled dynamically -->
+        <div class="grid grid-cols-1 gap-4 animate-fade-in" id="protokoler-list-body">
+            <!-- Populated dynamically -->
         </div>
     `;
-
-    drawProtocolList();
+    drawProtokolerTable();
 }
 
-function handleProtocolSearch(val) {
-    protocolSearch = val;
-    drawProtocolList();
-}
-
-function handleProtocolLevelFilter(val) {
-    protocolLevelFilter = val;
-    drawProtocolList();
-}
-
-function drawProtocolList() {
-    const list = document.getElementById('protocol-list');
+function drawProtokolerTable() {
+    const list = document.getElementById('protokoler-list-body');
     if (!list) return;
 
-    // Filter
-    let filtered = db.protocol;
-    if (protocolSearch.trim()) {
-        const query = protocolSearch.toLowerCase();
+    let filtered = db.protokoler;
+    if (protoSearch.trim()) {
+        const q = protoSearch.toLowerCase();
         filtered = filtered.filter(item => 
-            (item.kegiatan && item.kegiatan.toLowerCase().includes(query)) ||
-            (item.lokasi && item.lokasi.toLowerCase().includes(query))
+            (item.kegiatan && item.kegiatan.toLowerCase().includes(q)) || 
+            (item.lokasi && item.lokasi.toLowerCase().includes(q))
         );
     }
-    if (protocolLevelFilter) {
-        filtered = filtered.filter(item => item.level === protocolLevelFilter);
+    if (protoLevelFilter) {
+        filtered = filtered.filter(item => item.level === protoLevelFilter);
     }
 
-    // Sort by date descending (latest first)
     filtered.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
 
     if (filtered.length === 0) {
         list.innerHTML = `
-            <div class="bg-white p-16 text-center text-slate-400 rounded-2xl border border-dashed border-slate-250">
-                <i class="fa-solid fa-microphone-slash text-3xl mb-2 text-slate-350"></i>
-                <p class="text-xs font-bold">Belum ada agenda protokol terdaftar.</p>
+            <div class="bg-white dark:bg-slate-800 p-16 text-center text-slate-400 dark:text-slate-500 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
+                <i class="fa-solid fa-crown text-3xl mb-2 text-slate-350 dark:text-slate-700"></i>
+                <p class="text-xs font-bold">Belum ada agenda protokoler terdaftar.</p>
             </div>
         `;
         return;
@@ -916,914 +1087,841 @@ function drawProtocolList() {
     list.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
         return `
-            <div class="bg-white p-5 rounded-2xl border border-slate-205 hover:shadow-md hover:border-slate-300 transition-all duration-300 cursor-pointer flex flex-col md:flex-row justify-between items-start md:items-center gap-4" onclick="showDetail('protocol', ${itemJson})">
+            <div class="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-205 dark:border-slate-700/80 hover:shadow-md hover:border-slate-350 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col md:flex-row justify-between items-start md:items-center gap-4" onclick="showDetail('protokoler', ${itemJson})">
                 <div class="flex items-start gap-4">
                     <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${
-                        item.level === 'Formal' ? 'bg-indigo-50 text-indigo-700 border-indigo-150 shadow-sm shadow-indigo-100/20' : 'bg-amber-50 text-amber-700 border-amber-150 shadow-sm shadow-amber-100/20'
+                        ['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 border-indigo-150 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-900' : 'bg-amber-50 border-amber-150 text-amber-700 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900'
                     }">
-                        <i class="fa-solid ${item.level === 'Formal' ? 'fa-user-tie' : 'fa-microphone'} text-lg"></i>
+                        <i class="fa-solid fa-crown text-lg"></i>
                     </div>
                     <div>
-                        <h4 class="font-extrabold text-slate-850 text-sm leading-snug hover:text-indigo-650 transition-colors">${item.kegiatan}</h4>
+                        <h4 class="font-extrabold text-slate-850 dark:text-slate-200 text-sm leading-snug hover:text-indigo-650 transition-colors">${item.kegiatan}</h4>
                         <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-y-1 gap-x-4 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                             <p class="flex items-center gap-1.5"><i class="fa-regular fa-calendar text-slate-400"></i> ${formatDate(item.tanggal)}</p>
-                            <p class="flex items-center gap-1.5"><i class="fa-solid fa-user-tie text-slate-400"></i> Pimpinan: ${item.pimpinan}</p>
                             <p class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-slate-400"></i> Lokasi: ${item.lokasi}</p>
-                            <p class="flex items-center gap-1.5 col-span-full md:col-span-1 text-indigo-650"><i class="fa-solid fa-users text-slate-400"></i> Petugas: ${item.petugas || 'Belum ditunjuk'}</p>
+                            <p class="flex items-center gap-1.5"><i class="fa-regular fa-clock text-slate-400"></i> Waktu: ${item.jam_mulai || '-'}</p>
+                            <p class="flex items-center gap-1.5 text-indigo-655 dark:text-indigo-400"><i class="fa-solid fa-users text-slate-400"></i> Petugas: ${item.petugas || 'Belum ditunjuk'}</p>
                         </div>
                     </div>
                 </div>
-                <div class="flex items-center gap-1.5 justify-end md:justify-center border-t border-slate-100 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto" onclick="event.stopPropagation()">
-                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${item.level === 'Formal' ? 'bg-indigo-50 text-indigo-750 border border-indigo-100' : 'bg-amber-50 text-amber-750 border border-amber-100'}">${item.level}</span>
-                    <button onclick="openModal('protocol', ${itemJson})" title="Edit Agenda" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 transition-all"><i class="fa-solid fa-pen-to-square text-[10px]"></i></button>
-                    <button onclick="deleteItem('protocol', ${item.id})" title="Hapus Agenda" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                <div class="flex items-center gap-1.5 justify-end md:justify-center border-t dark:border-slate-800 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto" onclick="event.stopPropagation()">
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-950 dark:text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-350">${item.jenis || 'Internal'}</span>
+                    <button onclick="openModal('protokoler', ${itemJson})" title="Ubah" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-805 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    <button onclick="deleteItem('protokoler', ${item.id})" title="Hapus" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-805 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
                 </div>
             </div>
         `;
     }).join('');
 
-    window.exportProtocolReport = function(type) {
-        const headers = ["Tanggal Kegiatan", "Nama Agenda / Kegiatan", "Pendamping Pimpinan", "Level Protokol", "Lokasi Acara", "Petugas Humas / MC"];
-        const rows = filtered.map(item => [
-            formatDate(item.tanggal),
-            item.kegiatan || '-',
-            item.pimpinan || '-',
-            item.level || '-',
-            item.lokasi || '-',
-            item.petugas || '-'
-        ]);
-
-        if (type === 'csv') {
-            downloadCSV(headers, rows, `Agenda_Protokol_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
-        } else {
-            openPrintReportWindow("Agenda Keprotokolan & MC BPS Kalbar", headers, rows);
-        }
+    window.exportProtokolerReport = function(type) {
+        const headers = ["Tanggal", "Nama Kegiatan", "Lokasi", "Jam Mulai", "Jenis", "Level", "Petugas", "Keterangan"];
+        const rows = filtered.map(item => [formatDate(item.tanggal), item.kegiatan, item.lokasi || '-', item.jam_mulai || '-', item.jenis || 'Internal', item.level || '-', item.petugas || '-', item.keterangan || '-']);
+        if (type === 'csv') downloadCSV(headers, rows, `Agenda_Protokoler_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
+        else openPrintReportWindow("Daftar Agenda Protokoler BPS Kalbar", headers, rows);
     };
 }
 
 // -------------------------------------------------------------
-// 5. Direktori Tim View
+// 6. MODUL MC VIEW
 // -------------------------------------------------------------
-let teamSearch = '';
+let mcSearch = '';
+let mcLevelFilter = '';
 
-function renderTeam(container) {
+function renderMcSeparate(container) {
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">Direktori Tim Humas</h2>
-                <p class="text-xs text-slate-500 mt-1">Daftar anggota tim struktural, jabatan, pembagian seksi kehumasan, dan kontak.</p>
-            </div>
-            <button onclick="openModal('team')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                <i class="fa-solid fa-plus text-xs"></i> Tambah Anggota Tim
-            </button>
-        </div>
-
-        <!-- Filter & Search Controls -->
-        <div class="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-xs">
-            <div class="relative w-full sm:max-w-xs">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                </span>
-                <input type="text" id="team-search-input" oninput="handleTeamSearch(this.value)" value="${teamSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-250 rounded-xl text-xs font-medium focus:bg-white focus:outline-none placeholder-slate-450 text-slate-700 transition-all" placeholder="Cari nama atau jabatan...">
-            </div>
-        </div>
-
-        <!-- Team grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in" id="team-grid">
-            <!-- Filled dynamically -->
-        </div>
-    `;
-
-    drawTeamGrid();
-}
-
-function handleTeamSearch(val) {
-    teamSearch = val;
-    drawTeamGrid();
-}
-
-function drawTeamGrid() {
-    const grid = document.getElementById('team-grid');
-    if (!grid) return;
-
-    let filtered = db.team;
-    if (teamSearch.trim()) {
-        const query = teamSearch.toLowerCase();
-        filtered = filtered.filter(item => 
-            (item.nama && item.nama.toLowerCase().includes(query)) ||
-            (item.jabatan && item.jabatan.toLowerCase().includes(query))
-        );
-    }
-
-    if (filtered.length === 0) {
-        grid.innerHTML = `
-            <div class="col-span-full bg-white p-16 text-center text-slate-400 rounded-2xl border border-dashed border-slate-250">
-                <i class="fa-solid fa-user-large-slash text-3xl mb-2 text-slate-350"></i>
-                <p class="text-xs font-bold">Anggota tim tidak ditemukan.</p>
-            </div>
-        `;
-        return;
-    }
-
-    grid.innerHTML = filtered.map(member => {
-        const taskCount = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
-        const initials = getPicInitials(member.nama);
-        const avatarBg = getAvatarBg(member.nama);
-        const itemJson = JSON.stringify(member).replace(/"/g, '&quot;');
-        
-        return `
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-205 overflow-hidden hover:shadow-md hover:border-slate-300 transition-all duration-300 cursor-pointer flex flex-col group" onclick="showDetail('team', ${itemJson})">
-                <div class="h-20 bg-gradient-to-r from-indigo-750 to-slate-900 relative">
-                    <!-- Avatar with initials -->
-                    <div class="absolute -bottom-6 left-5 w-14 h-14 rounded-2xl border-4 border-white shadow-md flex items-center justify-center text-sm font-black tracking-wider transition-transform duration-300 group-hover:scale-105 ${avatarBg}">
-                        ${initials}
-                    </div>
-                </div>
-                <div class="pt-8 pb-4 px-5 flex-1 flex flex-col justify-between">
-                    <div>
-                        <h3 class="font-extrabold text-slate-800 text-sm group-hover:text-indigo-650 transition-colors">${member.nama}</h3>
-                        <p class="text-[10px] font-bold text-indigo-650 uppercase tracking-wider mt-0.5">${member.jabatan}</p>
-                        <span class="inline-block mt-3 px-2 py-0.5 bg-slate-100 text-slate-500 border border-slate-150 text-[9px] rounded-full uppercase font-bold tracking-wider">${member.bidang}</span>
-                        <p class="text-[10px] text-slate-500 mt-3 line-clamp-2 leading-relaxed">${member.tugas || 'Belum ada rincian tugas khusus.'}</p>
-                    </div>
-                    <div class="flex items-center justify-between pt-3 mt-4 border-t border-slate-100">
-                        <div>
-                            <p class="text-[8px] uppercase font-bold text-slate-400 tracking-wider">Tugas Konten</p>
-                            <p class="text-base font-black text-indigo-650 mt-0.5">${taskCount}</p>
-                        </div>
-                        <div class="flex items-center" onclick="event.stopPropagation()">
-                            <button onclick="openModal('team', ${itemJson})" title="Edit Profil" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 transition-all"><i class="fa-solid fa-pen-to-square text-[10px]"></i></button>
-                            <button onclick="deleteItem('team', ${member.id})" title="Hapus Profil" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-// -------------------------------------------------------------
-// 6. Permintaan Layanan (Ticketing) View
-// -------------------------------------------------------------
-let ticketSearch = '';
-let ticketStatusFilter = '';
-let ticketTypeFilter = '';
-
-function renderTickets(container) {
-    const isInternal = currentUser.role === 'internal';
-
-    container.innerHTML = `
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
-            <div>
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">Permintaan Layanan Humas</h2>
-                <p class="text-xs text-slate-500 mt-1">Sistem antrean permohonan publikasi infografis rilis, pembuatan video reels edukasi, dan dokumentasi acara.</p>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Petugas Master of Ceremony (MC)</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Agenda penugasan dan monitoring petugas pembawa acara (MC) BPS Provinsi Kalimantan Barat.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                ${!isInternal ? `
-                    <button onclick="exportTicketsReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                        <i class="fa-solid fa-print"></i> Cetak Laporan
-                    </button>
-                    <button onclick="exportTicketsReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                        <i class="fa-solid fa-download"></i> Ekspor CSV
-                    </button>
-                ` : ''}
-                ${isInternal ? `
-                    <button onclick="openTicketModal()" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                        <i class="fa-solid fa-plus text-xs"></i> Buat Pengajuan Layanan
-                    </button>
-                ` : ''}
+                <button onclick="exportMcReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-print"></i> Cetak Laporan
+                </button>
+                <button onclick="exportMcReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-download"></i> Ekspor CSV
+                </button>
+                <button onclick="openModal('mc')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-plus text-xs"></i> Tambah Penugasan MC
+                </button>
             </div>
         </div>
 
-        <!-- Filter & Search Controls -->
-        <div class="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-xs">
-            <div class="relative w-full md:max-w-xs">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                </span>
-                <input type="text" id="ticket-search-input" oninput="handleTicketSearch(this.value)" value="${ticketSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-250 rounded-xl text-xs font-medium focus:bg-white focus:outline-none placeholder-slate-450 text-slate-700 transition-all" placeholder="Cari judul, pengaju, detail...">
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-xs">
+            <div class="relative w-full sm:max-w-xs">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <input type="text" oninput="mcSearch = this.value; drawMcTable();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari kegiatan atau lokasi...">
             </div>
-            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-circle-notch mr-0.5 text-slate-450"></i> Status:</span>
-                    <select id="ticket-status-select" onchange="handleTicketStatusFilter(this.value)" class="text-[10px] font-bold py-1.5 px-2 bg-white border border-slate-250 rounded-lg text-slate-650 focus:outline-none min-w-[100px] shadow-xs">
-                        <option value="">Semua</option>
-                        <option ${ticketStatusFilter === 'Pending' ? 'selected' : ''} value="Pending">Pending</option>
-                        <option ${ticketStatusFilter === 'Approved' ? 'selected' : ''} value="Approved">Disetujui</option>
-                        <option ${ticketStatusFilter === 'Rejected' ? 'selected' : ''} value="Rejected">Ditolak</option>
-                    </select>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-filter mr-0.5 text-slate-450"></i> Layanan:</span>
-                    <select id="ticket-type-select" onchange="handleTicketTypeFilter(this.value)" class="text-[10px] font-bold py-1.5 px-2 bg-white border border-slate-250 rounded-lg text-slate-650 focus:outline-none min-w-[120px] shadow-xs">
-                        <option value="">Semua Layanan</option>
-                        <option ${ticketTypeFilter === 'Infografis' ? 'selected' : ''} value="Infografis">Infografis / Poster</option>
-                        <option ${ticketTypeFilter === 'Pembuatan Video' ? 'selected' : ''} value="Pembuatan Video">Pembuatan Video</option>
-                        <option ${ticketTypeFilter === 'Peliputan' ? 'selected' : ''} value="Peliputan">Peliputan / Dokumentasi</option>
-                        <option ${ticketTypeFilter === 'Desain Publikasi' ? 'selected' : ''} value="Desain Publikasi">Desain Publikasi</option>
-                    </select>
-                </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <span class="text-xs text-slate-500 font-bold whitespace-nowrap"><i class="fa-solid fa-filter text-slate-450"></i> Level:</span>
+                <select onchange="mcLevelFilter = this.value; drawMcTable();" class="text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-650 dark:text-slate-200 focus:outline-none min-w-[140px]">
+                    <option value="">Semua Level</option>
+                    <option value="Super Formal">Super Formal</option>
+                    <option value="Formal">Formal</option>
+                    <option value="Semi Formal">Semi Formal</option>
+                    <option value="Non Formal">Non Formal</option>
+                    <option value="Hiburan">Hiburan</option>
+                </select>
             </div>
         </div>
 
-        <!-- Grid Container -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in" id="tickets-grid">
-            <!-- Filled dynamically -->
+        <div class="grid grid-cols-1 gap-4 animate-fade-in" id="mc-list-body">
+            <!-- Populated dynamically -->
         </div>
     `;
-
-    drawTicketsGrid();
+    drawMcTable();
 }
 
-function handleTicketSearch(val) {
-    ticketSearch = val;
-    drawTicketsGrid();
-}
+function drawMcTable() {
+    const list = document.getElementById('mc-list-body');
+    if (!list) return;
 
-function handleTicketStatusFilter(val) {
-    ticketStatusFilter = val;
-    drawTicketsGrid();
-}
-
-function handleTicketTypeFilter(val) {
-    ticketTypeFilter = val;
-    drawTicketsGrid();
-}
-
-function drawTicketsGrid() {
-    const grid = document.getElementById('tickets-grid');
-    if (!grid) return;
-
-    const isInternal = currentUser.role === 'internal';
-    const isAdminOrKetua = currentUser.role === 'admin' || currentUser.role === 'ketua';
-
-    // Base scoping
-    let filtered = db.tickets;
-    if (isInternal) {
-        filtered = filtered.filter(t => t.pengaju.toLowerCase().includes(currentUser.name.toLowerCase()) || t.pengaju.includes("Seksi"));
-    }
-
-    // Filters
-    if (ticketSearch.trim()) {
-        const query = ticketSearch.toLowerCase();
+    let filtered = db.mc;
+    if (mcSearch.trim()) {
+        const q = mcSearch.toLowerCase();
         filtered = filtered.filter(item => 
-            (item.judul && item.judul.toLowerCase().includes(query)) ||
-            (item.pengaju && item.pengaju.toLowerCase().includes(query)) ||
-            (item.detail && item.detail.toLowerCase().includes(query))
+            (item.kegiatan && item.kegiatan.toLowerCase().includes(q)) || 
+            (item.lokasi && item.lokasi.toLowerCase().includes(q))
         );
     }
-    if (ticketStatusFilter) {
-        filtered = filtered.filter(item => item.status === ticketStatusFilter);
-    }
-    if (ticketTypeFilter) {
-        filtered = filtered.filter(item => item.jenis === ticketTypeFilter);
+    if (mcLevelFilter) {
+        filtered = filtered.filter(item => item.level === mcLevelFilter);
     }
 
-    // Sort by id descending (latest first)
-    filtered.sort((a, b) => b.id - a.id);
+    filtered.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
 
     if (filtered.length === 0) {
-        grid.innerHTML = `
-            <div class="col-span-full bg-white p-16 text-center text-slate-400 rounded-2xl border border-dashed border-slate-250">
-                <i class="fa-solid fa-ticket-simple text-4xl mb-2.5 text-slate-300"></i>
-                <p class="text-xs font-bold">Tidak ada pengajuan tiket ditemukan.</p>
+        list.innerHTML = `
+            <div class="bg-white dark:bg-slate-800 p-16 text-center text-slate-400 dark:text-slate-500 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
+                <i class="fa-solid fa-microphone text-3xl mb-2 text-slate-350 dark:text-slate-700"></i>
+                <p class="text-xs font-bold">Belum ada agenda penugasan MC terdaftar.</p>
             </div>
         `;
         return;
     }
 
-    grid.innerHTML = filtered.map(t => {
-        let statusBadge = '';
-        if (t.status === 'Pending') {
-            statusBadge = `<span class="px-2.5 py-0.5 bg-amber-50 text-amber-750 border border-amber-200 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs"><span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>Pending</span>`;
-        } else if (t.status === 'Approved') {
-            statusBadge = `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs"><i class="fa-solid fa-check text-[9px]"></i>Disetujui</span>`;
-        } else {
-            statusBadge = `<span class="px-2.5 py-0.5 bg-rose-50 text-rose-800 border border-rose-200 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs"><i class="fa-solid fa-times text-[9px]"></i>Ditolak</span>`;
-        }
-
-        let actions = '';
-        if (isAdminOrKetua && t.status === 'Pending') {
-            actions = `
-                <div class="mt-5 pt-3 border-t border-slate-100 flex gap-2 justify-end">
-                    <button onclick="approveTicket(${t.id})" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 border border-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all flex items-center gap-1.5">
-                        <i class="fa-solid fa-user-plus"></i> Setujui & PIC
-                    </button>
-                    <button onclick="rejectTicket(${t.id})" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 border border-rose-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all flex items-center gap-1.5">
-                        <i class="fa-solid fa-ban"></i> Tolak
-                    </button>
-                </div>
-            `;
-        } else if (t.status === 'Approved' && t.pic) {
-            actions = `
-                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2 text-[10px] text-slate-500">
-                    <div class="w-5.5 h-5.5 rounded-full ${getAvatarBg(t.pic)} flex items-center justify-center font-bold text-[8px] shadow-xs">${getPicInitials(t.pic)}</div>
-                    <span>Ditugaskan ke: <strong class="text-slate-800 font-bold">${t.pic}</strong></span>
-                </div>
-            `;
-        } else if (t.status === 'Rejected') {
-            actions = `
-                <div class="mt-4 pt-3 border-t border-slate-100 text-[10px] text-rose-650 font-bold flex items-center gap-1">
-                    <i class="fa-solid fa-triangle-exclamation"></i> Pengajuan ditolak oleh pimpinan.
-                </div>
-            `;
-        }
-
+    list.innerHTML = filtered.map(item => {
+        const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
         return `
-            <div class="bg-white p-5 rounded-2xl border border-slate-205 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
-                <div>
-                    <div class="flex justify-between items-start gap-3">
-                        <span class="px-2.5 py-0.5 bg-slate-100 border border-slate-150 text-slate-650 rounded-full text-[9px] uppercase font-bold tracking-wider">${t.jenis}</span>
-                        ${statusBadge}
+            <div class="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-205 dark:border-slate-700/80 hover:shadow-md hover:border-slate-350 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col md:flex-row justify-between items-start md:items-center gap-4" onclick="showDetail('mc', ${itemJson})">
+                <div class="flex items-start gap-4">
+                    <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${
+                        ['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 border-indigo-150 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-900' : 'bg-amber-50 border-amber-150 text-amber-700 dark:bg-amber-950 dark:text-amber-300 dark:border-indigo-900'
+                    }">
+                        <i class="fa-solid fa-microphone-lines text-lg"></i>
                     </div>
-                    <h4 class="font-extrabold text-slate-850 text-sm mt-3 leading-snug">${t.judul}</h4>
-                    <p class="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-wider flex items-center gap-1.5"><i class="fa-regular fa-building text-slate-400"></i> ${t.pengaju} (${t.bidang})</p>
-                    <p class="text-xs text-slate-600 mt-2.5 leading-relaxed whitespace-pre-line">${t.detail}</p>
+                    <div>
+                        <h4 class="font-extrabold text-slate-850 dark:text-slate-200 text-sm leading-snug hover:text-indigo-650 transition-colors">${item.kegiatan}</h4>
+                        <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-y-1 gap-x-4 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                            <p class="flex items-center gap-1.5"><i class="fa-regular fa-calendar text-slate-400"></i> ${formatDate(item.tanggal)}</p>
+                            <p class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-slate-400"></i> Lokasi: ${item.lokasi}</p>
+                            <p class="flex items-center gap-1.5"><i class="fa-regular fa-clock text-slate-400"></i> Waktu: ${item.jam_mulai || '-'}</p>
+                            <p class="flex items-center gap-1.5 text-indigo-655 dark:text-indigo-400"><i class="fa-solid fa-users text-slate-400"></i> Petugas MC: ${item.petugas || 'Belum ditunjuk'}</p>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-[10px]">
-                        <span class="text-rose-600 font-bold flex items-center gap-1"><i class="fa-regular fa-calendar-xmark"></i> Batas: ${formatDate(t.deadline)}</span>
-                        ${isAdminOrKetua ? `
-                            <button onclick="deleteItem('tickets', ${t.id})" title="Hapus Pengajuan" class="text-slate-400 hover:text-rose-600 transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>
-                        ` : ''}
-                    </div>
-                    ${actions}
+                <div class="flex items-center gap-1.5 justify-end md:justify-center border-t dark:border-slate-800 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto" onclick="event.stopPropagation()">
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-950 dark:text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-350">${item.jenis || 'Internal'}</span>
+                    <button onclick="openModal('mc', ${itemJson})" title="Ubah" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-805 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    <button onclick="deleteItem('mc', ${item.id})" title="Hapus" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-805 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
                 </div>
             </div>
         `;
     }).join('');
 
-    window.exportTicketsReport = function(type) {
-        const headers = ["Pengaju", "Seksi/Bidang", "Layanan", "Judul Pengajuan", "Batas Waktu", "Status", "PIC Ditunjuk"];
-        const rows = filtered.map(item => [
-            item.pengaju || '-',
-            item.bidang || '-',
-            item.jenis || '-',
-            item.judul || '-',
-            formatDate(item.deadline),
-            item.status || '-',
-            item.pic || '-'
-        ]);
-
-        if (type === 'csv') {
-            downloadCSV(headers, rows, `Tiket_Layanan_Humas_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
-        } else {
-            openPrintReportWindow("Daftar Pengajuan Layanan Humas Kalbar", headers, rows);
-        }
+    window.exportMcReport = function(type) {
+        const headers = ["Tanggal", "Nama Kegiatan", "Lokasi", "Jam Mulai", "Jenis", "Level", "Petugas MC", "Keterangan"];
+        const rows = filtered.map(item => [formatDate(item.tanggal), item.kegiatan, item.lokasi || '-', item.jam_mulai || '-', item.jenis || 'Internal', item.level || '-', item.petugas || '-', item.keterangan || '-']);
+        if (type === 'csv') downloadCSV(headers, rows, `Penugasan_MC_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
+        else openPrintReportWindow("Daftar Penugasan Petugas MC BPS Kalbar", headers, rows);
     };
 }
 
 // -------------------------------------------------------------
-// 7. Digital Asset Management (DAM) View
+// 7. MODUL BERITA RESMI STATISTIK (BRS) RILIS VIEW
 // -------------------------------------------------------------
-let assetSearch = '';
-let assetCatFilter = 'Semua';
+let brsSearch = '';
 
-function renderAssets(container) {
-    const categories = ['Semua', 'Template', 'Logo', 'Foto', 'Dokumen'];
-
+function renderBrsRilis(container) {
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">Bank Desain & Dokumentasi</h2>
-                <p class="text-xs text-slate-500 mt-1">Penyimpanan berkas aset visual resmi, logo brand kit BPS, template feeds, dan dokumentasi visual Humas.</p>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Modul BRS Rilis</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola arsip dokumen digital rilis BRS, infografis, dokumentasi YouTube/Zoom, dan kelengkapan highlight data.</p>
             </div>
-            <button onclick="openAssetUploadModal()" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                <i class="fa-solid fa-upload text-xs"></i> Unggah Aset Visual
-            </button>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="exportBrsReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-print"></i> Cetak Daftar
+                </button>
+                <button onclick="openModal('brs_rilis')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-plus text-xs"></i> Unggah Dokumen BRS
+                </button>
+            </div>
         </div>
 
-        <!-- Filter & Search Controls -->
-        <div class="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-xs">
-            <div class="relative w-full md:max-w-xs">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                </span>
-                <input type="text" id="asset-search-input" oninput="handleAssetSearch(this.value)" value="${assetSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-250 rounded-xl text-xs font-medium focus:bg-white focus:outline-none placeholder-slate-450 text-slate-700 transition-all" placeholder="Cari nama aset visual...">
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex justify-between items-center shadow-xs">
+            <div class="relative w-full max-w-xs">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <input type="text" oninput="brsSearch = this.value; drawBrsGrid();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari judul rilis data BRS...">
             </div>
-            <div class="flex flex-wrap gap-1.5" id="assets-filter-bar">
-                ${categories.map(c => `
-                    <button onclick="filterAssets('${c}', this)" class="asset-filter-btn px-4.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border ${
-                        c === assetCatFilter ? 'bg-indigo-650 text-white border-indigo-650 shadow-sm shadow-indigo-100' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                    } transition-all">${c}</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in" id="brs-grid-body">
+            <!-- Populated dynamically -->
+        </div>
+    `;
+    drawBrsGrid();
+}
+
+function drawBrsGrid() {
+    const grid = document.getElementById('brs-grid-body');
+    if (!grid) return;
+
+    let filtered = db.brsRilis;
+    if (brsSearch.trim()) {
+        const q = brsSearch.toLowerCase();
+        filtered = filtered.filter(item => item.judul && item.judul.toLowerCase().includes(q));
+    }
+
+    filtered.sort((a, b) => new Date(b.tanggal_rilis) - new Date(a.tanggal_rilis));
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div class="col-span-full bg-white dark:bg-slate-800 p-16 text-center text-slate-400 dark:text-slate-500 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
+                <i class="fa-solid fa-bullhorn text-4xl mb-2.5 text-slate-350 dark:text-slate-700"></i>
+                <p class="text-xs font-bold">Arsip Berita Resmi Statistik (BRS) kosong.</p>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = filtered.map(item => {
+        const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
+        // Completeness logic
+        const elements = [item.poster, item.infografis, item.doc_ruangan, item.doc_youtube, item.doc_zoom, item.highlight];
+        const loadedCount = elements.filter(Boolean).length;
+        const totalElements = elements.length;
+        const progressPercentage = Math.round((loadedCount / totalElements) * 100);
+        
+        let completenessBadge = progressPercentage === 100 
+            ? `<span class="px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-350 border border-emerald-250 dark:border-emerald-900 rounded-full text-[9px] font-bold"><i class="fa-solid fa-circle-check"></i> Dokumen Lengkap</span>`
+            : `<span class="px-2.5 py-0.5 bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-350 border border-amber-250 dark:border-amber-900 rounded-full text-[9px] font-bold"><i class="fa-solid fa-spinner animate-spin"></i> ${progressPercentage}% Terunggah</span>`;
+
+        return `
+            <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-205 dark:border-slate-700 p-5 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
+                <div>
+                    <div class="flex justify-between items-start gap-2">
+                        <span class="text-[9px] text-slate-450 dark:text-slate-500 font-extrabold uppercase tracking-widest"><i class="fa-solid fa-calendar mr-1"></i> ${formatDate(item.tanggal_rilis)}</span>
+                        ${completenessBadge}
+                    </div>
+                    <h4 class="font-extrabold text-slate-850 dark:text-slate-100 text-sm mt-3 leading-snug cursor-pointer hover:text-indigo-650 transition-colors" onclick="showDetail('brs_rilis', ${itemJson})">${item.judul}</h4>
+                    <p class="text-[9px] text-slate-450 dark:text-slate-550 mt-1">Versi: <strong class="text-indigo-650 dark:text-indigo-400">v${item.version || '1.0'}</strong></p>
+                    
+                    <!-- File grids with download/preview triggers -->
+                    <div class="mt-4 grid grid-cols-3 gap-2 text-center text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                        ${item.poster ? `<a href="${item.poster}" target="_blank" class="p-2 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-150 dark:border-indigo-900 rounded-lg hover:bg-indigo-50 transition-all flex flex-col items-center gap-1.5"><i class="fa-regular fa-image text-xs text-indigo-650 dark:text-indigo-400"></i> Poster</a>` : '<div class="p-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-700 rounded-lg text-slate-350 cursor-not-allowed flex flex-col items-center gap-1.5"><i class="fa-regular fa-image text-xs"></i> Kosong</div>'}
+                        ${item.infografis ? `<a href="${item.infografis}" target="_blank" class="p-2 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-150 dark:border-emerald-900 rounded-lg hover:bg-emerald-55 transition-all flex flex-col items-center gap-1.5"><i class="fa-solid fa-chart-pie text-xs text-emerald-650 dark:text-emerald-450"></i> Info</a>` : '<div class="p-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-700 rounded-lg text-slate-350 cursor-not-allowed flex flex-col items-center gap-1.5"><i class="fa-solid fa-chart-pie text-xs"></i> Kosong</div>'}
+                        ${item.highlight ? `<a href="${item.highlight}" target="_blank" class="p-2 bg-violet-50/50 dark:bg-violet-950/20 border border-violet-150 dark:border-violet-900 rounded-lg hover:bg-violet-50 transition-all flex flex-col items-center gap-1.5"><i class="fa-solid fa-file-invoice text-xs text-violet-650 dark:text-violet-400"></i> Highlight</a>` : '<div class="p-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-700 rounded-lg text-slate-350 cursor-not-allowed flex flex-col items-center gap-1.5"><i class="fa-solid fa-file-invoice text-xs"></i> Kosong</div>'}
+                    </div>
+
+                    <div class="mt-2.5 grid grid-cols-3 gap-2 text-center text-[9px] font-bold uppercase tracking-wider text-slate-650 dark:text-slate-400">
+                        ${item.doc_ruangan ? `<a href="${item.doc_ruangan}" target="_blank" class="p-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-200 transition-all text-[8px]"><i class="fa-solid fa-camera mr-1"></i> Kamera</a>` : '<span class="p-1.5 bg-slate-50 dark:bg-slate-800/30 border border-slate-150 dark:border-slate-700 text-slate-350 rounded-lg text-[8px]"><i class="fa-solid fa-camera mr-1"></i> N/A</span>'}
+                        ${item.doc_youtube ? `<a href="${item.doc_youtube}" target="_blank" class="p-1.5 bg-rose-50 dark:bg-rose-950/20 border border-rose-150 dark:border-rose-900 text-rose-650 dark:text-rose-400 rounded-lg hover:bg-rose-100 transition-all text-[8px]"><i class="fa-brands fa-youtube mr-1"></i> YouTube</a>` : '<span class="p-1.5 bg-slate-50 dark:bg-slate-800/30 border border-slate-150 dark:border-slate-700 text-slate-350 rounded-lg text-[8px]"><i class="fa-brands fa-youtube mr-1"></i> N/A</span>'}
+                        ${item.doc_zoom ? `<a href="${item.doc_zoom}" target="_blank" class="p-1.5 bg-blue-50 dark:bg-blue-950/20 border border-blue-150 dark:border-blue-900 text-blue-650 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-all text-[8px]"><i class="fa-solid fa-video mr-1"></i> Zoom</a>` : '<span class="p-1.5 bg-slate-50 dark:bg-slate-800/30 border border-slate-150 dark:border-slate-700 text-slate-350 rounded-lg text-[8px]"><i class="fa-solid fa-video mr-1"></i> N/A</span>'}
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-[10px]">
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="openModal('brs_rilis', ${itemJson})" title="Ubah" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        <button onclick="deleteItem('brs_rilis', ${item.id})" title="Hapus" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                    </div>
+                    <button onclick="showDetail('brs_rilis', ${itemJson})" class="text-[9px] font-bold text-indigo-650 dark:text-indigo-400 hover:underline">Lihat Rincian →</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    window.exportBrsReport = function(type) {
+        const headers = ["Tanggal Rilis", "Judul Rilis Data", "Versi Dokumen", "Status Kelengkapan"];
+        const rows = filtered.map(item => {
+            const loaded = [item.poster, item.infografis, item.doc_ruangan, item.doc_youtube, item.doc_zoom, item.highlight].filter(Boolean).length;
+            return [formatDate(item.tanggal_rilis), item.judul, `v${item.version || '1.0'}`, `${loaded}/6 Terupload` + (loaded === 6 ? ' (Lengkap)' : '')];
+        });
+        openPrintReportWindow("Arsip Berita Resmi Statistik (BRS) BPS Kalbar", headers, rows);
+    };
+}
+
+// -------------------------------------------------------------
+// 8. MODUL UCAPAN HARI BESAR VIEW
+// -------------------------------------------------------------
+let hariBesarSearch = '';
+
+function renderHariBesar(container) {
+    container.innerHTML = `
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
+            <div>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Ucapan Hari Besar</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Daftar agenda ucapan hari besar nasional/keagamaan, kalender perayaan, serta PIC pembuat konten.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="exportHariBesarReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-print"></i> Cetak Daftar
+                </button>
+                <button onclick="openModal('hari_besar')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-plus text-xs"></i> Tambah Ucapan
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex justify-between items-center shadow-xs">
+            <div class="relative w-full max-w-xs">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <input type="text" oninput="hariBesarSearch = this.value; drawHariBesarTable();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari hari besar...">
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left text-slate-650 dark:text-slate-300">
+                    <thead class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50/60 dark:bg-slate-900/40 uppercase border-b border-slate-200 dark:border-slate-700 font-black tracking-wider">
+                        <tr>
+                            <th class="px-6 py-4">Tanggal</th>
+                            <th class="px-6 py-4">Nama Hari Besar</th>
+                            <th class="px-6 py-4">Pembuat Konten (PIC)</th>
+                            <th class="px-6 py-4">Status Progress</th>
+                            <th class="px-6 py-4 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="haribesar-table-body">
+                        <!-- Filled by drawHariBesarTable -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    drawHariBesarTable();
+}
+
+function drawHariBesarTable() {
+    const body = document.getElementById('haribesar-table-body');
+    if (!body) return;
+
+    let filtered = db.hariBesar;
+    if (hariBesarSearch.trim()) {
+        const q = hariBesarSearch.toLowerCase();
+        filtered = filtered.filter(item => item.hari_besar && item.hari_besar.toLowerCase().includes(q));
+    }
+
+    filtered.sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
+
+    if (filtered.length === 0) {
+        body.innerHTML = `
+            <tr><td colspan="5" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-heart-broken text-3xl mb-2 text-slate-350 dark:text-slate-705"></i><p class="text-xs font-bold">Tidak ada agenda ucapan hari besar.</p></td></tr>
+        `;
+        return;
+    }
+
+    body.innerHTML = filtered.map(item => {
+        const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
+        let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-850 dark:bg-emerald-950/40 dark:text-emerald-450' : 'bg-amber-50 text-amber-850 dark:bg-amber-950/40 dark:text-amber-450';
+        return `
+            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
+                <td class="px-6 py-4 font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">${formatDate(item.tanggal)}</td>
+                <td class="px-6 py-4 font-extrabold text-slate-850 dark:text-slate-200 leading-snug">${item.hari_besar}</td>
+                <td class="px-6 py-4 font-bold text-indigo-650 dark:text-indigo-400 whitespace-nowrap">${item.pembuat_konten || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Draft'}</span></td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                    <div class="flex items-center justify-center gap-1.5" onclick="event.stopPropagation()">
+                        <button onclick="openModal('hari_besar', ${itemJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        <button onclick="deleteItem('hari_besar', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-455 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Hapus"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    window.exportHariBesarReport = function(type) {
+        const headers = ["Tanggal", "Hari Besar", "Pembuat Konten (PIC)", "Status"];
+        const rows = filtered.map(item => [formatDate(item.tanggal), item.hari_besar, item.pembuat_konten || '-', item.status || 'Draft']);
+        openPrintReportWindow("Kalender & Penugasan Ucapan Hari Besar BPS Kalbar", headers, rows);
+    };
+}
+
+// -------------------------------------------------------------
+// 9. MODUL REKAP KEGIATAN & MONITORING SLA VIEW
+// -------------------------------------------------------------
+function renderRekapKegiatan(container) {
+    // Compile all tasks in the system to calculate SLA status
+    const allTasks = [];
+
+    // Map rekap rutin
+    db.rekapRutin.forEach(item => {
+        allTasks.push({
+            judul: item.kegiatan,
+            jenis: 'Rutin',
+            petugas: item.petugas || '-',
+            tanggal: item.tanggal,
+            progress: item.status === 'Selesai' ? 100 : 35,
+            status: item.status || 'Draft'
+        });
+    });
+
+    // Map ad hoc
+    db.adHoc.forEach(item => {
+        allTasks.push({
+            judul: item.kegiatan,
+            jenis: 'Ad Hoc',
+            petugas: item.petugas || '-',
+            tanggal: item.tanggal,
+            progress: item.status === 'Selesai' ? 100 : 40,
+            status: item.status || 'Draft'
+        });
+    });
+
+    // Map protokoler
+    db.protokoler.forEach(item => {
+        allTasks.push({
+            judul: item.kegiatan,
+            jenis: 'Protokoler',
+            petugas: item.petugas || '-',
+            tanggal: item.tanggal,
+            progress: item.status === 'Selesai' ? 100 : 50,
+            status: item.status || 'Draft'
+        });
+    });
+
+    // Map MC
+    db.mc.forEach(item => {
+        allTasks.push({
+            judul: item.kegiatan,
+            jenis: 'MC',
+            petugas: item.petugas || '-',
+            tanggal: item.tanggal,
+            progress: item.status === 'Selesai' ? 100 : 50,
+            status: item.status || 'Draft'
+        });
+    });
+
+    // Map Content Planner
+    db.contentPlanner.forEach(item => {
+        allTasks.push({
+            judul: item.judul,
+            jenis: 'Konten Planner',
+            petugas: item.assignedTo || '-',
+            tanggal: item.jadwal,
+            progress: item.progres || 0,
+            status: item.status || 'Draft'
+        });
+    });
+
+    // Evaluate SLA
+    let totalSlaAman = 0;
+    let totalSlaMendekati = 0;
+    let totalSlaTerlambat = 0;
+
+    allTasks.forEach(task => {
+        const deadlineDate = new Date(task.tanggal);
+        const today = new Date().setHours(0,0,0,0);
+        const daysRemaining = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24));
+
+        if (task.progress === 100 || ['Selesai', 'Done', 'Posted'].includes(task.status)) {
+            task.sla = 'Aman';
+            task.slaClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200';
+            totalSlaAman++;
+        } else if (daysRemaining < 0) {
+            task.sla = 'Terlambat';
+            task.slaClass = 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-200';
+            totalSlaTerlambat++;
+        } else if (daysRemaining <= 3) {
+            task.sla = 'Mendekati Deadline';
+            task.slaClass = 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200';
+            totalSlaMendekati++;
+        } else {
+            task.sla = 'Aman';
+            task.slaClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200';
+            totalSlaAman++;
+        }
+    });
+
+    // Completion percentage
+    const completedTasks = allTasks.filter(t => t.progress === 100).length;
+    const completionRate = allTasks.length > 0 ? Math.round((completedTasks / allTasks.length) * 100) : 0;
+
+    container.innerHTML = `
+        <div class="mb-8 animate-fade-in">
+            <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">SLA & Rekap Pekerjaan</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pantau Service Level Agreement (SLA), persentase penyelesaian, dan daftar seluruh pekerjaan aktif.</p>
+        </div>
+
+        <!-- SLA Overview Metrics -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-4">
+                <div class="w-11 h-11 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-650 shrink-0 font-extrabold text-sm">${completionRate}%</div>
+                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Persentase Selesai</p><p class="text-xl font-black text-slate-800 dark:text-white mt-0.5">${completedTasks} / ${allTasks.length}</p></div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-4">
+                <div class="w-11 h-11 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 shrink-0"><i class="fa-solid fa-circle-check text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">SLA Aman</p><p class="text-xl font-black text-slate-800 dark:text-white mt-0.5">${totalSlaAman}</p></div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-4">
+                <div class="w-11 h-11 bg-amber-50 dark:bg-amber-950 border border-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0"><i class="fa-solid fa-bell text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Mendekati Deadline</p><p class="text-xl font-black text-slate-800 dark:text-white mt-0.5">${totalSlaMendekati}</p></div>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-4">
+                <div class="w-11 h-11 bg-rose-50 dark:bg-rose-950 border border-rose-100 rounded-xl flex items-center justify-center text-rose-650 shrink-0"><i class="fa-solid fa-clock-rotate-left text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Terlambat</p><p class="text-xl font-black text-slate-800 dark:text-white mt-0.5">${totalSlaTerlambat}</p></div>
+            </div>
+        </div>
+
+        <!-- Active Tasks list -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs">
+            <h3 class="font-bold text-slate-850 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-solid fa-list-check text-indigo-500"></i> Daftar Pekerjaan Aktif</h3>
+            <div class="space-y-4">
+                ${allTasks.map(task => `
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3.5 last:border-none last:pb-0">
+                        <div class="flex-1 mr-4 mb-2 sm:mb-0">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-350 border border-slate-200 dark:border-slate-600 rounded text-[8px] font-bold uppercase tracking-wider">${task.jenis}</span>
+                                <h4 class="font-extrabold text-xs text-slate-850 dark:text-slate-200 leading-snug">${task.judul}</h4>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">PIC: <strong class="text-slate-700 dark:text-slate-300 font-semibold">${task.petugas}</strong> • Batas: ${formatDate(task.tanggal)}</p>
+                            <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1 mt-2">
+                                <div class="bg-gradient-to-r from-indigo-500 to-indigo-650 h-1 rounded-full" style="width: ${task.progress}%"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="px-2 py-0.5 rounded text-[8px] border font-black uppercase tracking-wider ${task.slaClass}">${task.sla}</span>
+                            <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold text-center shrink-0 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">${task.status}</span>
+                        </div>
+                    </div>
                 `).join('')}
             </div>
         </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 animate-fade-in" id="assets-grid">
-            <!-- Drawn dynamically -->
-        </div>
     `;
-
-    drawAssetsGrid();
 }
-
-function handleAssetSearch(val) {
-    assetSearch = val;
-    drawAssetsGrid();
-}
-
-window.filterAssets = function (cat, btn) {
-    assetCatFilter = cat;
-    document.querySelectorAll('.asset-filter-btn').forEach(b => {
-        b.className = 'asset-filter-btn px-4.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 transition-all';
-    });
-    btn.className = 'asset-filter-btn px-4.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border bg-indigo-650 text-white border-indigo-650 shadow-sm shadow-indigo-100 transition-all';
-    drawAssetsGrid();
-};
-
-function drawAssetsGrid() {
-    const grid = document.getElementById('assets-grid');
-    if (!grid) return;
-
-    let filtered = db.assets;
-    if (assetCatFilter !== 'Semua') {
-        filtered = filtered.filter(a => a.kategori === assetCatFilter);
-    }
-    if (assetSearch.trim()) {
-        const query = assetSearch.toLowerCase();
-        filtered = filtered.filter(a => a.nama && a.nama.toLowerCase().includes(query));
-    }
-
-    // Sort latest first
-    filtered.sort((a, b) => b.id - a.id);
-
-    if (filtered.length === 0) {
-        grid.innerHTML = `
-            <div class="col-span-full bg-white p-16 text-center text-slate-400 rounded-2xl border border-dashed border-slate-250">
-                <i class="fa-solid fa-folder-open text-4xl mb-2.5 text-slate-350"></i>
-                <p class="text-xs font-bold">Belum ada aset digital dalam kategori ini.</p>
-            </div>
-        `;
-        return;
-    }
-
-    grid.innerHTML = filtered.map(a => `
-        <div class="bg-white rounded-2xl border border-slate-205 overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300 flex flex-col group">
-            <div class="h-32 bg-slate-100 relative overflow-hidden shrink-0 border-b border-slate-100">
-                <img src="${a.preview}" alt="${a.nama}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-                <span class="absolute top-2 left-2 px-2.5 py-0.5 bg-black/60 backdrop-blur-md text-white rounded-md text-[8px] font-bold uppercase tracking-widest">${a.kategori}</span>
-            </div>
-            <div class="p-4 flex-1 flex flex-col justify-between">
-                <div>
-                    <h4 class="font-bold text-slate-800 text-xs truncate leading-snug" title="${a.nama}">${a.nama}</h4>
-                    <p class="text-[9px] text-slate-450 mt-1 font-semibold uppercase tracking-wider">Ukuran: ${a.ukuran} • Oleh: ${a.pengunggah}</p>
-                </div>
-                <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-[9px]">
-                    <span class="text-slate-400 font-semibold uppercase tracking-wider"><i class="fa-regular fa-calendar mr-1"></i>${formatDate(a.tanggal)}</span>
-                    <div class="flex items-center gap-1.5">
-                        <button onclick="deleteItem('assets', ${a.id})" title="Hapus Berkas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                        <a href="${a.preview}" target="_blank" class="text-indigo-650 hover:text-indigo-850 font-bold flex items-center gap-1 uppercase tracking-wider text-[8px] bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-150 transition-all">
-                            <i class="fa-solid fa-eye"></i> Lihat
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-window.openAssetUploadModal = function () {
-    currentModalType = 'asset_upload';
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.id = 'dynamic-modal';
-    modal.innerHTML = `
-        <div class="modal-content p-6 shadow-2xl border border-slate-100">
-            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
-                <h3 class="text-lg font-black text-slate-900">Unggah Aset Visual</h3>
-                <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
-            </div>
-            <form onsubmit="saveAssetUpload(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Aset / Judul Berkas <span class="text-rose-500">*</span></label>
-                    <input type="text" id="asset-name" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all font-medium text-slate-800" placeholder="Contoh: Logo Hari Statistik Nasional 2026.png" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kategori Aset</label>
-                    <select id="asset-cat" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all">
-                        <option value="Template">Template Desain</option>
-                        <option value="Logo">Logo & Brand Kit</option>
-                        <option value="Foto">Foto Dokumentasi</option>
-                        <option value="Dokumen">Dokumen (Press Release / PDF)</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Pilih Berkas <span class="text-rose-500">*</span></label>
-                    <input type="file" id="asset-file" class="w-full border border-dashed border-slate-300 p-6 rounded-xl bg-slate-50 cursor-pointer text-xs focus:outline-none hover:bg-slate-100 transition-all" required>
-                </div>
-                <div class="flex gap-3 mt-8 pt-4 border-t border-slate-100">
-                    <button type="submit" class="btn-primary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider"><i class="fa-solid fa-upload mr-1.5"></i> Unggah</button>
-                    <button type="button" onclick="closeModal()" class="btn-secondary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider">Batal</button>
-                </div>
-            </form>
-        </div>
-    `;
-    document.body.appendChild(modal);
-};
 
 // -------------------------------------------------------------
-// 8. Media Monitoring & Sentiment Analysis View
+// 10. INTEGRATED CALENDAR VIEW
 // -------------------------------------------------------------
-let monitoringSearch = '';
-let monitoringSentimentFilter = '';
-let monitoringPage = 1;
-const monitoringLimit = 8;
+function renderIntegratedCalendar(container) {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
 
-function renderMonitoring(container) {
+    // Map all calendar events
+    const events = [];
+    db.rekapRutin.forEach(e => events.push({ title: `[Rutin] ${e.kegiatan}`, date: e.tanggal, color: 'bg-indigo-500' }));
+    db.adHoc.forEach(e => events.push({ title: `[AdHoc] ${e.kegiatan}`, date: e.tanggal, color: 'bg-emerald-500' }));
+    db.protokoler.forEach(e => events.push({ title: `[Proto] ${e.kegiatan}`, date: e.tanggal, color: 'bg-violet-500' }));
+    db.mc.forEach(e => events.push({ title: `[MC] ${e.kegiatan}`, date: e.tanggal, color: 'bg-sky-500' }));
+    db.brsRilis.forEach(e => events.push({ title: `[BRS] ${e.judul}`, date: e.tanggal_rilis, color: 'bg-rose-500' }));
+    db.hariBesar.forEach(e => events.push({ title: `[HariBesar] ${e.hari_besar}`, date: e.tanggal, color: 'bg-amber-500' }));
+
+    // Generate Calendar Grid
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    let daysHtml = [];
+    // Empty prefix padding
+    for (let i = 0; i < firstDay; i++) {
+        daysHtml.push(`<div class="h-28 border border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10 p-1"></div>`);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const dayEvents = events.filter(e => e.date && e.date.includes(dateStr));
+        const eventsListHtml = dayEvents.map(e => `
+            <div class="text-[8px] font-bold ${e.color} text-white px-1.5 py-0.5 rounded truncate mt-1" title="${e.title}">${e.title}</div>
+        `).join('');
+
+        daysHtml.push(`
+            <div class="h-28 border border-slate-100 dark:border-slate-800 p-2 bg-white dark:bg-slate-850 flex flex-col justify-between overflow-y-auto">
+                <span class="text-xs font-black text-slate-700 dark:text-slate-350">${d}</span>
+                <div class="flex-1 overflow-y-auto mt-1">${eventsListHtml}</div>
+            </div>
+        `);
+    }
+
     container.innerHTML = `
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
-            <div>
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">Media Monitoring</h2>
-                <p class="text-xs text-slate-500 mt-1">Pantau pemberitaan rilis data BPS Provinsi Kalimantan Barat di berbagai portal berita online lokal.</p>
-            </div>
-            <div class="flex flex-wrap gap-2">
-                <button onclick="exportMonitoringReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak Kliping
-                </button>
-                <button onclick="exportMonitoringReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-download"></i> Ekspor CSV
-                </button>
-                <button onclick="openAddMonitoringModal()" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                    <i class="fa-solid fa-plus text-xs"></i> Tambah Kliping Berita
-                </button>
-            </div>
+        <div class="mb-8 animate-fade-in">
+            <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Kalender Kegiatan Terintegrasi</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Jadwal agenda harian, rilis BRS, ucapan hari besar, dan kegiatan protokoler pimpinan Kalbar.</p>
         </div>
 
-        <!-- Metric overview -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 animate-fade-in font-sans" id="monitoring-stats-grid">
-            <!-- Dynamically populated in drawMonitoringTable() -->
-        </div>
-
-        <!-- Layout grid: table on left, chart on right -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
-            <!-- Left panel -->
-            <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col justify-between">
-                <div>
-                    <!-- Search & filter controls -->
-                    <div class="bg-slate-50/50 p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-4 justify-between items-center">
-                        <div class="relative w-full sm:max-w-xs">
-                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                                <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                            </span>
-                            <input type="text" id="monitoring-search-input" oninput="handleMonitoringSearch(this.value)" value="${monitoringSearch}" class="w-full pl-9 pr-4 py-2 bg-white border border-slate-250 rounded-xl text-xs font-medium focus:outline-none placeholder-slate-450 text-slate-700 transition-all" placeholder="Cari portal media atau headline...">
-                        </div>
-                        <div class="flex items-center gap-2 w-full sm:w-auto">
-                            <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-filter mr-0.5 text-slate-450"></i> Sentimen:</span>
-                            <select id="monitoring-sentiment-select" onchange="handleMonitoringSentimentFilter(this.value)" class="text-[10px] font-bold py-1.5 px-2 bg-white border border-slate-250 rounded-lg text-slate-650 focus:outline-none min-w-[100px] shadow-xs">
-                                <option value="">Semua</option>
-                                <option ${monitoringSentimentFilter === 'Positif' ? 'selected' : ''} value="Positif">Positif</option>
-                                <option ${monitoringSentimentFilter === 'Netral' ? 'selected' : ''} value="Netral">Netral</option>
-                                <option ${monitoringSentimentFilter === 'Negatif' ? 'selected' : ''} value="Negatif">Negatif</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left text-slate-650">
-                            <thead class="text-[9px] text-slate-500 bg-slate-50/60 uppercase border-b border-slate-200 font-bold tracking-wider">
-                                <tr>
-                                    <th class="px-6 py-4">Portal Media</th>
-                                    <th class="px-6 py-4">Kliping Headline & Kutipan</th>
-                                    <th class="px-6 py-4">Tanggal</th>
-                                    <th class="px-6 py-4 text-center">Sentimen</th>
-                                    <th class="px-6 py-4 text-center">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100" id="monitoring-table-body">
-                                <!-- Filled by drawMonitoringTable() -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Pagination footer -->
-                <div class="p-4 border-t border-slate-100 flex items-center justify-between" id="monitoring-pagination">
-                    <!-- Filled dynamically -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-black text-slate-800 dark:text-white text-base uppercase tracking-wider">${now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</h3>
+                <div class="text-[9px] font-bold uppercase tracking-wider flex flex-wrap gap-2">
+                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-indigo-500 rounded-md mr-1"></span> Rutin</span>
+                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-emerald-500 rounded-md mr-1"></span> Ad Hoc</span>
+                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-violet-500 rounded-md mr-1"></span> Protokol</span>
+                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-rose-500 rounded-md mr-1"></span> BRS</span>
+                    <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-amber-500 rounded-md mr-1"></span> Hari Besar</span>
                 </div>
             </div>
 
-            <!-- Right panel: Sentiment chart -->
-            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between min-h-[360px]" id="monitoring-chart-panel">
-                <h3 class="font-bold text-slate-800 text-sm mb-4 border-b pb-2 border-slate-100 flex items-center gap-1.5"><i class="fa-solid fa-chart-pie text-indigo-650 text-base"></i> Proporsi Sentimen</h3>
-                <div class="w-36 h-36 relative mx-auto flex items-center justify-center">
-                    <canvas id="mediaSentimentChart" class="w-full h-full"></canvas>
-                </div>
-                <div class="mt-6 flex flex-col gap-2 w-full text-[10px] text-slate-600 font-bold uppercase tracking-wider" id="sentiment-breakdown">
-                    <!-- Filled dynamically -->
-                </div>
+            <!-- Grid Header Days -->
+            <div class="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-700 text-center text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 py-3 rounded-t-xl shrink-0">
+                <div>Minggu</div><div>Senin</div><div>Selasa</div><div>Rabu</div><div>Kamis</div><div>Jumat</div><div>Sabtu</div>
+            </div>
+
+            <!-- Calendar Days Grid -->
+            <div class="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-700 rounded-b-xl overflow-hidden shadow-xs">
+                ${daysHtml.join('')}
             </div>
         </div>
     `;
-
-    drawMonitoringTable();
 }
 
-function handleMonitoringSearch(val) {
-    monitoringSearch = val;
-    monitoringPage = 1;
-    drawMonitoringTable();
+// -------------------------------------------------------------
+// 11. AUDIT TRAIL VIEW
+// -------------------------------------------------------------
+let auditSearch = '';
+let auditPage = 1;
+const auditLimit = 10;
+
+function renderAuditTrail(container) {
+    container.innerHTML = `
+        <div class="mb-8 animate-fade-in">
+            <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Audit Trail & Activity Log</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Riwayat penambahan, modifikasi, penghapusan data, dan log audit aktivitas pengguna sistem.</p>
+        </div>
+
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex justify-between items-center shadow-xs">
+            <div class="relative w-full max-w-xs">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <input type="text" oninput="auditSearch = this.value; drawAuditTrail();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari log atau user...">
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left text-slate-650 dark:text-slate-350">
+                    <thead class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50/60 dark:bg-slate-900/40 uppercase border-b border-slate-200 dark:border-slate-700 font-black tracking-wider">
+                        <tr>
+                            <th class="px-6 py-4">Waktu</th>
+                            <th class="px-6 py-4">Pengguna</th>
+                            <th class="px-6 py-4">Aksi</th>
+                            <th class="px-6 py-4">Rincian Perubahan / Detail</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="audit-table-body">
+                        <!-- Filled by drawAuditTrail -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between" id="audit-pagination">
+                <!-- Filled dynamically -->
+            </div>
+        </div>
+    `;
+    drawAuditTrail();
 }
 
-function handleMonitoringSentimentFilter(val) {
-    monitoringSentimentFilter = val;
-    monitoringPage = 1;
-    drawMonitoringTable();
-}
+function drawAuditTrail() {
+    const body = document.getElementById('audit-table-body');
+    const pagination = document.getElementById('audit-pagination');
+    if (!body || !pagination) return;
 
-function drawMonitoringTable() {
-    const tableBody = document.getElementById('monitoring-table-body');
-    const pagination = document.getElementById('monitoring-pagination');
-    const statsGrid = document.getElementById('monitoring-stats-grid');
-    const breakdown = document.getElementById('sentiment-breakdown');
-    
-    if (!tableBody || !pagination || !statsGrid || !breakdown) return;
-
-    // Filter
-    let filtered = db.monitoring;
-    if (monitoringSearch.trim()) {
-        const query = monitoringSearch.toLowerCase();
-        filtered = filtered.filter(item => 
-            (item.media && item.media.toLowerCase().includes(query)) ||
-            (item.judul && item.judul.toLowerCase().includes(query)) ||
-            (item.ringkasan && item.ringkasan.toLowerCase().includes(query))
+    let filtered = db.auditTrail;
+    if (auditSearch.trim()) {
+        const q = auditSearch.toLowerCase();
+        filtered = filtered.filter(log => 
+            (log.user && log.user.toLowerCase().includes(q)) || 
+            (log.detail && log.detail.toLowerCase().includes(q)) || 
+            (log.action && log.action.toLowerCase().includes(q))
         );
     }
-    if (monitoringSentimentFilter) {
-        filtered = filtered.filter(item => item.sentimen === monitoringSentimentFilter);
-    }
 
-    // Sort by date descending (latest first)
-    filtered.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+    filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    // Stats calculations
     const totalCount = filtered.length;
-    const posCount = filtered.filter(m => m.sentimen === 'Positif').length;
-    const netCount = filtered.filter(m => m.sentimen === 'Netral').length;
-    const negCount = filtered.filter(m => m.sentimen === 'Negatif').length;
-    const positiveRate = totalCount > 0 ? Math.round((posCount / totalCount) * 100) : 0;
-
-    // Stats Grid HTML
-    statsGrid.innerHTML = `
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Kliping</p><p class="text-xl font-black text-slate-800 mt-1">${totalCount}</p></div>
-            <div class="w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-650 text-lg"><i class="fa-solid fa-newspaper"></i></div>
-        </div>
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Sentimen Positif</p><p class="text-xl font-black text-emerald-650 mt-1">${posCount}</p></div>
-            <div class="w-10 h-10 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 text-lg"><i class="fa-regular fa-face-smile"></i></div>
-        </div>
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Sentimen Negatif</p><p class="text-xl font-black text-rose-650 mt-1">${negCount}</p></div>
-            <div class="w-10 h-10 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-center text-rose-650 text-lg"><i class="fa-regular fa-face-frown"></i></div>
-        </div>
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Pemberitaan Positif</p><p class="text-xl font-black text-indigo-600 mt-1">${positiveRate}%</p></div>
-            <div class="w-10 h-10 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 text-lg"><i class="fa-solid fa-chart-line"></i></div>
-        </div>
-    `;
-
-    // Breakdown HTML
-    breakdown.innerHTML = `
-        <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span> Positif</span><strong>${posCount} (${totalCount ? Math.round((posCount / totalCount) * 100) : 0}%)</strong></div>
-        <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-slate-400 rounded-full"></span> Netral</span><strong>${netCount} (${totalCount ? Math.round((netCount / totalCount) * 100) : 0}%)</strong></div>
-        <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-rose-500 rounded-full"></span> Negatif</span><strong>${negCount} (${totalCount ? Math.round((negCount / totalCount) * 100) : 0}%)</strong></div>
-    `;
-
-    // Paginate
-    const totalPages = Math.ceil(totalCount / monitoringLimit) || 1;
-    if (monitoringPage > totalPages) monitoringPage = totalPages;
-    const offset = (monitoringPage - 1) * monitoringLimit;
-    const paginatedItems = filtered.slice(offset, offset + monitoringLimit);
+    const totalPages = Math.ceil(totalCount / auditLimit) || 1;
+    if (auditPage > totalPages) auditPage = totalPages;
+    const offset = (auditPage - 1) * auditLimit;
+    const paginatedItems = filtered.slice(offset, offset + auditLimit);
 
     if (paginatedItems.length === 0) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="5" class="py-16 text-center text-slate-400">
-                    <i class="fa-solid fa-face-meh text-3xl mb-2 text-slate-300"></i>
-                    <p class="text-xs font-bold">Kliping berita tidak ditemukan.</p>
-                </td>
-            </tr>
+        body.innerHTML = `
+            <tr><td colspan="4" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-shoe-prints text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Log audit kosong.</p></td></tr>
         `;
         pagination.innerHTML = '';
         return;
     }
 
-    tableBody.innerHTML = paginatedItems.map(m => {
-        let badge = '';
-        if (m.sentimen === 'Positif') {
-            badge = `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-250 rounded text-[9px] font-bold flex items-center justify-center gap-1 w-20 shadow-xs"><i class="fa-solid fa-smile-wink"></i>Positif</span>`;
-        } else if (m.sentimen === 'Negatif') {
-            badge = `<span class="px-2.5 py-0.5 bg-rose-50 text-rose-800 border border-rose-250 rounded text-[9px] font-bold flex items-center justify-center gap-1 w-20 shadow-xs"><i class="fa-solid fa-frown-open"></i>Negatif</span>`;
-        } else {
-            badge = `<span class="px-2.5 py-0.5 bg-slate-50 text-slate-650 border border-slate-200 rounded text-[9px] font-bold flex items-center justify-center gap-1 w-20 shadow-xs"><i class="fa-solid fa-meh"></i>Netral</span>`;
-        }
+    body.innerHTML = paginatedItems.map(log => `
+        <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
+            <td class="px-6 py-3.5 font-semibold text-slate-500 whitespace-nowrap">${new Date(log.timestamp).toLocaleString('id-ID')}</td>
+            <td class="px-6 py-3.5 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">${log.user}</td>
+            <td class="px-6 py-3.5 whitespace-nowrap"><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-650 dark:text-slate-300 font-bold uppercase tracking-wide text-[8px] rounded border border-slate-200 dark:border-slate-600">${log.action}</span></td>
+            <td class="px-6 py-3.5 font-medium text-slate-755 dark:text-slate-250 leading-relaxed">${log.detail}</td>
+        </tr>
+    `).join('');
 
-        return `
-            <tr class="hover:bg-slate-50/50 transition-colors">
-                <td class="px-6 py-4 font-bold text-slate-800 whitespace-nowrap">${m.media}</td>
-                <td class="px-6 py-4">
-                    <div class="font-extrabold text-slate-800 leading-snug">${m.judul}</div>
-                    <div class="text-[10px] text-slate-500 mt-1 leading-relaxed">${m.ringkasan}</div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-500">${formatDate(m.tanggal)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-center flex justify-center items-center h-full pt-6">${badge}</td>
-                <td class="px-6 py-4 text-center whitespace-nowrap" onclick="event.stopPropagation()">
-                    <div class="flex items-center justify-center gap-1.5">
-                        <button onclick="deleteItem('monitoring', ${m.id})" title="Hapus Kliping" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                        <a href="${m.url}" target="_blank" class="text-indigo-650 hover:text-indigo-850 flex items-center justify-center gap-1 uppercase tracking-wider text-[8px] bg-slate-50 hover:bg-indigo-50 border border-slate-200 px-2 py-1 rounded-lg font-bold transition-all">
-                            <i class="fa-solid fa-external-link"></i> Buka
-                        </a>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
-
-    // Pagination HTML
     pagination.innerHTML = `
-        <span class="text-[10px] font-semibold text-slate-450">Menampilkan ${offset + 1} - ${Math.min(offset + monitoringLimit, totalCount)} dari ${totalCount} kliping</span>
+        <span class="text-[10px] font-semibold text-slate-450">Menampilkan ${offset + 1} - ${Math.min(offset + auditLimit, totalCount)} dari ${totalCount} log</span>
         <div class="flex gap-2">
-            <button onclick="changeMonitoringPage(${monitoringPage - 1})" ${monitoringPage === 1 ? 'disabled' : ''} class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-550 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
-            <button onclick="changeMonitoringPage(${monitoringPage + 1})" ${monitoringPage === totalPages ? 'disabled' : ''} class="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-550 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+            <button onclick="changeAuditPage(${auditPage - 1})" ${auditPage === 1 ? 'disabled' : ''} class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-550 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-all"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
+            <button onclick="changeAuditPage(${auditPage + 1})" ${auditPage === totalPages ? 'disabled' : ''} class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-550 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-all"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
         </div>
     `;
 
-    window.changeMonitoringPage = function(p) {
+    window.changeAuditPage = function(p) {
         if (p < 1 || p > totalPages) return;
-        monitoringPage = p;
-        drawMonitoringTable();
-    };
-
-    // Re-initialize Doughnut Chart
-    setTimeout(() => {
-        const ctx = document.getElementById('mediaSentimentChart')?.getContext('2d');
-        if (ctx) {
-            if (window.sentimentChartInstance) {
-                window.sentimentChartInstance.destroy();
-            }
-            window.sentimentChartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Positif', 'Netral', 'Negatif'],
-                    datasets: [{
-                        data: [posCount, netCount, negCount],
-                        backgroundColor: ['#10b981', '#94a3b8', '#ef4444'],
-                        borderWidth: 0,
-                        hoverOffset: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                            padding: 8,
-                            bodyFont: { size: 10, family: 'Inter' }
-                        }
-                    },
-                    cutout: '72%'
-                }
-            });
-        }
-    }, 50);
-
-    window.exportMonitoringReport = function(type) {
-        const headers = ["Portal Media", "Headline Kliping", "Kutipan Ringkasan", "Tanggal Kliping", "Indeks Sentimen"];
-        const rows = filtered.map(item => [
-            item.media || '-',
-            item.judul || '-',
-            item.ringkasan || '-',
-            formatDate(item.tanggal),
-            item.sentimen || '-'
-        ]);
-
-        if (type === 'csv') {
-            downloadCSV(headers, rows, `Kliping_Berita_Media_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
-        } else {
-            openPrintReportWindow("Kliping Media Monitoring BPS Kalbar", headers, rows);
-        }
+        auditPage = p;
+        drawAuditTrail();
     };
 }
 
-window.openAddMonitoringModal = function () {
-    currentModalType = 'add_monitoring';
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.id = 'dynamic-modal';
-    modal.innerHTML = `
-        <div class="modal-content p-6 shadow-2xl border border-slate-100">
-            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
-                <h3 class="text-lg font-black text-slate-900">Tambah Kliping Berita</h3>
-                <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
+// -------------------------------------------------------------
+// 12. CONFIGURATION & DATABASE BACKUP/RESTORE VIEW
+// -------------------------------------------------------------
+function renderSettingsPage(container) {
+    container.innerHTML = `
+        <div class="mb-8 animate-fade-in">
+            <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Master & Database Settings</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Konfigurasi data master, kelola daftar pengguna sistem, serta backup & restore database.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+            <!-- Backup & Restore -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
+                <div>
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-solid fa-database text-indigo-500"></i> Backup & Restore</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Cadangkan seluruh database cache lokal beserta pengaturan sistem ke file JSON. Anda juga dapat mengimpor file backup untuk memulihkan seluruh data sistem.</p>
+                </div>
+                <div class="space-y-4">
+                    <button onclick="triggerDatabaseBackup()" class="w-full btn-primary py-2.5 text-xs font-bold uppercase tracking-wider flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-download"></i> Backup Database (JSON)
+                    </button>
+                    <div class="border border-dashed border-slate-300 dark:border-slate-650 p-4 rounded-xl text-center">
+                        <p class="text-[10px] font-bold text-slate-450 uppercase mb-3">Impor Data Restore</p>
+                        <input type="file" id="db-restore-file" onchange="triggerDatabaseRestore(event)" class="hidden">
+                        <label for="db-restore-file" class="btn-secondary py-2 px-4 text-xs font-bold uppercase tracking-wider cursor-pointer inline-flex items-center gap-1.5">
+                            <i class="fa-solid fa-upload"></i> Pilih File Cadangan
+                        </label>
+                    </div>
+                </div>
             </div>
-            <form onsubmit="saveMonitoringItem(event)" class="space-y-4">
+
+            <!-- Master Data (Rubrikasi & Bidang) -->
+            <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Portal Media <span class="text-rose-500">*</span></label>
-                    <input type="text" id="mon-media" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all font-medium text-slate-800" placeholder="Contoh: Tribun Pontianak" required>
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-solid fa-sliders text-indigo-500"></i> Data Master Konfigurasi</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Daftar Bidang / Seksi</p>
+                            <div class="space-y-2 max-h-48 overflow-y-auto pr-1" id="master-bidang-list">
+                                <!-- populated dynamically -->
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Daftar Rubrikasi</p>
+                            <div class="space-y-2 max-h-48 overflow-y-auto pr-1" id="master-rubrik-list">
+                                <!-- populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Judul Headline Berita <span class="text-rose-500">*</span></label>
-                    <input type="text" id="mon-title" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all font-medium text-slate-800" placeholder="Masukkan judul headline berita resmi..." required>
+                <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-2">
+                    <button onclick="openAddMasterModal()" class="btn-primary py-2 px-4 text-[10px] font-bold uppercase tracking-wider"><i class="fa-solid fa-plus mr-1"></i> Tambah Master Data</button>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Sentimen Pemberitaan</label>
-                    <select id="mon-sentiment" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all">
-                        <option value="Positif">Positif</option>
-                        <option value="Netral">Netral</option>
-                        <option value="Negatif">Negatif</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kliping Ringkasan Berita <span class="text-rose-500">*</span></label>
-                    <textarea id="mon-summary" rows="3" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all text-slate-700" placeholder="Masukkan kutipan ringkas / rangkuman isi berita..." required></textarea>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan URL Berita Resmi <span class="text-rose-500">*</span></label>
-                    <input type="url" id="mon-url" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all font-medium text-slate-800" placeholder="https://pontianak.tribunnews.com/..." required>
-                </div>
-                <div class="flex gap-3 mt-8 pt-4 border-t border-slate-100">
-                    <button type="submit" class="btn-primary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider"><i class="fa-solid fa-save mr-1.5"></i> Simpan Kliping</button>
-                    <button type="button" onclick="closeModal()" class="btn-secondary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider">Batal</button>
-                </div>
-            </form>
+            </div>
+        </div>
+
+        <!-- User Management table -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 mt-6 shadow-xs">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
+                <h3 class="font-bold text-slate-850 dark:text-slate-100 text-sm flex items-center gap-1.5"><i class="fa-solid fa-user-gear text-indigo-500"></i> Kelola Pengguna & Hak Akses (RBAC)</h3>
+                <button onclick="openModal('user_manager')" class="btn-primary py-2 px-4 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-user-plus text-xs"></i> Tambah User</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left text-slate-655 dark:text-slate-300">
+                    <thead class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50/60 dark:bg-slate-900/40 uppercase border-b border-slate-200 dark:border-slate-700 font-black tracking-wider">
+                        <tr>
+                            <th class="px-6 py-4">Nama Lengkap</th>
+                            <th class="px-6 py-4">Username</th>
+                            <th class="px-6 py-4">Hak Akses Role</th>
+                            <th class="px-6 py-4">Bidang/Seksi</th>
+                            <th class="px-6 py-4 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        ${db.users.map(u => {
+                            const uJson = JSON.stringify(u).replace(/"/g, '&quot;');
+                            return `
+                                <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
+                                    <td class="px-6 py-3 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">${u.nama}</td>
+                                    <td class="px-6 py-3 font-semibold text-slate-500 whitespace-nowrap">${u.username}</td>
+                                    <td class="px-6 py-3 whitespace-nowrap"><span class="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950 text-indigo-750 dark:text-indigo-300 border border-indigo-150 dark:border-indigo-900 rounded font-bold text-[9px] uppercase tracking-wide">${getRoleLabel(u.role)}</span></td>
+                                    <td class="px-6 py-3 font-medium text-slate-500 whitespace-nowrap">${u.bidang || '-'}</td>
+                                    <td class="px-6 py-3 whitespace-nowrap text-center">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <button onclick="openModal('user_manager', ${uJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                                            <button onclick="deleteItem('users', ${u.id})" ${u.username === 'admin' ? 'disabled' : ''} class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
         </div>
     `;
-    document.body.appendChild(modal);
-};
+    drawMasterDataLists();
+}
 
-// -------------------------------------------------------------
-// 9. Additional Tickets Modal
-// -------------------------------------------------------------
-window.openTicketModal = function () {
-    currentModalType = 'ticket_request';
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.id = 'dynamic-modal';
-    modal.innerHTML = `
-        <div class="modal-content p-6 shadow-2xl border border-slate-100">
-            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
-                <h3 class="text-lg font-black text-slate-900">Buat Permintaan Layanan Humas</h3>
-                <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
-            </div>
-            <form onsubmit="saveTicketRequest(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Judul Permintaan / Nama Kegiatan <span class="text-rose-500">*</span></label>
-                    <input type="text" id="req-title" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all font-medium text-slate-800" placeholder="Contoh: Pembuatan Infografis Angka Kemiskinan Kalbar 2026" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jenis Layanan</label>
-                    <select id="req-type" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all">
-                        <option value="Infografis">Infografis / Rilis Poster</option>
-                        <option value="Pembuatan Video">Pembuatan Video Edukasi/Reels</option>
-                        <option value="Peliputan">Peliputan / Dokumentasi Acara</option>
-                        <option value="Desain Publikasi">Desain Buku / Laporan Publikasi</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Batas Waktu (Deadline) <span class="text-rose-500">*</span></label>
-                    <input type="date" id="req-deadline" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all text-slate-800" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Rincian Deskripsi & Permintaan Khusus <span class="text-rose-500">*</span></label>
-                    <textarea id="req-detail" rows="3.5" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all text-slate-700" placeholder="Tuliskan spesifikasi teknis, data pendukung, ukuran gambar, atau permohonan khusus lainnya..." required></textarea>
-                </div>
-                <div class="flex gap-3 mt-8 pt-4 border-t border-slate-100">
-                    <button type="submit" class="btn-primary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider"><i class="fa-solid fa-paper-plane mr-1.5"></i> Kirim Permintaan</button>
-                    <button type="button" onclick="closeModal()" class="btn-secondary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider">Batal</button>
-                </div>
-            </form>
+function drawMasterDataLists() {
+    const bList = document.getElementById('master-bidang-list');
+    const rList = document.getElementById('master-rubrik-list');
+    if (!bList || !rList) return;
+
+    const bidang = db.masterData.filter(m => m.kategori === 'Bidang');
+    const rubrik = db.masterData.filter(m => m.kategori === 'Rubrikasi');
+
+    bList.innerHTML = bidang.map(b => `
+        <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-900 rounded-xl">
+            <span class="font-bold text-xs text-slate-750 dark:text-slate-350">${b.nama}</span>
+            <button onclick="deleteItem('masterData', ${b.id})" class="text-slate-400 hover:text-rose-600 transition-colors"><i class="fa-solid fa-times-circle text-xs"></i></button>
         </div>
-    `;
-    document.body.appendChild(modal);
-};
+    `).join('');
 
-window.approveTicket = function (id) {
-    const ticket = db.tickets.find(t => t.id === id);
-    if (!ticket) return;
+    rList.innerHTML = rubrik.map(r => `
+        <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-900 rounded-xl">
+            <span class="font-bold text-xs text-slate-750 dark:text-slate-350">${r.nama}</span>
+            <button onclick="deleteItem('masterData', ${r.id})" class="text-slate-400 hover:text-rose-600 transition-colors"><i class="fa-solid fa-times-circle text-xs"></i></button>
+        </div>
+    `).join('');
+}
 
+window.openAddMasterModal = function() {
     const modal = document.createElement('div');
     modal.className = 'modal';
-    modal.id = 'assign-pic-modal';
+    modal.id = 'add-master-modal';
     modal.innerHTML = `
-        <div class="modal-content p-6 shadow-2xl border border-slate-100">
-            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
-                <h3 class="text-base font-black text-slate-850">Setujui & Tugaskan PIC</h3>
-                <button onclick="this.closest('.modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
+        <div class="modal-content p-6 shadow-2xl border border-slate-100 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 dark:border-slate-700 pb-3">
+                <h3 class="text-base font-black text-slate-900 dark:text-white">Tambah Master Data</h3>
+                <button onclick="this.closest('.modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
             </div>
-            <form onsubmit="confirmApproveTicket(event, ${id})" class="space-y-4">
+            <form onsubmit="saveMasterData(event)" class="space-y-4">
                 <div>
-                    <p class="text-xs text-slate-500 mb-4 leading-relaxed">Pilih anggota tim humas yang ditugaskan untuk menyelesaikan permintaan layanan ini. Kartu pengerjaan baru akan otomatis ditambahkan ke papan Content Planner.</p>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Pilih Petugas (PIC) <span class="text-rose-500">*</span></label>
-                    <select id="assign-pic-select" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-650 transition-all" required>
-                        <option value="">Pilih Anggota...</option>
-                        ${db.team.map(m => `<option value="${m.nama}">${m.nama} (${m.jabatan})</option>`).join('')}
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kategori Master</label>
+                    <select id="master-kategori" class="w-full px-4 py-2.5 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-700 rounded-lg text-sm focus:outline-none">
+                        <option value="Bidang">Bidang / Seksi Kerja</option>
+                        <option value="Rubrikasi">Rubrikasi Pemberitaan</option>
                     </select>
                 </div>
-                <div class="flex gap-3 mt-8 pt-4 border-t border-slate-100">
-                    <button type="submit" class="btn-primary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider"><i class="fa-solid fa-circle-check mr-1.5"></i> Konfirmasi</button>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Data Master <span class="text-rose-500">*</span></label>
+                    <input type="text" id="master-nama" class="w-full px-4 py-2.5 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-700 rounded-lg text-sm focus:outline-none font-medium" placeholder="Contoh: Seksi Distribusi" required>
+                </div>
+                <div class="flex gap-3 mt-8 pt-4 border-t border-slate-100 dark:border-slate-700">
+                    <button type="submit" class="btn-primary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider">Simpan</button>
                     <button type="button" onclick="this.closest('.modal').remove()" class="btn-secondary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider">Batal</button>
                 </div>
             </form>
@@ -1831,3 +1929,78 @@ window.approveTicket = function (id) {
     `;
     document.body.appendChild(modal);
 };
+
+window.saveMasterData = async function(event) {
+    event.preventDefault();
+    const kategori = document.getElementById('master-kategori').value;
+    const nama = document.getElementById('master-nama').value;
+
+    const newItem = { kategori, nama };
+    await sendDataToServer('add', 'master_data', newItem);
+    document.getElementById('add-master-modal')?.remove();
+    showToast('Data master berhasil ditambahkan!');
+    if (typeof logActivity === 'function') {
+        logActivity('Add Master', `Menambahkan master data ${kategori}: ${nama}.`);
+    }
+    renderSettingsPage(document.getElementById('app-content'));
+};
+
+window.triggerDatabaseBackup = function() {
+    const filename = `Backup_DB_SIMHumas_${new Date().toISOString().split('T')[0]}.json`;
+    const jsonStr = JSON.stringify(db, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(jsonStr);
+
+    const link = document.createElement('a');
+    link.setAttribute('href', dataUri);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showToast('Database berhasil dibackup!');
+    if (typeof logActivity === 'function') {
+        logActivity('Backup Database', `Mencadangkan database sistem ke file JSON.`);
+    }
+};
+
+window.triggerDatabaseRestore = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const restoredDb = JSON.parse(e.target.result);
+            // Quick schema validation
+            if (!restoredDb.team || !restoredDb.tickets || !restoredDb.contentPlanner) {
+                throw new Error('Skema file cadangan tidak valid.');
+            }
+
+            // Map variables
+            TABLES.forEach(tb => {
+                if (restoredDb[tb] !== undefined) {
+                    db[tb] = restoredDb[tb];
+                    saveLocalFallback(tb);
+                }
+            });
+
+            showToast('Database berhasil dipulihkan!');
+            if (typeof logActivity === 'function') {
+                logActivity('Restore Database', `Memulihkan database sistem dari file backup.`);
+            }
+            router(currentState);
+
+        } catch (error) {
+            console.error('Restore failed:', error);
+            showToast('Pemulihan gagal: File tidak cocok', 'error');
+        }
+    };
+    reader.readAsText(file);
+};
+
+// -------------------------------------------------------------
+// PRESERVED VIEWS (TEAM, TICKETS, ASSETS, MONITORING)
+// -------------------------------------------------------------
+// Note: We already define these above with local fallback caching.
+// Including the rendering calls to connect hooks seamlessly.
+// -------------------------------------------------------------

@@ -9,7 +9,17 @@ function doGet() {
     team: getSheetData(sheet, 'team', ["id", "nama", "jabatan", "bidang", "tugas", "kontak"]),
     tickets: getSheetData(sheet, 'tickets', ["id", "pengaju", "bidang", "jenis", "judul", "deadline", "detail", "status", "pic"]),
     assets: getSheetData(sheet, 'assets', ["id", "nama", "kategori", "ukuran", "pengunggah", "tanggal", "preview"]),
-    monitoring: getSheetData(sheet, 'monitoring', ["id", "media", "judul", "tanggal", "sentimen", "ringkasan", "url"])
+    monitoring: getSheetData(sheet, 'monitoring', ["id", "media", "judul", "tanggal", "sentimen", "ringkasan", "url"]),
+    users: getSheetData(sheet, 'users', ["id", "username", "password", "nama", "role", "bidang"]),
+    rekapRutin: getSheetData(sheet, 'rekap_rutin', ["id", "tanggal", "hari", "rubrikasi", "kegiatan", "petugas", "status"]),
+    adHoc: getSheetData(sheet, 'ad_hoc_2026', ["id", "tanggal", "hari", "kegiatan", "jumlah_bertugas", "petugas", "keterangan", "status"]),
+    protokoler: getSheetData(sheet, 'protokoler', ["id", "tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"]),
+    mc: getSheetData(sheet, 'mc', ["id", "tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"]),
+    brsRilis: getSheetData(sheet, 'brs_rilis', ["id", "tanggal_rilis", "judul", "poster", "infografis", "doc_ruangan", "doc_youtube", "doc_zoom", "highlight", "status", "version"]),
+    hariBesar: getSheetData(sheet, 'hari_besar', ["id", "tanggal", "hari_besar", "data_pendukung", "pembuat_konten", "status"]),
+    rekapKegiatan: getSheetData(sheet, 'rekap_kegiatan', ["id", "deadline", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status"]),
+    auditTrail: getSheetData(sheet, 'audit_trail', ["id", "user", "action", "timestamp", "detail"]),
+    notifications: getSheetData(sheet, 'notifications', ["id", "user_role", "title", "message", "timestamp", "is_read"])
   };
   
   return ContentService.createTextOutput(JSON.stringify(data))
@@ -117,7 +127,17 @@ function getHeadersForSheet(name) {
     'team': ["id", "nama", "jabatan", "bidang", "tugas", "kontak"],
     'tickets': ["id", "pengaju", "bidang", "jenis", "judul", "deadline", "detail", "status", "pic"],
     'assets': ["id", "nama", "kategori", "ukuran", "pengunggah", "tanggal", "preview"],
-    'monitoring': ["id", "media", "judul", "tanggal", "sentimen", "ringkasan", "url"]
+    'monitoring': ["id", "media", "judul", "tanggal", "sentimen", "ringkasan", "url"],
+    'users': ["id", "username", "password", "nama", "role", "bidang"],
+    'rekap_rutin': ["id", "tanggal", "hari", "rubrikasi", "kegiatan", "petugas", "status"],
+    'ad_hoc_2026': ["id", "tanggal", "hari", "kegiatan", "jumlah_bertugas", "petugas", "keterangan", "status"],
+    'protokoler': ["id", "tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"],
+    'mc': ["id", "tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"],
+    'brs_rilis': ["id", "tanggal_rilis", "judul", "poster", "infografis", "doc_ruangan", "doc_youtube", "doc_zoom", "highlight", "status", "version"],
+    'hari_besar': ["id", "tanggal", "hari_besar", "data_pendukung", "pembuat_konten", "status"],
+    'rekap_kegiatan': ["id", "deadline", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status"],
+    'audit_trail': ["id", "user", "action", "timestamp", "detail"],
+    'notifications': ["id", "user_role", "title", "message", "timestamp", "is_read"]
   };
   return schemas[name] || null;
 }
