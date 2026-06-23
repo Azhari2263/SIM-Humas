@@ -1376,7 +1376,7 @@ function renderBrsRilis(container) {
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
                 <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Modul BRS Rilis</h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola dokumen rilis BRS, infografis, dokumentasi YouTube/Zoom, dan kelengkapan highlight data.</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola kegiatan BRS, infografis, dokumentasi YouTube/Zoom, dan kelengkapan highlight data.</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <button onclick="exportBrsReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
