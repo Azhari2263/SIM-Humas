@@ -71,6 +71,16 @@ function loadLocalFallbacks() {
         }
     });
 
+    // Clean up old seeded users from cache if present to reload actual sheet users
+    const hasOldCache = db.users && (
+        db.users.some(u => u.username === 'tim' || u.username === 'rian' || u.username === 'koordinator') ||
+        !db.users.some(u => u.username && u.username.toLowerCase() === 'azhari' && u.password === 'azday22')
+    );
+    if (hasOldCache) {
+        db.users = [];
+        localStorage.removeItem('sim_humas_db_users');
+    }
+
     // Seed default team data if empty
     if (db.team.length === 0) {
         db.team = [
@@ -82,21 +92,29 @@ function loadLocalFallbacks() {
         saveLocalFallback('team');
     }
 
-    // Seed default users if empty or missing specific team users
-    if (db.users.length === 0 || !db.users.some(u => u.username === 'rian')) {
+    // Seed default users from spreadsheet if empty (to ensure fallback login works immediately)
+    if (db.users.length === 0) {
         db.users = [
-            { id: 1, username: "admin", nama: "Super Admin", role: "admin", bidang: "IT & Master" },
-            { id: 2, username: "kepala", nama: "Kepala BPS Kalbar", role: "kepala", bidang: "Pimpinan" },
-            { id: 3, username: "koordinator", nama: "Ketua Tim Humas", role: "koordinator", bidang: "Humas & Protokol" },
-            { id: 4, username: "tim", nama: "Staf Humas", role: "tim", bidang: "Humas & Protokol" },
-            { id: 5, username: "pemohon", nama: "User Bidang", role: "pemohon", bidang: "Seksi Sosial" },
-            { id: 6, username: "rian", nama: "Rian", role: "tim", bidang: "Diseminasi Informasi" },
-            { id: 7, username: "siska", nama: "Siska", role: "tim", bidang: "Humas & Protokol" },
-            { id: 8, username: "dian", nama: "Dian", role: "tim", bidang: "Humas & Protokol" },
-            { id: 9, username: "azhari", nama: "Azhari", role: "tim", bidang: "Humas & Protokol" }
+            { id: 1, username: "Azhari", password: "azday22", nama: "Azhari", role: "tim", bidang: "TU Bawah" },
+            { id: 2, username: "Dara", password: "dara123", nama: "Dara Septika", role: "koordinator", bidang: "Produksi" },
+            { id: 3, username: "admin", password: "admin123", nama: "Admin Humas", role: "admin", bidang: "Humas & Protokol" }
         ];
         saveLocalFallback('users');
     }
+
+    // Append test accounts dynamically if not already present
+    const testUsers = [
+        { id: 9901, username: "rian", password: "password", nama: "Rian", role: "tim", bidang: "Diseminasi Informasi" },
+        { id: 9902, username: "siska", password: "password", nama: "Siska", role: "tim", bidang: "Humas & Protokol" },
+        { id: 9903, username: "dian", password: "password", nama: "Dian", role: "tim", bidang: "Humas & Protokol" },
+        { id: 9904, username: "azhari_tim", password: "password", nama: "Azhari Test", role: "tim", bidang: "Humas & Protokol" }
+    ];
+
+    testUsers.forEach(tu => {
+        if (!db.users.some(u => u.username && u.username.toLowerCase() === tu.username)) {
+            db.users.push(tu);
+        }
+    });
 
     // Seed default master data if empty
     if (db.masterData.length === 0) {
