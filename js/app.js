@@ -14,7 +14,7 @@ function showToast(message, type = 'success') {
 
     const toast = document.createElement('div');
     toast.className = 'toast flex items-center gap-2.5 px-4.5 py-3 rounded-xl shadow-lg border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 transition-all duration-300 transform translate-y-2 opacity-0 shrink-0 max-w-sm';
-    
+
     let icon = '';
     let borderColor = '';
     if (type === 'success') {
@@ -88,24 +88,6 @@ function closeMobileSidebar() {
     }
 }
 
-// Global Activity Logging (Audit Trail)
-function logActivity(action, detail) {
-    const timestamp = new Date().toISOString();
-    const user = currentUser ? currentUser.name : 'Sistem';
-    const newLog = {
-        id: db.auditTrail.length + 1,
-        user: user,
-        action: action,
-        timestamp: timestamp,
-        detail: detail
-    };
-    db.auditTrail.push(newLog);
-    saveLocalFallback('auditTrail');
-    
-    // Sync to Sheets
-    sendDataToServer('add', 'audit_trail', newLog);
-}
-
 // Global System Notifications
 function addNotification(title, message, role = 'all') {
     const timestamp = new Date().toISOString();
@@ -119,10 +101,10 @@ function addNotification(title, message, role = 'all') {
     };
     db.notifications.push(newNotif);
     saveLocalFallback('notifications');
-    
+
     // Render
     renderNotificationsUI();
-    
+
     // Sync to Sheets
     sendDataToServer('add', 'notifications', newNotif);
 }
@@ -147,7 +129,7 @@ function renderNotificationsUI() {
     }
 
     // Populate dropdown list
-    myNotifs.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+    myNotifs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     if (myNotifs.length === 0) {
         list.innerHTML = `<div class="p-4 text-center text-[10px] text-slate-400 font-bold">Tidak ada notifikasi baru.</div>`;
         return;
@@ -157,7 +139,7 @@ function renderNotificationsUI() {
         <div class="p-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/40 rounded-xl transition-all border-b border-slate-100 dark:border-slate-700 last:border-none ${!n.is_read ? 'bg-indigo-50/30 dark:bg-indigo-950/20' : ''}">
             <h5 class="font-extrabold text-[10px] text-slate-800 dark:text-slate-200">${n.title}</h5>
             <p class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">${n.message}</p>
-            <span class="text-[8px] text-slate-400 font-medium block mt-1"><i class="fa-regular fa-clock"></i> ${new Date(n.timestamp).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}</span>
+            <span class="text-[8px] text-slate-400 font-medium block mt-1"><i class="fa-regular fa-clock"></i> ${new Date(n.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
     `).join('');
 }
@@ -233,7 +215,7 @@ function openModal(type, item = null) {
     currentModalType = type;
     currentEditItem = item;
     isSubmitting = false;
-    
+
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'dynamic-modal';
@@ -677,7 +659,7 @@ async function saveData(event) {
 
     // Collect values dynamically based on currentModalType
     const item = currentEditItem ? { ...currentEditItem } : {};
-    
+
     if (currentModalType === 'content') {
         item.judul = document.getElementById('judul').value;
         item.konsep = document.getElementById('konsep').value;
@@ -838,7 +820,7 @@ async function deleteItem(type, id) {
 }
 
 // Tickets Subsystems
-window.saveTicketRequest = async function(event) {
+window.saveTicketRequest = async function (event) {
     event.preventDefault();
     const judul = document.getElementById('req-title').value;
     const jenis = document.getElementById('req-type').value;
@@ -866,7 +848,7 @@ window.saveTicketRequest = async function(event) {
     router(currentState);
 };
 
-window.confirmApproveTicket = async function(event, id) {
+window.confirmApproveTicket = async function (event, id) {
     event.preventDefault();
     const pic = document.getElementById('assign-pic-select').value;
     if (!pic) {
@@ -904,7 +886,7 @@ window.confirmApproveTicket = async function(event, id) {
     router(currentState);
 };
 
-window.rejectTicket = async function(id) {
+window.rejectTicket = async function (id) {
     if (!confirm('Apakah Anda yakin ingin menolak pengajuan ini?')) return;
     const ticket = db.tickets.find(t => t.id === id);
     if (!ticket) return;
@@ -919,7 +901,7 @@ window.rejectTicket = async function(id) {
 
 
 // Media Monitoring Simulator
-window.saveMonitoringItem = async function(event) {
+window.saveMonitoringItem = async function (event) {
     event.preventDefault();
     const media = document.getElementById('mon-media').value;
     const title = document.getElementById('mon-title').value;
@@ -1059,7 +1041,7 @@ function router(page) {
     };
 
     const userRole = currentUser ? currentUser.role : 'pemohon';
-    
+
     // Safety redirect to dashboard if role doesn't have access
     if (!allowedPages[userRole].includes(page)) {
         page = 'dashboard';
@@ -1102,7 +1084,7 @@ function router(page) {
     }
 
     contentDiv.innerHTML = '';
-    
+
     // Trigger fade-in transition
     contentDiv.classList.remove('fade-in');
     void contentDiv.offsetWidth; // force reflow
@@ -1152,7 +1134,7 @@ window.showDetail = showDetail;
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     checkAuth();
-    
+
     // Periodically update notifications UI if user is logged in
     setInterval(() => {
         if (currentUser) {

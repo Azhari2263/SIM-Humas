@@ -45,7 +45,6 @@ const SHEET_TO_VAR = {
     'brs_rilis': 'brsRilis',
     'hari_besar': 'hariBesar',
     'rekap_kegiatan': 'rekapKegiatan',
-    'audit_trail': 'auditTrail',
     'notifications': 'notifications',
     'master_data': 'masterData'
 };
