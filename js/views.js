@@ -2908,8 +2908,13 @@ function renderAssignmentPage(container) {
                     <i class="fa-solid fa-clipboard-list text-indigo-650 dark:text-indigo-400"></i>
                     Penugasan Tugas (Assignment)
                 </h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Daftar seluruh tugas, kegiatan, dan peran kehumasan yang ditugaskan kepada Anda.</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">${currentUser && currentUser.role === 'tim' ? 'Daftar seluruh tugas, kegiatan, dan peran kehumasan yang ditugaskan kepada Anda.' : 'Daftar seluruh tugas, kegiatan, dan peran kehumasan anggota tim BPS Kalbar.'}</p>
             </div>
+            ${isUserAdminOrKetua() ? `
+                <button onclick="openModal('assignment')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-plus text-xs"></i> Tambah Tugas
+                </button>
+            ` : ''}
         </div>
 
         <!-- KPI SUMMARY CARDS -->
@@ -3279,6 +3284,11 @@ window.drawAssignmentTable = function() {
                     ${!isKepala ? `
                         <button onclick="openModalById('${item.originalType}', ${item.originalId})" title="Ubah status & progres" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
                             <i class="fa-solid fa-pen text-[10px]"></i>
+                        </button>
+                    ` : ''}
+                    ${isUserAdminOrKetua() && item.originalType === 'assignment' ? `
+                        <button onclick="deleteItem('assignment', ${item.originalId})" title="Hapus tugas" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
+                            <i class="fa-solid fa-trash text-[10px]"></i>
                         </button>
                     ` : ''}
                     <button onclick="showDetailById('${item.originalType}', ${item.originalId})" title="Lihat rincian" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
