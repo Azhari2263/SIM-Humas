@@ -86,7 +86,7 @@ function loadLocalFallbacks() {
         db.users = [
             { id: 1, username: "admin", nama: "Super Admin", role: "admin", bidang: "IT & Master" },
             { id: 2, username: "kepala", nama: "Kepala BPS Kalbar", role: "kepala", bidang: "Pimpinan" },
-            { id: 3, username: "koordinator", nama: "Koordinator Humas", role: "koordinator", bidang: "Humas & Protokol" },
+            { id: 3, username: "koordinator", nama: "Ketua Tim Humas", role: "koordinator", bidang: "Humas & Protokol" },
             { id: 4, username: "tim", nama: "Staf Humas", role: "tim", bidang: "Humas & Protokol" },
             { id: 5, username: "pemohon", nama: "User Bidang", role: "pemohon", bidang: "Seksi Sosial" }
         ];

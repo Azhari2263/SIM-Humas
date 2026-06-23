@@ -323,7 +323,10 @@ function openModal(type, item = null) {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Hari</label>
-                        <input type="text" id="hari" value="${item?.hari || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="Contoh: Senin">
+                        <select id="hari" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
+                            <option value="">Pilih Hari...</option>
+                            ${['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map(h => `<option ${item?.hari === h ? 'selected' : ''} value="${h}">${h}</option>`).join('')}
+                        </select>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Rubrikasi</label>
@@ -348,9 +351,7 @@ function openModal(type, item = null) {
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status Pekerjaan</label>
                         <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option ${item?.status === 'Draft' ? 'selected' : ''}>Draft</option>
-                            <option ${item?.status === 'On Progress' ? 'selected' : ''}>On Progress</option>
-                            <option ${item?.status === 'Revisi' ? 'selected' : ''}>Revisi</option>
+                            <option ${item?.status === 'Ditugaskan' ? 'selected' : ''}>Ditugaskan</option>
                             <option ${item?.status === 'Selesai' ? 'selected' : ''}>Selesai</option>
                         </select>
                     </div>
@@ -368,7 +369,10 @@ function openModal(type, item = null) {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Hari</label>
-                        <input type="text" id="hari" value="${item?.hari || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="Contoh: Selasa">
+                        <select id="hari" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
+                            <option value="">Pilih Hari...</option>
+                            ${['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map(h => `<option ${item?.hari === h ? 'selected' : ''} value="${h}">${h}</option>`).join('')}
+                        </select>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jumlah Petugas</label>
@@ -390,9 +394,7 @@ function openModal(type, item = null) {
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status Progress</label>
                     <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                        <option ${item?.status === 'Draft' ? 'selected' : ''}>Draft</option>
-                        <option ${item?.status === 'On Progress' ? 'selected' : ''}>On Progress</option>
-                        <option ${item?.status === 'Revisi' ? 'selected' : ''}>Revisi</option>
+                        <option ${item?.status === 'Ditugaskan' ? 'selected' : ''}>Ditugaskan</option>
                         <option ${item?.status === 'Selesai' ? 'selected' : ''}>Selesai</option>
                     </select>
                 </div>
@@ -454,9 +456,7 @@ function openModal(type, item = null) {
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status Kegiatan</label>
                         <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option ${item?.status === 'Draft' ? 'selected' : ''}>Draft</option>
-                            <option ${item?.status === 'On Progress' ? 'selected' : ''}>On Progress</option>
-                            <option ${item?.status === 'Revisi' ? 'selected' : ''}>Revisi</option>
+                            <option ${item?.status === 'Ditugaskan' ? 'selected' : ''}>Ditugaskan</option>
                             <option ${item?.status === 'Selesai' ? 'selected' : ''}>Selesai</option>
                         </select>
                     </div>
@@ -475,39 +475,32 @@ function openModal(type, item = null) {
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Judul Rilis Data BRS <span class="text-rose-500">*</span></label>
                     <input type="text" id="judul" value="${item?.judul || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-medium" placeholder="Contoh: Rilis Pertumbuhan Ekonomi Triwulan I" required>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Rilis Resmi <span class="text-rose-500">*</span></label>
-                        <input type="date" id="tanggal_rilis" value="${formatDateInput(item?.tanggal_rilis)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Versi Dokumen</label>
-                        <input type="text" id="version" value="${item?.version || '1.0'}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
-                    </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Rilis Resmi <span class="text-rose-500">*</span></label>
+                    <input type="date" id="tanggal_rilis" value="${formatDateInput(item?.tanggal_rilis)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan File Poster (URL)</label>
-                        <input type="text" id="poster" value="${item?.poster || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="https://example.com/poster.jpg">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">PIC Poster & Infografis</label>
+                        <select id="pic_poster_info" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
+                            <option value="">Pilih Anggota...</option>
+                            ${db.team.map(m => `<option ${item?.pic_poster_info === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
+                        </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan File Infografis (URL)</label>
-                        <input type="text" id="infografis" value="${item?.infografis || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="https://example.com/info.jpg">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">PIC Dokumentasi Dalam Ruang</label>
+                        <select id="pic_doc_ruang" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
+                            <option value="">Pilih Anggota...</option>
+                            ${db.team.map(m => `<option ${item?.pic_doc_ruang === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
+                        </select>
                     </div>
                 </div>
-                <div class="grid grid-cols-3 gap-2">
-                    <div>
-                        <label class="block text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Dok. Zoom (URL)</label>
-                        <input type="text" id="doc_zoom" value="${item?.doc_zoom || ''}" class="w-full px-2 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-[10px]" placeholder="Zoom link">
-                    </div>
-                    <div>
-                        <label class="block text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Dok. YouTube (URL)</label>
-                        <input type="text" id="doc_youtube" value="${item?.doc_youtube || ''}" class="w-full px-2 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-[10px]" placeholder="YouTube link">
-                    </div>
-                    <div>
-                        <label class="block text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Dok. Ruangan (URL)</label>
-                        <input type="text" id="doc_ruangan" value="${item?.doc_ruangan || ''}" class="w-full px-2 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-[10px]" placeholder="Kamera link">
-                    </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">PIC Dokumentasi YouTube & Zoom</label>
+                    <select id="pic_doc_yt_zoom" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
+                        <option value="">Pilih Anggota...</option>
+                        ${db.team.map(m => `<option ${item?.pic_doc_yt_zoom === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
+                    </select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan PDF Highlight Data (URL)</label>
@@ -637,6 +630,19 @@ function openModal(type, item = null) {
         </div>
     `;
     document.body.appendChild(modal);
+
+    // Enforce RBAC constraints for Tim Humas role on editing
+    if (currentUser && currentUser.role === 'tim') {
+        const modalInputs = modal.querySelectorAll('input, select, textarea');
+        modalInputs.forEach(input => {
+            const id = input.id;
+            if (id !== 'status' && id !== 'progres' && id !== 'progress') {
+                input.disabled = true;
+                input.classList.add('bg-slate-100', 'dark:bg-slate-800', 'cursor-not-allowed', 'opacity-70');
+            }
+        });
+    }
+}
 }
 
 function closeModal() {
@@ -720,12 +726,9 @@ async function saveData(event) {
     } else if (currentModalType === 'brs_rilis') {
         item.judul = document.getElementById('judul').value;
         item.tanggal_rilis = document.getElementById('tanggal_rilis').value;
-        item.version = document.getElementById('version').value;
-        item.poster = document.getElementById('poster').value;
-        item.infografis = document.getElementById('infografis').value;
-        item.doc_zoom = document.getElementById('doc_zoom').value;
-        item.doc_youtube = document.getElementById('doc_youtube').value;
-        item.doc_ruangan = document.getElementById('doc_ruangan').value;
+        item.pic_poster_info = document.getElementById('pic_poster_info').value;
+        item.pic_doc_ruang = document.getElementById('pic_doc_ruang').value;
+        item.pic_doc_yt_zoom = document.getElementById('pic_doc_yt_zoom').value;
         item.highlight = document.getElementById('highlight').value;
     } else if (currentModalType === 'hari_besar') {
         item.hari_besar = document.getElementById('hari_besar').value;
@@ -1016,15 +1019,10 @@ function showDetail(type, item) {
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Judul Rilis Data:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.judul}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal Rilis:</strong><span class="font-bold">${formatDate(item.tanggal_rilis)}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Versi Berkas:</strong><span class="font-bold text-indigo-650">v${item.version || '1.0'}</span></div>
-                <div class="flex flex-col gap-1.5 border-b pb-2.5 border-slate-100 dark:border-slate-700">
-                    <strong>Tautan Berkas Digital:</strong>
-                    <div class="grid grid-cols-1 gap-1 text-[11px] font-medium text-indigo-650 dark:text-indigo-400">
-                        ${item.poster ? `<div>• Poster: <a href="${item.poster}" target="_blank" class="hover:underline">${item.poster}</a></div>` : ''}
-                        ${item.infografis ? `<div>• Infografis: <a href="${item.infografis}" target="_blank" class="hover:underline">${item.infografis}</a></div>` : ''}
-                        ${item.highlight ? `<div>• Highlight PDF: <a href="${item.highlight}" target="_blank" class="hover:underline">${item.highlight}</a></div>` : ''}
-                    </div>
-                </div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC Poster & Infografis:</strong><span class="font-bold text-slate-800 dark:text-white">${item.pic_poster_info || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC Dokumentasi Ruang:</strong><span class="font-bold text-slate-800 dark:text-white">${item.pic_doc_ruang || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC Dok. YouTube & Zoom:</strong><span class="font-bold text-slate-800 dark:text-white">${item.pic_doc_yt_zoom || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Highlight Data:</strong><span class="font-bold">${item.highlight ? `<a href="${item.highlight}" target="_blank" class="text-indigo-650 hover:underline">Lihat PDF</a>` : '-'}</span></div>
             </div>
         `;
     } else if (type === 'team') {

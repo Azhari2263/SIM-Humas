@@ -216,7 +216,7 @@ function getRoleLabel(role) {
     switch (role) {
         case 'admin': return 'Administrator Sistem';
         case 'kepala': return 'Kepala BPS';
-        case 'koordinator': return 'Koordinator Humas';
+        case 'koordinator': return 'Ketua Tim Humas';
         case 'tim': return 'Tim Humas';
         case 'pemohon': return 'Pegawai/Pemohon';
         default: return role;

@@ -1,5 +1,38 @@
 // Views rendering engine for SIM Humas & Protokol BPS Kalbar
 
+// Helper: Check if logged-in user is Admin or Ketua Tim Humas
+function isUserAdminOrKetua() {
+    return currentUser && (currentUser.role === 'admin' || currentUser.role === 'koordinator');
+}
+
+// Helper: Check if task belongs to current user (Tim Humas scopes)
+function isTaskForCurrentUser(item) {
+    if (!currentUser) return false;
+    if (currentUser.role !== 'tim') return true; // Admins, Kepala, etc. see all
+
+    const userName = (currentUser.username || '').toLowerCase();
+    const displayName = (currentUser.name || '').toLowerCase();
+
+    // Check all possible PIC/petugas columns in item
+    const picFields = [
+        item.petugas,
+        item.assignedTo,
+        item.pic,
+        item.pembuat_konten,
+        item.pic_poster_info,
+        item.pic_doc_ruang,
+        item.pic_doc_yt_zoom
+    ].filter(Boolean).map(v => String(v).toLowerCase()).join(' ');
+
+    if (!picFields.trim()) return false;
+
+    return picFields.includes(userName) || 
+           picFields.includes(displayName) || 
+           displayName.includes(userName) ||
+           picFields.includes('staf humas') || 
+           displayName.includes('staf humas');
+}
+
 // Helper: Get user avatar initials
 function getPicInitials(name) {
     if (!name) return '?';
@@ -32,6 +65,72 @@ function downloadCSV(headers, rows, filename) {
     rows.forEach(row => {
         csvContent += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",") + "\n";
     });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Helper: Generic Excel exporter using HTML spreadsheet format
+function downloadExcel(headers, rows, filename) {
+    let html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+            <!--[if gte mso 9]>
+            <xml>
+                <x:ExcelWorkbook>
+                    <x:ExcelWorksheets>
+                        <x:ExcelWorksheet>
+                            <x:Name>Laporan</x:Name>
+                            <x:WorksheetOptions>
+                                <x:DisplayGridlines/>
+                            </x:WorksheetOptions>
+                        </x:ExcelWorksheet>
+                    </x:ExcelWorksheets>
+                </x:ExcelWorkbook>
+            </xml>
+            <![endif]-->
+        </head>
+        <body>
+            <table border="1">
+                <thead>
+                    <tr style="background-color: #f1f5f9; font-weight: bold;">
+                        ${headers.map(h => `<th>${h}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map(row => `
+                        <tr>
+                            ${row.map(val => `<td>${val}</td>`).join('')}
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </body>
+        </html>
+    `;
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+// Helper: Generic Template downloader
+function downloadTemplate(headers, filename) {
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += headers.map(h => `"${h.replace(/"/g, '""')}"`).join(",") + "\n";
+    // Add placeholder row
+    csvContent += headers.map(() => `""`).join(",") + "\n";
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -87,82 +186,83 @@ function openPrintReportWindow(title, headers, rows) {
 function renderDashboard(container) {
     const userRole = currentUser.role;
     
-    // Check if role is pemohon / internal
     if (userRole === 'pemohon') {
         renderPemohonDashboard(container);
         return;
     }
 
-    // Dynamic metrics calculation
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Activities monthly filter
     const getMonthFilter = (dStr) => {
         if (!dStr) return false;
         const d = new Date(dStr);
         return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     };
 
-    const totalRutin = db.rekapRutin.filter(item => getMonthFilter(item.tanggal)).length;
-    const totalAdHoc = db.adHoc.filter(item => getMonthFilter(item.tanggal)).length;
-    const totalProto = db.protokoler.filter(item => getMonthFilter(item.tanggal)).length;
-    const totalMc = db.mc.filter(item => getMonthFilter(item.tanggal)).length;
-    const totalBrs = db.brsRilis.filter(item => getMonthFilter(item.tanggal_rilis)).length;
-    const totalHariBesar = db.hariBesar.filter(item => getMonthFilter(item.tanggal)).length;
+    // Filter based on Tim Humas assignments
+    const rutinSrc = db.rekapRutin.filter(isTaskForCurrentUser);
+    const adHocSrc = db.adHoc.filter(isTaskForCurrentUser);
+    const protoSrc = db.protokoler.filter(isTaskForCurrentUser);
+    const mcSrc = db.mc.filter(isTaskForCurrentUser);
+    const brsSrc = db.brsRilis.filter(isTaskForCurrentUser);
+    const hbSrc = db.hariBesar.filter(isTaskForCurrentUser);
+    const plannerSrc = db.contentPlanner.filter(isTaskForCurrentUser);
+
+    const totalRutin = rutinSrc.filter(item => getMonthFilter(item.tanggal)).length;
+    const totalAdHoc = adHocSrc.filter(item => getMonthFilter(item.tanggal)).length;
+    const totalProto = protoSrc.filter(item => getMonthFilter(item.tanggal)).length;
+    const totalMc = mcSrc.filter(item => getMonthFilter(item.tanggal)).length;
+    const totalBrs = brsSrc.filter(item => getMonthFilter(item.tanggal_rilis)).length;
+    const totalHariBesar = hbSrc.filter(item => getMonthFilter(item.tanggal)).length;
 
     const totalKegiatanBulanIni = totalRutin + totalAdHoc + totalProto + totalMc + totalBrs + totalHariBesar;
 
-    // Compile statuses
     let selesaiCount = 0;
     let progressCount = 0;
-    let revisiCount = 0;
 
     const evalStatus = (status) => {
         if (!status) return;
         const st = status.toLowerCase();
         if (st === 'selesai' || st === 'done' || st === 'posted') selesaiCount++;
-        else if (st === 'on progress' || st === 'in progress') progressCount++;
-        else if (st === 'revisi') revisiCount++;
+        else if (st === 'ditugaskan' || st === 'on progress' || st === 'in progress' || st === 'revisi' || st === 'draft') progressCount++;
     };
 
-    db.rekapRutin.forEach(i => evalStatus(i.status));
-    db.adHoc.forEach(i => evalStatus(i.status));
-    db.protokoler.forEach(i => evalStatus(i.status));
-    db.mc.forEach(i => evalStatus(i.status));
-    db.hariBesar.forEach(i => evalStatus(i.status));
-    db.contentPlanner.forEach(i => evalStatus(i.status));
+    rutinSrc.forEach(i => evalStatus(i.status));
+    adHocSrc.forEach(i => evalStatus(i.status));
+    protoSrc.forEach(i => evalStatus(i.status));
+    mcSrc.forEach(i => evalStatus(i.status));
+    hbSrc.forEach(i => evalStatus(i.status));
+    plannerSrc.forEach(i => evalStatus(i.status));
 
     const totalPegawaiAktif = db.team.length;
 
-    // Task distribution data per team member
     const memberTasks = db.team.map(member => {
-        const rutinTasks = db.rekapRutin.filter(r => r.petugas && r.petugas.includes(member.nama)).length;
-        const adhocTasks = db.adHoc.filter(a => a.petugas && a.petugas.includes(member.nama)).length;
-        const protoTasks = db.protokoler.filter(p => p.petugas && p.petugas.includes(member.nama)).length;
-        const mcTasks = db.mc.filter(m => m.petugas && m.petugas.includes(member.nama)).length;
-        const plannerTasks = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
+        const rTasks = db.rekapRutin.filter(r => r.petugas && r.petugas.includes(member.nama)).length;
+        const aTasks = db.adHoc.filter(a => a.petugas && a.petugas.includes(member.nama)).length;
+        const pTasks = db.protokoler.filter(p => p.petugas && p.petugas.includes(member.nama)).length;
+        const mTasks = db.mc.filter(m => m.petugas && m.petugas.includes(member.nama)).length;
+        const cTasks = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
         
         return {
             name: member.nama.split(' ')[0],
-            rutinTasks,
-            adhocTasks,
-            protoTasks,
-            mcTasks,
-            plannerTasks,
-            total: rutinTasks + adhocTasks + protoTasks + mcTasks + plannerTasks
+            rTasks,
+            aTasks,
+            pTasks,
+            mTasks,
+            cTasks,
+            total: rTasks + aTasks + pTasks + mTasks + cTasks
         };
     });
 
     const labels = memberTasks.map(m => m.name);
-    const rutinData = memberTasks.map(m => m.rutinTasks);
-    const adhocData = memberTasks.map(m => m.adhocTasks);
-    const protoData = memberTasks.map(m => m.protoTasks + m.mcTasks);
-    const plannerData = memberTasks.map(m => m.plannerTasks);
+    const rutinData = memberTasks.map(m => m.rTasks);
+    const adhocData = memberTasks.map(m => m.aTasks);
+    const protoData = memberTasks.map(m => m.pTasks + m.mTasks);
+    const plannerData = memberTasks.map(m => m.cTasks);
 
-    // Closest Deadlines (content planner or tickets)
-    const upcomingDeadlines = [...db.contentPlanner, ...db.tickets.filter(t => t.status === 'Approved')]
+    const upcomingDeadlines = [...plannerSrc, ...db.tickets.filter(t => t.status === 'Approved').filter(isTaskForCurrentUser)]
         .map(item => ({
             judul: item.judul,
             tanggal: item.jadwal || item.deadline,
@@ -173,8 +273,7 @@ function renderDashboard(container) {
         .sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal))
         .slice(0, 4);
 
-    // Overdue tasks
-    const overdueTasks = [...db.contentPlanner, ...db.rekapRutin, ...db.adHoc]
+    const overdueTasks = [...plannerSrc, ...rutinSrc, ...adHocSrc]
         .map(item => ({
             judul: item.judul || item.kegiatan,
             tanggal: item.jadwal || item.tanggal,
@@ -184,18 +283,16 @@ function renderDashboard(container) {
         .filter(item => item.tanggal && new Date(item.tanggal) < new Date().setHours(0,0,0,0) && !['Selesai', 'Done', 'Posted'].includes(item.status))
         .slice(0, 4);
 
-    // Today's activities
     const todayStr = new Date().toISOString().split('T')[0];
     const todayActivities = [
-        ...db.rekapRutin.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Rutin', jam: 'Rutin', pic: i.petugas })),
-        ...db.adHoc.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Ad Hoc', jam: 'Ad Hoc', pic: i.petugas })),
-        ...db.protokoler.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Protokoler', jam: i.jam_mulai || '08:00', pic: i.petugas })),
-        ...db.mc.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'MC', jam: i.jam_mulai || '08:00', pic: i.petugas })),
-        ...db.brsRilis.filter(i => i.tanggal_rilis && i.tanggal_rilis.includes(todayStr)).map(i => ({ judul: i.judul, tipe: 'Rilis BRS', jam: '09:00', pic: 'Tim Humas' }))
+        ...rutinSrc.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Rutin', jam: 'Rutin', pic: i.petugas })),
+        ...adHocSrc.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Ad Hoc', jam: 'Ad Hoc', pic: i.petugas })),
+        ...protoSrc.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Protokoler', jam: i.jam_mulai || '08:00', pic: i.petugas })),
+        ...mcSrc.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'MC', jam: i.jam_mulai || '08:00', pic: i.petugas })),
+        ...brsSrc.filter(i => i.tanggal_rilis && i.tanggal_rilis.includes(todayStr)).map(i => ({ judul: i.judul, tipe: 'Rilis BRS', jam: '09:00', pic: 'Tim Humas' }))
     ];
 
     container.innerHTML = `
-        <!-- Title and Quick Info -->
         <div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fade-in">
             <div>
                 <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
@@ -211,33 +308,26 @@ function renderDashboard(container) {
             </div>
         </div>
 
-        <!-- Dynamic Summary Metrics Cards -->
-        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-4">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
                 <div class="w-12 h-12 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center justify-center text-indigo-650 dark:text-indigo-400 shrink-0"><i class="fa-solid fa-calendar-check text-xl"></i></div>
                 <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Kegiatan Baru</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${totalKegiatanBulanIni}</p></div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-4">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
                 <div class="w-12 h-12 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded-xl flex items-center justify-center text-emerald-650 dark:text-emerald-400 shrink-0"><i class="fa-solid fa-circle-check text-xl"></i></div>
                 <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Selesai</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${selesaiCount}</p></div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-4">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
                 <div class="w-12 h-12 bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-xl flex items-center justify-center text-blue-650 dark:text-blue-400 shrink-0"><i class="fa-solid fa-spinner fa-spin text-xl"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Aktif Progress</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${progressCount}</p></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Aktif Ditugaskan</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${progressCount}</p></div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-4">
-                <div class="w-12 h-12 bg-rose-50 dark:bg-rose-950 border border-rose-100 dark:border-rose-900 rounded-xl flex items-center justify-center text-rose-650 dark:text-rose-450 shrink-0"><i class="fa-solid fa-rotate-left text-xl"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Butuh Revisi</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${revisiCount}</p></div>
-            </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md transition-all duration-300 flex items-center gap-4">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
                 <div class="w-12 h-12 bg-violet-50 dark:bg-violet-950 border border-violet-100 dark:border-violet-900 rounded-xl flex items-center justify-center text-violet-650 dark:text-violet-400 shrink-0"><i class="fa-solid fa-users text-xl"></i></div>
                 <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pegawai Aktif</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${totalPegawaiAktif}</p></div>
             </div>
         </div>
 
-        <!-- Graphic Charts Section -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Workload stack chart -->
             <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs flex flex-col justify-between">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Distribusi Beban Kerja Tim</h3>
@@ -253,68 +343,49 @@ function renderDashboard(container) {
                 </div>
             </div>
 
-            <!-- Division contributions doughnut -->
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs flex flex-col justify-between">
-                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4">Kontribusi Tugas Per Bidang</h3>
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4">Proporsi Rubrikasi Tugas</h3>
                 <div class="w-40 h-40 relative mx-auto flex items-center justify-center">
                     <canvas id="bidangContributionChart" class="w-full h-full"></canvas>
                 </div>
-                <div class="mt-4 flex flex-col gap-2 w-full text-[10px] text-slate-650 dark:text-slate-400 font-bold uppercase tracking-wider" id="bidang-breakdown">
+                <div class="mt-4 flex flex-col gap-2 w-full text-[10px] text-slate-655 dark:text-slate-400 font-bold uppercase tracking-wider" id="bidang-breakdown">
                     <!-- populated below -->
                 </div>
             </div>
         </div>
 
-        <!-- Modular Statistics Widgets -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="bg-gradient-to-br from-indigo-500/10 to-indigo-650/10 border border-indigo-150 dark:border-indigo-950 p-5 rounded-2xl">
                 <div class="flex justify-between items-start">
                     <h4 class="text-[10px] font-black text-indigo-750 dark:text-indigo-400 uppercase tracking-widest">Statistik MC</h4>
                     <span class="px-2 py-0.5 bg-indigo-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalMc} Tugas</span>
                 </div>
-                <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalMc} <span class="text-xs font-semibold text-slate-450">bulan ini</span></p>
-                <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-3">
-                    <div class="bg-indigo-600 h-1 rounded-full" style="width: ${Math.min(100, totalMc*10)}%"></div>
-                </div>
+                <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalMc} <span class="text-xs font-semibold text-slate-455">agenda</span></p>
             </div>
-
             <div class="bg-gradient-to-br from-violet-500/10 to-violet-650/10 border border-violet-150 dark:border-violet-950 p-5 rounded-2xl">
                 <div class="flex justify-between items-start">
                     <h4 class="text-[10px] font-black text-violet-750 dark:text-violet-400 uppercase tracking-widest">Keprotokolan</h4>
                     <span class="px-2 py-0.5 bg-violet-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalProto} Tugas</span>
                 </div>
-                <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalProto} <span class="text-xs font-semibold text-slate-450">agenda</span></p>
-                <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-3">
-                    <div class="bg-violet-600 h-1 rounded-full" style="width: ${Math.min(100, totalProto*10)}%"></div>
-                </div>
+                <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalProto} <span class="text-xs font-semibold text-slate-455">agenda</span></p>
             </div>
-
             <div class="bg-gradient-to-br from-emerald-500/10 to-emerald-650/10 border border-emerald-150 dark:border-emerald-950 p-5 rounded-2xl">
                 <div class="flex justify-between items-start">
                     <h4 class="text-[10px] font-black text-emerald-750 dark:text-emerald-400 uppercase tracking-widest">Rilis BRS</h4>
                     <span class="px-2 py-0.5 bg-emerald-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalBrs} Dokumen</span>
                 </div>
-                <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalBrs} <span class="text-xs font-semibold text-slate-450">dirilis</span></p>
-                <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-3">
-                    <div class="bg-emerald-650 h-1 rounded-full" style="width: ${Math.min(100, totalBrs*15)}%"></div>
-                </div>
+                <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalBrs} <span class="text-xs font-semibold text-slate-455">dirilis</span></p>
             </div>
-
             <div class="bg-gradient-to-br from-rose-500/10 to-rose-650/10 border border-rose-150 dark:border-rose-950 p-5 rounded-2xl">
                 <div class="flex justify-between items-start">
-                    <h4 class="text-[10px] font-black text-rose-750 dark:text-rose-450 uppercase tracking-widest">Hari Besar</h4>
+                    <h4 class="text-[10px] font-black text-rose-750 dark:text-rose-455 uppercase tracking-widest">Hari Besar</h4>
                     <span class="px-2 py-0.5 bg-rose-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalHariBesar} Konten</span>
                 </div>
-                <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalHariBesar} <span class="text-xs font-semibold text-slate-450">peringatan</span></p>
-                <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-3">
-                    <div class="bg-rose-500 h-1 rounded-full" style="width: ${Math.min(100, totalHariBesar*10)}%"></div>
-                </div>
+                <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalHariBesar} <span class="text-xs font-semibold text-slate-455">ucapan</span></p>
             </div>
         </div>
 
-        <!-- Monitoring Lists -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Left: Today's agenda -->
             <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-solid fa-bell-concierge text-indigo-500"></i> Agenda Hari Ini</h3>
                 <div class="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
@@ -336,7 +407,6 @@ function renderDashboard(container) {
                 </div>
             </div>
 
-            <!-- Center: Closest deadlines -->
             <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-regular fa-clock text-amber-500"></i> Batas Waktu Terdekat</h3>
                 <div class="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
@@ -358,7 +428,6 @@ function renderDashboard(container) {
                 </div>
             </div>
 
-            <!-- Right: Overdue tasks -->
             <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation text-rose-500"></i> Tugas Terlambat (Overdue)</h3>
                 <div class="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
@@ -366,50 +435,22 @@ function renderDashboard(container) {
                         <div class="p-3 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-200/50 dark:border-rose-900/55 rounded-xl flex items-center justify-between">
                             <div>
                                 <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-1">${ov.judul}</h4>
-                                <p class="text-[9px] text-slate-500 mt-1 font-semibold">PIC: ${ov.pic} • Status: <span class="text-rose-600 font-bold">${ov.status || 'Draft'}</span></p>
+                                <p class="text-[9px] text-slate-500 mt-1 font-semibold">PIC: ${ov.pic} • Status: <span class="text-rose-600 font-bold">${ov.status || 'Ditugaskan'}</span></p>
                             </div>
                             <span class="text-[9px] font-bold text-rose-700 dark:text-rose-350 uppercase whitespace-nowrap bg-rose-100 dark:bg-rose-950 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800">${formatDate(ov.tanggal)}</span>
                         </div>
                     `).join('') : `
                         <div class="text-center py-12 text-slate-400">
                             <i class="fa-solid fa-circle-check text-2xl mb-1 text-emerald-500"></i>
-                            <p class="text-[10px] font-bold text-emerald-650">Kinerja Bagus! Semua tepat waktu.</p>
+                            <p class="text-[10px] font-bold text-emerald-655">Semua tugas tepat waktu.</p>
                         </div>
                     `}
                 </div>
             </div>
         </div>
-
-        <!-- Latest Activities / Audit Trail snippets -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs">
-            <div class="flex justify-between items-center mb-4 pb-2.5 border-b border-slate-100 dark:border-slate-700">
-                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Aktivitas Sistem Terbaru</h3>
-                <button onclick="router('audit_trail')" class="text-xs font-semibold text-indigo-650 dark:text-indigo-400 hover:underline">Selengkapnya →</button>
-            </div>
-            <div class="divide-y divide-slate-100 dark:divide-slate-700 space-y-3.5 pt-1 max-h-[220px] overflow-y-auto pr-1">
-                ${db.auditTrail.length > 0 ? db.auditTrail.slice(-4).reverse().map(log => `
-                    <div class="flex items-center justify-between text-xs py-2 last:pb-0">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg ${getAvatarBg(log.user)} flex items-center justify-center font-bold text-[10px] shrink-0">${getPicInitials(log.user)}</div>
-                            <div>
-                                <p class="font-bold text-slate-800 dark:text-slate-250">${log.detail}</p>
-                                <p class="text-[9px] text-slate-400 mt-0.5">Oleh: ${log.user} • Aksi: <strong class="text-indigo-650 dark:text-indigo-450 uppercase">${log.action}</strong></p>
-                            </div>
-                        </div>
-                        <span class="text-[9px] text-slate-450 whitespace-nowrap font-medium"><i class="fa-regular fa-clock mr-1"></i>${new Date(log.timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}</span>
-                    </div>
-                `).join('') : `
-                    <div class="text-center py-8 text-slate-400">
-                        <p class="text-xs font-semibold">Belum ada catatan aktivitas.</p>
-                    </div>
-                `}
-            </div>
-        </div>
     `;
 
-    // Render Charts
     setTimeout(() => {
-        // Stacked Bar Chart: Workload per member
         const ctxStack = document.getElementById('stackedTasksChart')?.getContext('2d');
         if (ctxStack) {
             if (window.chartInstance) window.chartInstance.destroy();
@@ -439,21 +480,15 @@ function renderDashboard(container) {
             });
         }
 
-        // Doughnut Chart: Contributions per bidang
-        // Calculate bidang counts
-        const bidangCounts = {};
-        db.rekapRutin.forEach(item => {
+        const rubrikCounts = {};
+        db.rekapRutin.filter(isTaskForCurrentUser).forEach(item => {
             const b = item.rubrikasi || 'Umum';
-            bidangCounts[b] = (bidangCounts[b] || 0) + 1;
-        });
-        db.contentPlanner.forEach(item => {
-            const b = item.jenis || 'Umum';
-            bidangCounts[b] = (bidangCounts[b] || 0) + 1;
+            rubrikCounts[b] = (rubrikCounts[b] || 0) + 1;
         });
 
-        const bidangLabels = Object.keys(bidangCounts);
-        const bidangData = Object.values(bidangCounts);
-        const defaultColors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#0ea5e9'];
+        const rLabels = Object.keys(rubrikCounts);
+        const rData = Object.values(rubrikCounts);
+        const defaultColors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#0ea5e9', '#06b6d4', '#14b8a6', '#f43f5e', '#a855f7', '#3b82f6', '#10b981'];
 
         const ctxBidang = document.getElementById('bidangContributionChart')?.getContext('2d');
         if (ctxBidang) {
@@ -461,10 +496,10 @@ function renderDashboard(container) {
             window.sentimentChartInstance = new Chart(ctxBidang, {
                 type: 'doughnut',
                 data: {
-                    labels: bidangLabels.length > 0 ? bidangLabels : ['Humas'],
+                    labels: rLabels.length > 0 ? rLabels : ['Umum'],
                     datasets: [{
-                        data: bidangData.length > 0 ? bidangData : [1],
-                        backgroundColor: defaultColors.slice(0, Math.max(1, bidangLabels.length)),
+                        data: rData.length > 0 ? rData : [1],
+                        backgroundColor: defaultColors.slice(0, Math.max(1, rLabels.length)),
                         borderWidth: 0,
                         hoverOffset: 4
                     }]
@@ -480,13 +515,12 @@ function renderDashboard(container) {
                 }
             });
 
-            // Populate Breakdown legend
             const breakdownEl = document.getElementById('bidang-breakdown');
             if (breakdownEl) {
-                breakdownEl.innerHTML = (bidangLabels.length > 0 ? bidangLabels : ['Humas']).map((l, idx) => {
+                breakdownEl.innerHTML = (rLabels.length > 0 ? rLabels : ['Umum']).slice(0, 4).map((l, idx) => {
                     const c = defaultColors[idx % defaultColors.length];
-                    const v = bidangData[idx] || 0;
-                    return `<div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background-color: ${c}"></span> ${l}</span><strong>${v} tugas</strong></div>`;
+                    const v = rData[idx] || 0;
+                    return `<div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background-color: ${c}"></span> ${l}</span><strong>${v}</strong></div>`;
                 }).join('');
             }
         }
@@ -509,28 +543,26 @@ function renderPemohonDashboard(container) {
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Selamat datang kembali, <span class="font-bold text-indigo-650 dark:text-indigo-400">${currentUser.name}</span>. Ajukan dan pantau status permohonan kehumasan Anda.</p>
         </div>
 
-        <!-- Metric grid -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md hover:border-slate-250 transition-all duration-300 flex items-center gap-4">
-                <div class="w-11 h-11 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center justify-center text-indigo-600 shrink-0"><i class="fa-solid fa-ticket text-lg"></i></div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
+                <div class="w-11 h-11 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center justify-center text-indigo-655 shrink-0"><i class="fa-solid fa-ticket text-lg"></i></div>
                 <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Pengajuan</p><p class="text-xl font-extrabold text-slate-800 dark:text-white mt-0.5">${totalTickets}</p></div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md hover:border-slate-250 transition-all duration-300 flex items-center gap-4">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
                 <div class="w-11 h-11 bg-amber-50 dark:bg-amber-950 border border-amber-100 dark:border-amber-900 rounded-xl flex items-center justify-center text-amber-600 shrink-0"><i class="fa-solid fa-clock-rotate-left text-lg"></i></div>
                 <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Menunggu Review</p><p class="text-xl font-extrabold text-slate-800 dark:text-white mt-0.5">${pendingTickets}</p></div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md hover:border-slate-250 transition-all duration-300 flex items-center gap-4">
-                <div class="w-11 h-11 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded-xl flex items-center justify-center text-emerald-650 shrink-0"><i class="fa-solid fa-circle-check text-lg"></i></div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
+                <div class="w-11 h-11 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded-xl flex items-center justify-center text-emerald-655 shrink-0"><i class="fa-solid fa-circle-check text-lg"></i></div>
                 <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Disetujui / PIC</p><p class="text-xl font-extrabold text-slate-800 dark:text-white mt-0.5">${approvedTickets}</p></div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs hover:shadow-md hover:border-slate-250 transition-all duration-300 flex items-center gap-4">
-                <div class="w-11 h-11 bg-violet-50 dark:bg-violet-950 border border-violet-100 dark:border-violet-900 rounded-xl flex items-center justify-center text-violet-650 shrink-0"><i class="fa-solid fa-folder-open text-lg"></i></div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
+                <div class="w-11 h-11 bg-violet-50 dark:bg-violet-950 border border-violet-100 dark:border-violet-900 rounded-xl flex items-center justify-center text-violet-655 shrink-0"><i class="fa-solid fa-folder-open text-lg"></i></div>
                 <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Aset Bank Desain</p><p class="text-xl font-extrabold text-slate-800 dark:text-white mt-0.5">${totalAssets}</p></div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Ticket List -->
             <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs">
                 <div class="flex justify-between items-center mb-5 border-b pb-3.5 border-slate-100 dark:border-slate-700">
                     <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2"><i class="fa-solid fa-ticket-simple text-indigo-650 dark:text-indigo-400"></i> Riwayat Pengajuan Layanan Anda</h3>
@@ -548,9 +580,9 @@ function renderPemohonDashboard(container) {
                                 </p>
                             </div>
                             <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                item.status === 'Approved' ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 
-                                item.status === 'Pending' ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800' : 
-                                'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-305 border border-rose-200 dark:border-rose-850'
+                                item.status === 'Approved' ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200' : 
+                                item.status === 'Pending' ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-305 border border-amber-200' : 
+                                'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-305 border border-rose-200'
                             }">${item.status === 'Approved' ? 'Disetujui' : item.status === 'Pending' ? 'Menunggu' : 'Ditolak'}</span>
                         </div>
                     `).join('') : `
@@ -563,8 +595,7 @@ function renderPemohonDashboard(container) {
                 </div>
             </div>
 
-            <!-- BRS List -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs flex flex-col">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-205 dark:border-slate-700 p-6 shadow-xs flex flex-col">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-5 border-b pb-3.5 border-slate-100 dark:border-slate-700 flex items-center gap-2"><i class="fa-regular fa-calendar-days text-indigo-650 dark:text-indigo-400"></i> BRS Terdekat</h3>
                 <div class="space-y-4 flex-1">
                     ${db.brsSchedule.length > 0 ? db.brsSchedule.slice(0, 3).map(item => `
@@ -592,24 +623,25 @@ let plannerSearch = '';
 let plannerPicFilter = '';
 
 function renderPlanner(container) {
+    const isKepala = currentUser.role === 'kepala';
+    
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
                 <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Content Planner</h2>
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola papan Kanban interaktif untuk melacak pembuatan dan penayangan konten visual.</p>
             </div>
-            <button onclick="openModal('content')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                <i class="fa-solid fa-plus text-xs"></i> Tambah Konten Baru
-            </button>
+            ${!isKepala && isUserAdminOrKetua() ? `
+                <button onclick="openModal('content')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-plus text-xs"></i> Tambah Konten Baru
+                </button>
+            ` : ''}
         </div>
 
-        <!-- Filter & Search Controls -->
         <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-xs">
             <div class="relative w-full sm:max-w-xs">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                </span>
-                <input type="text" id="planner-search-input" oninput="handlePlannerSearch(this.value)" value="${plannerSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-medium focus:bg-white focus:outline-none placeholder-slate-450 dark:text-white text-slate-700 transition-all" placeholder="Cari judul atau konsep...">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <input type="text" id="planner-search-input" oninput="handlePlannerSearch(this.value)" value="${plannerSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:bg-white focus:outline-none placeholder-slate-450 dark:text-white text-slate-750 transition-all" placeholder="Cari judul atau konsep...">
             </div>
             <div class="flex items-center gap-2 w-full sm:w-auto">
                 <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-filter mr-1 text-slate-450"></i> Filter PIC:</span>
@@ -620,9 +652,8 @@ function renderPlanner(container) {
             </div>
         </div>
 
-        <!-- Kanban Columns Board -->
         <div class="flex gap-4 overflow-x-auto pb-4 select-none pr-1" id="kanban-columns">
-            <!-- Will be drawn dynamically by drawPlannerBoard() -->
+            <!-- Will be drawn dynamically -->
         </div>
     `;
 
@@ -651,7 +682,7 @@ function drawPlannerBoard() {
     const board = document.getElementById('kanban-columns');
     if (!board) return;
 
-    let filtered = db.contentPlanner;
+    let filtered = db.contentPlanner.filter(isTaskForCurrentUser);
     if (plannerSearch.trim()) {
         const query = plannerSearch.toLowerCase();
         filtered = filtered.filter(item => 
@@ -663,6 +694,8 @@ function drawPlannerBoard() {
         filtered = filtered.filter(item => item.assignedTo === plannerPicFilter);
     }
 
+    const isKepala = currentUser.role === 'kepala';
+
     board.innerHTML = statuses.map(status => {
         const cards = filtered.filter(c => c.status === status);
         const cardsHtml = cards.map(item => {
@@ -673,35 +706,57 @@ function drawPlannerBoard() {
             let nextIndex = statuses.indexOf(status) + 1;
             let prevIndex = statuses.indexOf(status) - 1;
             
-            let moveButtons = `
-                <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700 rounded-lg p-0.5">
-                    ${prevIndex >= 0 ? `
-                        <button onclick="moveKanbanTask(${item.id}, '${statuses[prevIndex]}')" title="Pindahkan ke ${statuses[prevIndex]}" class="w-5 h-5 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded text-slate-500 hover:bg-slate-100 transition-colors">
-                            <i class="fa-solid fa-chevron-left text-[9px]"></i>
-                        </button>
-                    ` : '<div class="w-5"></div>'}
-                    <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase select-none px-1">Geser</span>
-                    ${nextIndex < statuses.length ? `
-                        <button onclick="moveKanbanTask(${item.id}, '${statuses[nextIndex]}')" title="Pindahkan ke ${statuses[nextIndex]}" class="w-5 h-5 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded text-slate-500 hover:bg-slate-100 transition-colors">
-                            <i class="fa-solid fa-chevron-right text-[9px]"></i>
-                        </button>
-                    ` : '<div class="w-5"></div>'}
-                </div>
-            `;
+            let moveButtons = '';
+            if (!isKepala) {
+                moveButtons = `
+                    <div class="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-700 rounded-lg p-0.5">
+                        ${prevIndex >= 0 ? `
+                            <button onclick="moveKanbanTask(${item.id}, '${statuses[prevIndex]}')" title="Pindahkan ke ${statuses[prevIndex]}" class="w-5 h-5 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded text-slate-500 hover:bg-slate-100 transition-colors">
+                                <i class="fa-solid fa-chevron-left text-[9px]"></i>
+                            </button>
+                        ` : '<div class="w-5"></div>'}
+                        <span class="text-[9px] font-black text-slate-400 dark:text-slate-555 uppercase select-none px-1">Geser</span>
+                        ${nextIndex < statuses.length ? `
+                            <button onclick="moveKanbanTask(${item.id}, '${statuses[nextIndex]}')" title="Pindahkan ke ${statuses[nextIndex]}" class="w-5 h-5 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded text-slate-500 hover:bg-slate-100 transition-colors">
+                                <i class="fa-solid fa-chevron-right text-[9px]"></i>
+                            </button>
+                        ` : '<div class="w-5"></div>'}
+                    </div>
+                `;
+            }
+
+            let actionsPanel = '';
+            if (!isKepala) {
+                actionsPanel = `
+                    <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-1">
+                        <div class="flex items-center">
+                            <button onclick="openModal('content', ${itemJson})" title="Ubah tugas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-655 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                                <i class="fa-solid fa-pen text-[10px]"></i>
+                            </button>
+                            ${isUserAdminOrKetua() ? `
+                                <button onclick="deleteItem('content', ${item.id})" title="Hapus tugas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                                    <i class="fa-solid fa-trash text-[10px]"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                        ${moveButtons}
+                    </div>
+                `;
+            }
 
             return `
-                <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200/90 dark:border-slate-700 p-4 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-650 transition-all duration-200 group relative">
+                <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200/90 dark:border-slate-700 p-4 shadow-xs hover:shadow-md hover:border-slate-300 dark:hover:border-slate-650 transition-all duration-205 group relative">
                     <div class="flex justify-between items-start mb-2 gap-2">
                         <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${item.jenis === 'Hard Selling' ? 'bg-rose-50 text-rose-750 border border-rose-100 dark:bg-rose-950 dark:text-rose-300' : 'bg-indigo-50 text-indigo-750 border border-indigo-100 dark:bg-indigo-950 dark:text-indigo-300'}">${item.jenis}</span>
                         <span class="text-xs">${postTypeIcons[item.postType] || ''}</span>
                     </div>
 
-                    <h4 onclick="showDetail('content', ${itemJson})" class="font-bold text-slate-850 dark:text-slate-200 text-xs hover:text-indigo-650 transition-colors cursor-pointer line-clamp-2 leading-snug" title="${item.judul}">${item.judul}</h4>
-                    <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed" title="${item.konsep}">${item.konsep || 'Tidak ada deskripsi konsep.'}</p>
+                    <h4 onclick="showDetail('content', ${itemJson})" class="font-bold text-slate-855 dark:text-slate-200 text-xs hover:text-indigo-650 transition-colors cursor-pointer line-clamp-2 leading-snug" title="${item.judul}">${item.judul}</h4>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed" title="${item.konsep}">${item.konsep || 'Tidak ada konsep.'}</p>
                     
                     <!-- Progress Bar -->
                     <div class="mt-3.5">
-                        <div class="flex justify-between items-center text-[9px] text-slate-450 mb-1">
+                        <div class="flex justify-between items-center text-[9px] text-slate-455 mb-1">
                             <span>Pengerjaan</span>
                             <span class="font-bold text-slate-600 dark:text-slate-400">${item.progres}%</span>
                         </div>
@@ -716,21 +771,10 @@ function drawPlannerBoard() {
                             <div class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[9px] font-bold shadow-xs ${avatarBg}" title="${item.assignedTo}">${initials}</div>
                             <span class="text-[9px] text-slate-500 font-semibold truncate max-w-[65px]">${item.assignedTo?.split(' ')[0] || 'PIC'}</span>
                         </div>
-                        <span class="text-[9px] text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1 bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 rounded-md"><i class="fa-regular fa-clock"></i> ${formatDate(item.jadwal)}</span>
+                        <span class="text-[9px] text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1 bg-rose-50 dark:bg-rose-955/40 px-1.5 py-0.5 rounded-md"><i class="fa-regular fa-clock"></i> ${formatDate(item.jadwal)}</span>
                     </div>
 
-                    <!-- Actions Panel -->
-                    <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-1">
-                        <div class="flex items-center">
-                            <button onclick="openModal('content', ${itemJson})" title="Edit tugas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
-                                <i class="fa-solid fa-pen text-[10px]"></i>
-                            </button>
-                            <button onclick="deleteItem('content', ${item.id})" title="Hapus tugas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
-                                <i class="fa-solid fa-trash text-[10px]"></i>
-                            </button>
-                        </div>
-                        ${moveButtons}
-                    </div>
+                    ${actionsPanel}
                 </div>
             `;
         }).join('');
@@ -751,7 +795,7 @@ function drawPlannerBoard() {
                 <div class="space-y-3.5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
                     ${cardsHtml.length > 0 ? cardsHtml : `
                         <div class="py-16 text-center text-slate-400 dark:text-slate-550 border border-dashed border-slate-250 dark:border-slate-700 rounded-2xl bg-white/40 dark:bg-slate-850/40">
-                            <i class="fa-solid fa-folder-open text-2xl mb-1.5 text-slate-300 dark:text-slate-650"></i>
+                            <i class="fa-solid fa-folder-open text-2xl mb-1.5 text-slate-300 dark:text-slate-655"></i>
                             <p class="text-[10px] font-bold">Kosong</p>
                         </div>
                     `}
@@ -759,6 +803,21 @@ function drawPlannerBoard() {
             </div>
         `;
     }).join('');
+
+    window.moveKanbanTask = async function(taskId, newStatus) {
+        if (isKepala) return;
+        const item = db.contentPlanner.find(c => c.id === taskId);
+        if (!item) return;
+
+        item.status = newStatus;
+        if (newStatus === 'Posted') item.progres = 100;
+        else if (newStatus === 'Draft' && item.progres === 100) item.progres = 30;
+        else if (newStatus === 'Done') item.progres = 100;
+
+        showToast(`Tugas dipindahkan ke status: ${newStatus}`);
+        drawPlannerBoard();
+        await sendDataToServer('update', 'content_planner', item);
+    };
 }
 
 // -------------------------------------------------------------
@@ -769,8 +828,12 @@ let rutinRubrikFilter = '';
 let rutinDateFilter = '';
 
 function renderRekapRutin(container) {
-    // Unique rubrics
-    const rubrics = [...new Set(db.rekapRutin.map(r => r.rubrikasi).filter(Boolean))];
+    const isKepala = currentUser.role === 'kepala';
+    const rubrics = [
+        '#haribesar', '#rilisbrs', '#infografisbrs', '#rilispublikasi', 
+        '#SElasaSEnsus', '#promosistatistik', '#rripontianak', 
+        '#zonaintegritas', '#SKD', '#ddakalbar', 'KLIK', 'Laporan'
+    ];
 
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
@@ -779,41 +842,44 @@ function renderRekapRutin(container) {
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Daftar rekapitulasi, monitoring sebaran tugas harian, dan rubrikasi berkala kehumasan.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="exportRutinReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak Laporan
+                <button onclick="downloadTemplate(['Tanggal', 'Hari', 'Rubrikasi', 'Kegiatan', 'Petugas', 'Status'], 'Template_Rekap_Rutin.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-file-arrow-down"></i> Template
                 </button>
                 <button onclick="exportRutinReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-download"></i> Ekspor CSV
+                    <i class="fa-solid fa-file-csv"></i> CSV
                 </button>
-                <button onclick="openModal('rekap_rutin')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                    <i class="fa-solid fa-plus text-xs"></i> Tambah Kegiatan
+                <button onclick="exportRutinReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
+                    <i class="fa-solid fa-file-excel"></i> Excel
                 </button>
+                <button onclick="exportRutinReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-print"></i> Cetak
+                </button>
+                ${!isKepala && isUserAdminOrKetua() ? `
+                    <button onclick="openModal('rekap_rutin')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-plus text-xs"></i> Tambah Kegiatan
+                    </button>
+                ` : ''}
             </div>
         </div>
 
-        <!-- Filters Grid -->
         <div class="bg-white/85 dark:bg-slate-800/85 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4 shadow-xs">
-            <!-- Search -->
             <div class="relative">
                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
                 <input type="text" oninput="rutinSearch = this.value; drawRutinTable();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari kegiatan/petugas...">
             </div>
-            <!-- Rubrik Filter -->
             <div class="flex items-center gap-2">
                 <span class="text-xs text-slate-500 font-bold whitespace-nowrap"><i class="fa-solid fa-tags text-slate-400"></i> Rubrik:</span>
-                <select onchange="rutinRubrikFilter = this.value; drawRutinTable();" class="w-full text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-650 dark:text-slate-250 focus:outline-none">
+                <select onchange="rutinRubrikFilter = this.value; drawRutinTable();" class="w-full text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-655 dark:text-slate-200 focus:outline-none">
                     <option value="">Semua Rubrik</option>
                     ${rubrics.map(r => `<option value="${r}">${r}</option>`).join('')}
                 </select>
             </div>
-            <!-- Periode Filter -->
             <div class="flex items-center gap-2">
                 <span class="text-xs text-slate-500 font-bold whitespace-nowrap"><i class="fa-regular fa-calendar-check text-slate-400"></i> Periode:</span>
-                <input type="date" onchange="rutinDateFilter = this.value; drawRutinTable();" class="w-full text-xs font-semibold py-1.5 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-650 dark:text-slate-250 focus:outline-none">
+                <input type="date" onchange="rutinDateFilter = this.value; drawRutinTable();" class="w-full text-xs font-semibold py-1.5 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-655 dark:text-slate-200 focus:outline-none">
             </div>
         </div>
 
-        <!-- Data table wrapper -->
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
             <div class="overflow-x-auto">
                 <table class="w-full text-xs text-left text-slate-650 dark:text-slate-300">
@@ -825,7 +891,7 @@ function renderRekapRutin(container) {
                             <th class="px-6 py-4">Kegiatan</th>
                             <th class="px-6 py-4">Petugas</th>
                             <th class="px-6 py-4 text-center">Status</th>
-                            <th class="px-6 py-4 text-center">Aksi</th>
+                            ${!isKepala ? `<th class="px-6 py-4 text-center">Aksi</th>` : ''}
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="rutin-table-body">
@@ -842,7 +908,7 @@ function drawRutinTable() {
     const body = document.getElementById('rutin-table-body');
     if (!body) return;
 
-    let filtered = db.rekapRutin;
+    let filtered = db.rekapRutin.filter(isTaskForCurrentUser);
     if (rutinSearch.trim()) {
         const q = rutinSearch.toLowerCase();
         filtered = filtered.filter(item => 
@@ -859,9 +925,11 @@ function drawRutinTable() {
 
     filtered.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
 
+    const isKepala = currentUser.role === 'kepala';
+
     if (filtered.length === 0) {
         body.innerHTML = `
-            <tr><td colspan="7" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Tidak ada kegiatan rutin ditemukan.</p></td></tr>
+            <tr><td colspan="${isKepala ? 6 : 7}" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Tidak ada kegiatan rutin ditemukan.</p></td></tr>
         `;
         return;
     }
@@ -869,28 +937,39 @@ function drawRutinTable() {
     body.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
         let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
+        
+        let actionButtons = '';
+        if (!isKepala) {
+            actionButtons = `
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                    <div class="flex items-center justify-center gap-1.5" onclick="event.stopPropagation()">
+                        <button onclick="openModal('rekap_rutin', ${itemJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        ${isUserAdminOrKetua() ? `
+                            <button onclick="deleteItem('rekap_rutin', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-rose-605 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Hapus"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                        ` : ''}
+                    </div>
+                </td>
+            `;
+        }
+
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
                 <td class="px-6 py-4 font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">${formatDate(item.tanggal)}</td>
                 <td class="px-6 py-4 font-semibold text-slate-500 whitespace-nowrap">${item.hari || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap"><span class="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-650 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-md font-bold uppercase text-[9px]">${item.rubrikasi || '-'}</span></td>
-                <td class="px-6 py-4 font-extrabold text-slate-800 dark:text-slate-250 leading-snug">${item.kegiatan}</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-705 text-slate-650 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-md font-bold uppercase text-[9px]">${item.rubrikasi || '-'}</span></td>
+                <td class="px-6 py-4 font-extrabold text-slate-850 dark:text-slate-250 leading-snug">${item.kegiatan}</td>
                 <td class="px-6 py-4 font-bold text-indigo-650 dark:text-indigo-400 whitespace-nowrap">${item.petugas || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-center"><span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Draft'}</span></td>
-                <td class="px-6 py-4 whitespace-nowrap text-center">
-                    <div class="flex items-center justify-center gap-1.5" onclick="event.stopPropagation()">
-                        <button onclick="openModal('rekap_rutin', ${itemJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                        <button onclick="deleteItem('rekap_rutin', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Hapus"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                    </div>
-                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center"><span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span></td>
+                ${actionButtons}
             </tr>
         `;
     }).join('');
 
     window.exportRutinReport = function(type) {
         const headers = ["Tanggal", "Hari", "Rubrikasi", "Kegiatan", "Petugas", "Status"];
-        const rows = filtered.map(item => [formatDate(item.tanggal), item.hari || '-', item.rubrikasi || '-', item.kegiatan, item.petugas || '-', item.status || 'Draft']);
+        const rows = filtered.map(item => [formatDate(item.tanggal), item.hari || '-', item.rubrikasi || '-', item.kegiatan, item.petugas || '-', item.status || 'Ditugaskan']);
         if (type === 'csv') downloadCSV(headers, rows, `Rekap_Rutin_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
+        else if (type === 'excel') downloadExcel(headers, rows, `Rekap_Rutin_SIMHumas_${new Date().toISOString().split('T')[0]}.xls`);
         else openPrintReportWindow("Rekap Kegiatan Rutin Kehumasan BPS Kalbar", headers, rows);
     };
 }
@@ -901,6 +980,8 @@ function drawRutinTable() {
 let adHocSearch = '';
 
 function renderAdHoc(container) {
+    const isKepala = currentUser.role === 'kepala';
+
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
@@ -908,19 +989,27 @@ function renderAdHoc(container) {
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola monitoring penugasan dinamis (multi-person), beban kerja, dan tim satuan tugas khusus.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="exportAdHocReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak Laporan
+                <button onclick="downloadTemplate(['Tanggal', 'Hari', 'Nama Kegiatan', 'Jumlah Bertugas', 'Nama Petugas', 'Keterangan', 'Status'], 'Template_AdHoc_2026.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-file-arrow-down"></i> Template
                 </button>
                 <button onclick="exportAdHocReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-download"></i> Ekspor CSV
+                    <i class="fa-solid fa-file-csv"></i> CSV
                 </button>
-                <button onclick="openModal('ad_hoc')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                    <i class="fa-solid fa-plus text-xs"></i> Tambah Penugasan Ad Hoc
+                <button onclick="exportAdHocReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
+                    <i class="fa-solid fa-file-excel"></i> Excel
                 </button>
+                <button onclick="exportAdHocReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-print"></i> Cetak
+                </button>
+                ${!isKepala && isUserAdminOrKetua() ? `
+                    <button onclick="openModal('ad_hoc')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-plus text-xs"></i> Tambah Penugasan Ad Hoc
+                    </button>
+                ` : ''}
             </div>
         </div>
 
-        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex justify-between items-center shadow-xs">
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-205 dark:border-slate-700 mb-6 flex justify-between items-center shadow-xs">
             <div class="relative w-full max-w-xs">
                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
                 <input type="text" oninput="adHocSearch = this.value; drawAdHocTable();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari kegiatan atau petugas...">
@@ -938,7 +1027,8 @@ function renderAdHoc(container) {
                             <th class="px-6 py-4 text-center">Jumlah Petugas</th>
                             <th class="px-6 py-4">Nama Petugas</th>
                             <th class="px-6 py-4">Keterangan</th>
-                            <th class="px-6 py-4 text-center">Aksi</th>
+                            <th class="px-6 py-4 text-center">Status</th>
+                            ${!isKepala ? `<th class="px-6 py-4 text-center">Aksi</th>` : ''}
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="adhoc-table-body">
@@ -955,7 +1045,7 @@ function drawAdHocTable() {
     const body = document.getElementById('adhoc-table-body');
     if (!body) return;
 
-    let filtered = db.adHoc;
+    let filtered = db.adHoc.filter(isTaskForCurrentUser);
     if (adHocSearch.trim()) {
         const q = adHocSearch.toLowerCase();
         filtered = filtered.filter(item => 
@@ -966,41 +1056,55 @@ function drawAdHocTable() {
 
     filtered.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
 
+    const isKepala = currentUser.role === 'kepala';
+
     if (filtered.length === 0) {
         body.innerHTML = `
-            <tr><td colspan="7" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-users-slash text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Tidak ada penugasan ad hoc ditemukan.</p></td></tr>
+            <tr><td colspan="${isKepala ? 7 : 8}" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-users-slash text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Tidak ada penugasan ad hoc ditemukan.</p></td></tr>
         `;
         return;
     }
 
     body.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
-        // Display multi-person badges
         const staffList = item.petugas ? item.petugas.split(',') : [];
         const staffBadges = staffList.map(st => `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900 rounded font-bold text-[9px]">${st.trim()}</span>`).join(' ');
+
+        let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
+
+        let actionButtons = '';
+        if (!isKepala) {
+            actionButtons = `
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                    <div class="flex items-center justify-center gap-1.5" onclick="event.stopPropagation()">
+                        <button onclick="openModal('ad_hoc', ${itemJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        ${isUserAdminOrKetua() ? `
+                            <button onclick="deleteItem('ad_hoc', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-rose-606 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Hapus"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                        ` : ''}
+                    </div>
+                </td>
+            `;
+        }
 
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
                 <td class="px-6 py-4 font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">${formatDate(item.tanggal)}</td>
                 <td class="px-6 py-4 font-semibold text-slate-500 whitespace-nowrap">${item.hari || '-'}</td>
-                <td class="px-6 py-4 font-extrabold text-slate-800 dark:text-slate-250 leading-snug">${item.kegiatan}</td>
+                <td class="px-6 py-4 font-extrabold text-slate-855 dark:text-slate-255 leading-snug">${item.kegiatan}</td>
                 <td class="px-6 py-4 text-center font-bold text-slate-800 dark:text-slate-100">${item.jumlah_bertugas || staffList.length} orang</td>
                 <td class="px-6 py-4 whitespace-normal"><div class="flex flex-wrap gap-1.5">${staffBadges || '-'}</div></td>
                 <td class="px-6 py-4 text-slate-500 max-w-xs truncate font-medium">${item.keterangan || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-center">
-                    <div class="flex items-center justify-center gap-1.5" onclick="event.stopPropagation()">
-                        <button onclick="openModal('ad_hoc', ${itemJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                        <button onclick="deleteItem('ad_hoc', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Hapus"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                    </div>
-                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center"><span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span></td>
+                ${actionButtons}
             </tr>
         `;
     }).join('');
 
     window.exportAdHocReport = function(type) {
-        const headers = ["Tanggal", "Hari", "Nama Kegiatan", "Jumlah Bertugas", "Nama Petugas", "Keterangan"];
-        const rows = filtered.map(item => [formatDate(item.tanggal), item.hari || '-', item.kegiatan, item.jumlah_bertugas || '-', item.petugas || '-', item.keterangan || '-']);
+        const headers = ["Tanggal", "Hari", "Nama Kegiatan", "Jumlah Bertugas", "Nama Petugas", "Keterangan", "Status"];
+        const rows = filtered.map(item => [formatDate(item.tanggal), item.hari || '-', item.kegiatan, item.jumlah_bertugas || '-', item.petugas || '-', item.keterangan || '-', item.status || 'Ditugaskan']);
         if (type === 'csv') downloadCSV(headers, rows, `Rekap_AdHoc_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
+        else if (type === 'excel') downloadExcel(headers, rows, `Rekap_AdHoc_SIMHumas_${new Date().toISOString().split('T')[0]}.xls`);
         else openPrintReportWindow("Daftar Penugasan Kerja Ad Hoc BPS Kalbar", headers, rows);
     };
 }
@@ -1012,6 +1116,8 @@ let protoSearch = '';
 let protoLevelFilter = '';
 
 function renderProtokolerSeparate(container) {
+    const isKepala = currentUser.role === 'kepala';
+
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
@@ -1019,26 +1125,34 @@ function renderProtokolerSeparate(container) {
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Agenda pendampingan protokol pimpinan BPS Provinsi Kalbar pada acara internal maupun eksternal.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="exportProtokolerReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak Laporan
+                <button onclick="downloadTemplate(['Tanggal', 'Bulan', 'Nama Kegiatan', 'Lokasi', 'Jam Mulai', 'Jenis', 'Level', 'Petugas', 'Keterangan', 'Status'], 'Template_Protokoler.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-file-arrow-down"></i> Template
                 </button>
                 <button onclick="exportProtokolerReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-download"></i> Ekspor CSV
+                    <i class="fa-solid fa-file-csv"></i> CSV
                 </button>
-                <button onclick="openModal('protokoler')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                    <i class="fa-solid fa-plus text-xs"></i> Tambah Agenda Protokol
+                <button onclick="exportProtokolerReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
+                    <i class="fa-solid fa-file-excel"></i> Excel
                 </button>
+                <button onclick="exportProtokolerReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-print"></i> Cetak
+                </button>
+                ${!isKepala && isUserAdminOrKetua() ? `
+                    <button onclick="openModal('protokoler')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-plus text-xs"></i> Tambah Agenda Protokol
+                    </button>
+                ` : ''}
             </div>
         </div>
 
         <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-xs">
             <div class="relative w-full sm:max-w-xs">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-455"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
                 <input type="text" oninput="protoSearch = this.value; drawProtokolerTable();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari kegiatan atau lokasi...">
             </div>
             <div class="flex items-center gap-2 w-full sm:w-auto">
                 <span class="text-xs text-slate-500 font-bold whitespace-nowrap"><i class="fa-solid fa-filter text-slate-450"></i> Level:</span>
-                <select onchange="protoLevelFilter = this.value; drawProtokolerTable();" class="text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-650 dark:text-slate-200 focus:outline-none min-w-[140px]">
+                <select onchange="protoLevelFilter = this.value; drawProtokolerTable();" class="text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-655 dark:text-slate-200 focus:outline-none min-w-[140px]">
                     <option value="">Semua Level</option>
                     <option value="Super Formal">Super Formal</option>
                     <option value="Formal">Formal</option>
@@ -1060,7 +1174,7 @@ function drawProtokolerTable() {
     const list = document.getElementById('protokoler-list-body');
     if (!list) return;
 
-    let filtered = db.protokoler;
+    let filtered = db.protokoler.filter(isTaskForCurrentUser);
     if (protoSearch.trim()) {
         const q = protoSearch.toLowerCase();
         filtered = filtered.filter(item => 
@@ -1076,21 +1190,48 @@ function drawProtokolerTable() {
 
     if (filtered.length === 0) {
         list.innerHTML = `
-            <div class="bg-white dark:bg-slate-800 p-16 text-center text-slate-400 dark:text-slate-500 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
-                <i class="fa-solid fa-crown text-3xl mb-2 text-slate-350 dark:text-slate-700"></i>
+            <div class="bg-white dark:bg-slate-800 p-16 text-center text-slate-400 dark:text-slate-555 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
+                <i class="fa-solid fa-crown text-3xl mb-2 text-slate-350 dark:text-slate-750"></i>
                 <p class="text-xs font-bold">Belum ada agenda protokoler terdaftar.</p>
             </div>
         `;
         return;
     }
 
+    const isKepala = currentUser.role === 'kepala';
+
     list.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
+        let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
+        
+        let actionsHtml = '';
+        if (!isKepala) {
+            actionsHtml = `
+                <div class="flex items-center gap-1.5 justify-end md:justify-center border-t dark:border-slate-800 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto" onclick="event.stopPropagation()">
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-950 dark:text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-350">${item.jenis || 'Internal'}</span>
+                    <button onclick="openModal('protokoler', ${itemJson})" title="Ubah" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    ${isUserAdminOrKetua() ? `
+                        <button onclick="deleteItem('protokoler', ${item.id})" title="Hapus" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            actionsHtml = `
+                <div class="flex items-center gap-1.5 justify-end md:justify-center border-t dark:border-slate-800 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto">
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-950 dark:text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-350">${item.jenis || 'Internal'}</span>
+                </div>
+            `;
+        }
+
         return `
             <div class="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-205 dark:border-slate-700/80 hover:shadow-md hover:border-slate-350 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col md:flex-row justify-between items-start md:items-center gap-4" onclick="showDetail('protokoler', ${itemJson})">
                 <div class="flex items-start gap-4">
                     <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${
-                        ['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 border-indigo-150 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-900' : 'bg-amber-50 border-amber-150 text-amber-700 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900'
+                        ['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 border-indigo-150 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-900' : 'bg-amber-50 border-amber-150 text-amber-700 dark:bg-amber-950 dark:text-amber-300 dark:border-indigo-900'
                     }">
                         <i class="fa-solid fa-crown text-lg"></i>
                     </div>
@@ -1104,20 +1245,16 @@ function drawProtokolerTable() {
                         </div>
                     </div>
                 </div>
-                <div class="flex items-center gap-1.5 justify-end md:justify-center border-t dark:border-slate-800 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto" onclick="event.stopPropagation()">
-                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-950 dark:text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
-                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-350">${item.jenis || 'Internal'}</span>
-                    <button onclick="openModal('protokoler', ${itemJson})" title="Ubah" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-805 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                    <button onclick="deleteItem('protokoler', ${item.id})" title="Hapus" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-805 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                </div>
+                ${actionsHtml}
             </div>
         `;
     }).join('');
 
     window.exportProtokolerReport = function(type) {
-        const headers = ["Tanggal", "Nama Kegiatan", "Lokasi", "Jam Mulai", "Jenis", "Level", "Petugas", "Keterangan"];
-        const rows = filtered.map(item => [formatDate(item.tanggal), item.kegiatan, item.lokasi || '-', item.jam_mulai || '-', item.jenis || 'Internal', item.level || '-', item.petugas || '-', item.keterangan || '-']);
+        const headers = ["Tanggal", "Bulan", "Nama Kegiatan", "Lokasi", "Jam Mulai", "Jenis", "Level", "Petugas", "Keterangan", "Status"];
+        const rows = filtered.map(item => [formatDate(item.tanggal), item.bulan || '-', item.kegiatan, item.lokasi || '-', item.jam_mulai || '-', item.jenis || 'Internal', item.level || '-', item.petugas || '-', item.keterangan || '-', item.status || 'Ditugaskan']);
         if (type === 'csv') downloadCSV(headers, rows, `Agenda_Protokoler_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
+        else if (type === 'excel') downloadExcel(headers, rows, `Agenda_Protokoler_SIMHumas_${new Date().toISOString().split('T')[0]}.xls`);
         else openPrintReportWindow("Daftar Agenda Protokoler BPS Kalbar", headers, rows);
     };
 }
@@ -1129,6 +1266,8 @@ let mcSearch = '';
 let mcLevelFilter = '';
 
 function renderMcSeparate(container) {
+    const isKepala = currentUser.role === 'kepala';
+
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
@@ -1136,26 +1275,34 @@ function renderMcSeparate(container) {
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Agenda penugasan dan monitoring petugas pembawa acara (MC) BPS Provinsi Kalimantan Barat.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="exportMcReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak Laporan
+                <button onclick="downloadTemplate(['Tanggal', 'Bulan', 'Nama Kegiatan', 'Lokasi', 'Jam Mulai', 'Jenis', 'Level', 'Petugas', 'Keterangan', 'Status'], 'Template_MC.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-file-arrow-down"></i> Template
                 </button>
                 <button onclick="exportMcReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-download"></i> Ekspor CSV
+                    <i class="fa-solid fa-file-csv"></i> CSV
                 </button>
-                <button onclick="openModal('mc')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                    <i class="fa-solid fa-plus text-xs"></i> Tambah Penugasan MC
+                <button onclick="exportMcReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
+                    <i class="fa-solid fa-file-excel"></i> Excel
                 </button>
+                <button onclick="exportMcReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-print"></i> Cetak
+                </button>
+                ${!isKepala && isUserAdminOrKetua() ? `
+                    <button onclick="openModal('mc')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-plus text-xs"></i> Tambah Penugasan MC
+                    </button>
+                ` : ''}
             </div>
         </div>
 
         <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-xs">
             <div class="relative w-full sm:max-w-xs">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-455"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
                 <input type="text" oninput="mcSearch = this.value; drawMcTable();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari kegiatan atau lokasi...">
             </div>
             <div class="flex items-center gap-2 w-full sm:w-auto">
                 <span class="text-xs text-slate-500 font-bold whitespace-nowrap"><i class="fa-solid fa-filter text-slate-450"></i> Level:</span>
-                <select onchange="mcLevelFilter = this.value; drawMcTable();" class="text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-650 dark:text-slate-200 focus:outline-none min-w-[140px]">
+                <select onchange="mcLevelFilter = this.value; drawMcTable();" class="text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-655 dark:text-slate-200 focus:outline-none min-w-[140px]">
                     <option value="">Semua Level</option>
                     <option value="Super Formal">Super Formal</option>
                     <option value="Formal">Formal</option>
@@ -1177,7 +1324,7 @@ function drawMcTable() {
     const list = document.getElementById('mc-list-body');
     if (!list) return;
 
-    let filtered = db.mc;
+    let filtered = db.mc.filter(isTaskForCurrentUser);
     if (mcSearch.trim()) {
         const q = mcSearch.toLowerCase();
         filtered = filtered.filter(item => 
@@ -1193,16 +1340,43 @@ function drawMcTable() {
 
     if (filtered.length === 0) {
         list.innerHTML = `
-            <div class="bg-white dark:bg-slate-800 p-16 text-center text-slate-400 dark:text-slate-500 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
-                <i class="fa-solid fa-microphone text-3xl mb-2 text-slate-350 dark:text-slate-700"></i>
+            <div class="bg-white dark:bg-slate-800 p-16 text-center text-slate-400 dark:text-slate-555 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
+                <i class="fa-solid fa-microphone text-3xl mb-2 text-slate-350 dark:text-slate-750"></i>
                 <p class="text-xs font-bold">Belum ada agenda penugasan MC terdaftar.</p>
             </div>
         `;
         return;
     }
 
+    const isKepala = currentUser.role === 'kepala';
+
     list.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
+        let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
+        
+        let actionsHtml = '';
+        if (!isKepala) {
+            actionsHtml = `
+                <div class="flex items-center gap-1.5 justify-end md:justify-center border-t dark:border-slate-800 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto" onclick="event.stopPropagation()">
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-955 text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-955 text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-605 dark:text-slate-350">${item.jenis || 'Internal'}</span>
+                    <button onclick="openModal('mc', ${itemJson})" title="Ubah" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-655 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    ${isUserAdminOrKetua() ? `
+                        <button onclick="deleteItem('mc', ${item.id})" title="Hapus" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            actionsHtml = `
+                <div class="flex items-center gap-1.5 justify-end md:justify-center border-t dark:border-slate-800 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto">
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-955 text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-955 text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-350">${item.jenis || 'Internal'}</span>
+                </div>
+            `;
+        }
+
         return `
             <div class="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-205 dark:border-slate-700/80 hover:shadow-md hover:border-slate-350 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col md:flex-row justify-between items-start md:items-center gap-4" onclick="showDetail('mc', ${itemJson})">
                 <div class="flex items-start gap-4">
@@ -1221,20 +1395,16 @@ function drawMcTable() {
                         </div>
                     </div>
                 </div>
-                <div class="flex items-center gap-1.5 justify-end md:justify-center border-t dark:border-slate-800 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto" onclick="event.stopPropagation()">
-                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-950 dark:text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
-                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-350">${item.jenis || 'Internal'}</span>
-                    <button onclick="openModal('mc', ${itemJson})" title="Ubah" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-805 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                    <button onclick="deleteItem('mc', ${item.id})" title="Hapus" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-805 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                </div>
+                ${actionsHtml}
             </div>
         `;
     }).join('');
 
     window.exportMcReport = function(type) {
-        const headers = ["Tanggal", "Nama Kegiatan", "Lokasi", "Jam Mulai", "Jenis", "Level", "Petugas MC", "Keterangan"];
-        const rows = filtered.map(item => [formatDate(item.tanggal), item.kegiatan, item.lokasi || '-', item.jam_mulai || '-', item.jenis || 'Internal', item.level || '-', item.petugas || '-', item.keterangan || '-']);
+        const headers = ["Tanggal", "Bulan", "Nama Kegiatan", "Lokasi", "Jam Mulai", "Jenis", "Level", "Petugas MC", "Keterangan", "Status"];
+        const rows = filtered.map(item => [formatDate(item.tanggal), item.bulan || '-', item.kegiatan, item.lokasi || '-', item.jam_mulai || '-', item.jenis || 'Internal', item.level || '-', item.petugas || '-', item.keterangan || '-', item.status || 'Ditugaskan']);
         if (type === 'csv') downloadCSV(headers, rows, `Penugasan_MC_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
+        else if (type === 'excel') downloadExcel(headers, rows, `Penugasan_MC_SIMHumas_${new Date().toISOString().split('T')[0]}.xls`);
         else openPrintReportWindow("Daftar Penugasan Petugas MC BPS Kalbar", headers, rows);
     };
 }
@@ -1245,19 +1415,32 @@ function drawMcTable() {
 let brsSearch = '';
 
 function renderBrsRilis(container) {
+    const isKepala = currentUser.role === 'kepala';
+
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
                 <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Modul BRS Rilis</h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola arsip dokumen digital rilis BRS, infografis, dokumentasi YouTube/Zoom, dan kelengkapan highlight data.</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola dokumen rilis BRS, infografis, dokumentasi YouTube/Zoom, dan kelengkapan highlight data.</p>
             </div>
             <div class="flex flex-wrap gap-2">
+                <button onclick="downloadTemplate(['Tanggal Rilis', 'Judul', 'PIC Poster dan Infografis', 'PIC Dokumentasi Dalam Ruang', 'PIC Dokumentasi YouTube dan Zoom', 'Highlight'], 'Template_BRS.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-file-arrow-down"></i> Template
+                </button>
+                <button onclick="exportBrsReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-file-csv"></i> CSV
+                </button>
+                <button onclick="exportBrsReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
+                    <i class="fa-solid fa-file-excel"></i> Excel
+                </button>
                 <button onclick="exportBrsReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak Daftar
+                    <i class="fa-solid fa-print"></i> Cetak
                 </button>
-                <button onclick="openModal('brs_rilis')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                    <i class="fa-solid fa-plus text-xs"></i> Unggah Dokumen BRS
-                </button>
+                ${!isKepala && isUserAdminOrKetua() ? `
+                    <button onclick="openModal('brs_rilis')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-plus text-xs"></i> Unggah Dokumen BRS
+                    </button>
+                ` : ''}
             </div>
         </div>
 
@@ -1279,7 +1462,7 @@ function drawBrsGrid() {
     const grid = document.getElementById('brs-grid-body');
     if (!grid) return;
 
-    let filtered = db.brsRilis;
+    let filtered = db.brsRilis.filter(isTaskForCurrentUser);
     if (brsSearch.trim()) {
         const q = brsSearch.toLowerCase();
         filtered = filtered.filter(item => item.judul && item.judul.toLowerCase().includes(q));
@@ -1289,68 +1472,69 @@ function drawBrsGrid() {
 
     if (filtered.length === 0) {
         grid.innerHTML = `
-            <div class="col-span-full bg-white dark:bg-slate-800 p-16 text-center text-slate-400 dark:text-slate-500 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
-                <i class="fa-solid fa-bullhorn text-4xl mb-2.5 text-slate-350 dark:text-slate-700"></i>
+            <div class="col-span-full bg-white dark:bg-slate-800 p-16 text-center text-slate-400 dark:text-slate-555 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
+                <i class="fa-solid fa-bullhorn text-4xl mb-2.5 text-slate-350 dark:text-slate-750"></i>
                 <p class="text-xs font-bold">Arsip Berita Resmi Statistik (BRS) kosong.</p>
             </div>
         `;
         return;
     }
 
+    const isKepala = currentUser.role === 'kepala';
+
     grid.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
-        // Completeness logic
-        const elements = [item.poster, item.infografis, item.doc_ruangan, item.doc_youtube, item.doc_zoom, item.highlight];
-        const loadedCount = elements.filter(Boolean).length;
-        const totalElements = elements.length;
-        const progressPercentage = Math.round((loadedCount / totalElements) * 100);
         
-        let completenessBadge = progressPercentage === 100 
-            ? `<span class="px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-350 border border-emerald-250 dark:border-emerald-900 rounded-full text-[9px] font-bold"><i class="fa-solid fa-circle-check"></i> Dokumen Lengkap</span>`
-            : `<span class="px-2.5 py-0.5 bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-350 border border-amber-250 dark:border-amber-900 rounded-full text-[9px] font-bold"><i class="fa-solid fa-spinner animate-spin"></i> ${progressPercentage}% Terunggah</span>`;
+        let actionsPanel = '';
+        if (!isKepala) {
+            actionsPanel = `
+                <div class="mt-6 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-[10px]">
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="openModal('brs_rilis', ${itemJson})" title="Ubah" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        ${isUserAdminOrKetua() ? `
+                            <button onclick="deleteItem('brs_rilis', ${item.id})" title="Hapus" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                        ` : ''}
+                    </div>
+                    <button onclick="showDetail('brs_rilis', ${itemJson})" class="text-[9px] font-bold text-indigo-650 dark:text-indigo-400 hover:underline">Lihat Rincian →</button>
+                </div>
+            `;
+        } else {
+            actionsPanel = `
+                <div class="mt-6 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end text-[10px]">
+                    <button onclick="showDetail('brs_rilis', ${itemJson})" class="text-[9px] font-bold text-indigo-650 dark:text-indigo-400 hover:underline">Lihat Rincian →</button>
+                </div>
+            `;
+        }
 
         return `
             <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-205 dark:border-slate-700 p-5 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
                 <div>
                     <div class="flex justify-between items-start gap-2">
                         <span class="text-[9px] text-slate-450 dark:text-slate-500 font-extrabold uppercase tracking-widest"><i class="fa-solid fa-calendar mr-1"></i> ${formatDate(item.tanggal_rilis)}</span>
-                        ${completenessBadge}
                     </div>
-                    <h4 class="font-extrabold text-slate-850 dark:text-slate-100 text-sm mt-3 leading-snug cursor-pointer hover:text-indigo-650 transition-colors" onclick="showDetail('brs_rilis', ${itemJson})">${item.judul}</h4>
-                    <p class="text-[9px] text-slate-450 dark:text-slate-550 mt-1">Versi: <strong class="text-indigo-650 dark:text-indigo-400">v${item.version || '1.0'}</strong></p>
+                    <h4 class="font-extrabold text-slate-855 dark:text-slate-100 text-sm mt-3 leading-snug cursor-pointer hover:text-indigo-655 transition-colors" onclick="showDetail('brs_rilis', ${itemJson})">${item.judul}</h4>
                     
-                    <!-- File grids with download/preview triggers -->
-                    <div class="mt-4 grid grid-cols-3 gap-2 text-center text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                        ${item.poster ? `<a href="${item.poster}" target="_blank" class="p-2 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-150 dark:border-indigo-900 rounded-lg hover:bg-indigo-50 transition-all flex flex-col items-center gap-1.5"><i class="fa-regular fa-image text-xs text-indigo-650 dark:text-indigo-400"></i> Poster</a>` : '<div class="p-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-700 rounded-lg text-slate-350 cursor-not-allowed flex flex-col items-center gap-1.5"><i class="fa-regular fa-image text-xs"></i> Kosong</div>'}
-                        ${item.infografis ? `<a href="${item.infografis}" target="_blank" class="p-2 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-150 dark:border-emerald-900 rounded-lg hover:bg-emerald-55 transition-all flex flex-col items-center gap-1.5"><i class="fa-solid fa-chart-pie text-xs text-emerald-650 dark:text-emerald-450"></i> Info</a>` : '<div class="p-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-700 rounded-lg text-slate-350 cursor-not-allowed flex flex-col items-center gap-1.5"><i class="fa-solid fa-chart-pie text-xs"></i> Kosong</div>'}
-                        ${item.highlight ? `<a href="${item.highlight}" target="_blank" class="p-2 bg-violet-50/50 dark:bg-violet-950/20 border border-violet-150 dark:border-violet-900 rounded-lg hover:bg-violet-50 transition-all flex flex-col items-center gap-1.5"><i class="fa-solid fa-file-invoice text-xs text-violet-650 dark:text-violet-400"></i> Highlight</a>` : '<div class="p-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-700 rounded-lg text-slate-350 cursor-not-allowed flex flex-col items-center gap-1.5"><i class="fa-solid fa-file-invoice text-xs"></i> Kosong</div>'}
-                    </div>
-
-                    <div class="mt-2.5 grid grid-cols-3 gap-2 text-center text-[9px] font-bold uppercase tracking-wider text-slate-650 dark:text-slate-400">
-                        ${item.doc_ruangan ? `<a href="${item.doc_ruangan}" target="_blank" class="p-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-200 transition-all text-[8px]"><i class="fa-solid fa-camera mr-1"></i> Kamera</a>` : '<span class="p-1.5 bg-slate-50 dark:bg-slate-800/30 border border-slate-150 dark:border-slate-700 text-slate-350 rounded-lg text-[8px]"><i class="fa-solid fa-camera mr-1"></i> N/A</span>'}
-                        ${item.doc_youtube ? `<a href="${item.doc_youtube}" target="_blank" class="p-1.5 bg-rose-50 dark:bg-rose-950/20 border border-rose-150 dark:border-rose-900 text-rose-650 dark:text-rose-400 rounded-lg hover:bg-rose-100 transition-all text-[8px]"><i class="fa-brands fa-youtube mr-1"></i> YouTube</a>` : '<span class="p-1.5 bg-slate-50 dark:bg-slate-800/30 border border-slate-150 dark:border-slate-700 text-slate-350 rounded-lg text-[8px]"><i class="fa-brands fa-youtube mr-1"></i> N/A</span>'}
-                        ${item.doc_zoom ? `<a href="${item.doc_zoom}" target="_blank" class="p-1.5 bg-blue-50 dark:bg-blue-950/20 border border-blue-150 dark:border-blue-900 text-blue-650 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-all text-[8px]"><i class="fa-solid fa-video mr-1"></i> Zoom</a>` : '<span class="p-1.5 bg-slate-50 dark:bg-slate-800/30 border border-slate-150 dark:border-slate-700 text-slate-350 rounded-lg text-[8px]"><i class="fa-solid fa-video mr-1"></i> N/A</span>'}
+                    <div class="mt-4 space-y-2 text-[10px] text-slate-600 dark:text-slate-400 font-medium">
+                        <div class="flex justify-between"><span>PIC Poster & Info:</span><strong class="text-slate-800 dark:text-slate-200">${item.pic_poster_info || '-'}</strong></div>
+                        <div class="flex justify-between"><span>PIC Dokumentasi Ruang:</span><strong class="text-slate-800 dark:text-slate-200">${item.pic_doc_ruang || '-'}</strong></div>
+                        <div class="flex justify-between"><span>PIC Dok. YT & Zoom:</span><strong class="text-slate-800 dark:text-slate-200">${item.pic_doc_yt_zoom || '-'}</strong></div>
+                        <div class="flex justify-between items-center mt-2.5 pt-2.5 border-t border-dashed border-slate-100 dark:border-slate-750">
+                            <span>Highlight Data:</span>
+                            ${item.highlight ? `<a href="${item.highlight}" target="_blank" class="px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800 rounded font-bold text-[8px] uppercase tracking-wider"><i class="fa-solid fa-file-arrow-down mr-0.5"></i> Unduh</a>` : '<span class="text-slate-400">Belum ada</span>'}
+                        </div>
                     </div>
                 </div>
-
-                <div class="mt-6 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-[10px]">
-                    <div class="flex items-center gap-1.5">
-                        <button onclick="openModal('brs_rilis', ${itemJson})" title="Ubah" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                        <button onclick="deleteItem('brs_rilis', ${item.id})" title="Hapus" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                    </div>
-                    <button onclick="showDetail('brs_rilis', ${itemJson})" class="text-[9px] font-bold text-indigo-650 dark:text-indigo-400 hover:underline">Lihat Rincian →</button>
-                </div>
+                ${actionsPanel}
             </div>
         `;
     }).join('');
 
     window.exportBrsReport = function(type) {
-        const headers = ["Tanggal Rilis", "Judul Rilis Data", "Versi Dokumen", "Status Kelengkapan"];
-        const rows = filtered.map(item => {
-            const loaded = [item.poster, item.infografis, item.doc_ruangan, item.doc_youtube, item.doc_zoom, item.highlight].filter(Boolean).length;
-            return [formatDate(item.tanggal_rilis), item.judul, `v${item.version || '1.0'}`, `${loaded}/6 Terupload` + (loaded === 6 ? ' (Lengkap)' : '')];
-        });
-        openPrintReportWindow("Arsip Berita Resmi Statistik (BRS) BPS Kalbar", headers, rows);
+        const headers = ["Tanggal Rilis", "Judul Rilis Data", "PIC Poster & Info", "PIC Dok Ruang", "PIC Dok YT Zoom", "Highlight"];
+        const rows = filtered.map(item => [formatDate(item.tanggal_rilis), item.judul, item.pic_poster_info || '-', item.pic_doc_ruang || '-', item.pic_doc_yt_zoom || '-', item.highlight || '-']);
+        if (type === 'csv') downloadCSV(headers, rows, `Arsip_BRS_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
+        else if (type === 'excel') downloadExcel(headers, rows, `Arsip_BRS_SIMHumas_${new Date().toISOString().split('T')[0]}.xls`);
+        else openPrintReportWindow("Arsip Berita Resmi Statistik (BRS) BPS Kalbar", headers, rows);
     };
 }
 
@@ -1360,6 +1544,8 @@ function drawBrsGrid() {
 let hariBesarSearch = '';
 
 function renderHariBesar(container) {
+    const isKepala = currentUser.role === 'kepala';
+
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
@@ -1367,12 +1553,23 @@ function renderHariBesar(container) {
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Daftar agenda ucapan hari besar nasional/keagamaan, kalender perayaan, serta PIC pembuat konten.</p>
             </div>
             <div class="flex flex-wrap gap-2">
+                <button onclick="downloadTemplate(['Tanggal', 'Hari Besar', 'Pembuat Konten (PIC)', 'Status', 'Data Pendukung'], 'Template_Hari_Besar.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-file-arrow-down"></i> Template
+                </button>
+                <button onclick="exportHariBesarReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-file-csv"></i> CSV
+                </button>
+                <button onclick="exportHariBesarReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
+                    <i class="fa-solid fa-file-excel"></i> Excel
+                </button>
                 <button onclick="exportHariBesarReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
-                    <i class="fa-solid fa-print"></i> Cetak Daftar
+                    <i class="fa-solid fa-print"></i> Cetak
                 </button>
-                <button onclick="openModal('hari_besar')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                    <i class="fa-solid fa-plus text-xs"></i> Tambah Ucapan
-                </button>
+                ${!isKepala && isUserAdminOrKetua() ? `
+                    <button onclick="openModal('hari_besar')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-plus text-xs"></i> Tambah Ucapan
+                    </button>
+                ` : ''}
             </div>
         </div>
 
@@ -1392,7 +1589,7 @@ function renderHariBesar(container) {
                             <th class="px-6 py-4">Nama Hari Besar</th>
                             <th class="px-6 py-4">Pembuat Konten (PIC)</th>
                             <th class="px-6 py-4">Status Progress</th>
-                            <th class="px-6 py-4 text-center">Aksi</th>
+                            ${!isKepala ? `<th class="px-6 py-4 text-center">Aksi</th>` : ''}
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="haribesar-table-body">
@@ -1409,7 +1606,7 @@ function drawHariBesarTable() {
     const body = document.getElementById('haribesar-table-body');
     if (!body) return;
 
-    let filtered = db.hariBesar;
+    let filtered = db.hariBesar.filter(isTaskForCurrentUser);
     if (hariBesarSearch.trim()) {
         const q = hariBesarSearch.toLowerCase();
         filtered = filtered.filter(item => item.hari_besar && item.hari_besar.toLowerCase().includes(q));
@@ -1417,36 +1614,50 @@ function drawHariBesarTable() {
 
     filtered.sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
 
+    const isKepala = currentUser.role === 'kepala';
+
     if (filtered.length === 0) {
         body.innerHTML = `
-            <tr><td colspan="5" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-heart-broken text-3xl mb-2 text-slate-350 dark:text-slate-705"></i><p class="text-xs font-bold">Tidak ada agenda ucapan hari besar.</p></td></tr>
+            <tr><td colspan="${isKepala ? 4 : 5}" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-heart-broken text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Tidak ada agenda ucapan hari besar.</p></td></tr>
         `;
         return;
     }
 
     body.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
-        let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-850 dark:bg-emerald-950/40 dark:text-emerald-450' : 'bg-amber-50 text-amber-850 dark:bg-amber-950/40 dark:text-amber-450';
+        let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-850 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-850 dark:bg-indigo-950/40 dark:text-indigo-300';
+        
+        let actionButtons = '';
+        if (!isKepala) {
+            actionButtons = `
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                    <div class="flex items-center justify-center gap-1.5" onclick="event.stopPropagation()">
+                        <button onclick="openModal('hari_besar', ${itemJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-455 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        ${isUserAdminOrKetua() ? `
+                            <button onclick="deleteItem('hari_besar', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-455 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Hapus"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                        ` : ''}
+                    </div>
+                </td>
+            `;
+        }
+
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
                 <td class="px-6 py-4 font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">${formatDate(item.tanggal)}</td>
-                <td class="px-6 py-4 font-extrabold text-slate-850 dark:text-slate-200 leading-snug">${item.hari_besar}</td>
-                <td class="px-6 py-4 font-bold text-indigo-650 dark:text-indigo-400 whitespace-nowrap">${item.pembuat_konten || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap"><span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Draft'}</span></td>
-                <td class="px-6 py-4 whitespace-nowrap text-center">
-                    <div class="flex items-center justify-center gap-1.5" onclick="event.stopPropagation()">
-                        <button onclick="openModal('hari_besar', ${itemJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                        <button onclick="deleteItem('hari_besar', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-455 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Hapus"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                    </div>
-                </td>
+                <td class="px-6 py-4 font-extrabold text-slate-855 dark:text-slate-200 leading-snug">${item.hari_besar}</td>
+                <td class="px-6 py-4 font-bold text-indigo-655 dark:text-indigo-400 whitespace-nowrap">${item.pembuat_konten || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap"><span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span></td>
+                ${actionButtons}
             </tr>
         `;
     }).join('');
 
     window.exportHariBesarReport = function(type) {
-        const headers = ["Tanggal", "Hari Besar", "Pembuat Konten (PIC)", "Status"];
-        const rows = filtered.map(item => [formatDate(item.tanggal), item.hari_besar, item.pembuat_konten || '-', item.status || 'Draft']);
-        openPrintReportWindow("Kalender & Penugasan Ucapan Hari Besar BPS Kalbar", headers, rows);
+        const headers = ["Tanggal", "Hari Besar", "Pembuat Konten (PIC)", "Status", "Data Pendukung"];
+        const rows = filtered.map(item => [formatDate(item.tanggal), item.hari_besar, item.pembuat_konten || '-', item.status || 'Ditugaskan', item.data_pendukung || '-']);
+        if (type === 'csv') downloadCSV(headers, rows, `Kalender_HariBesar_${new Date().toISOString().split('T')[0]}.csv`);
+        else if (type === 'excel') downloadExcel(headers, rows, `Kalender_HariBesar_${new Date().toISOString().split('T')[0]}.xls`);
+        else openPrintReportWindow("Kalender & Penugasan Ucapan Hari Besar BPS Kalbar", headers, rows);
     };
 }
 
@@ -1454,59 +1665,53 @@ function drawHariBesarTable() {
 // 9. MODUL REKAP KEGIATAN & MONITORING SLA VIEW
 // -------------------------------------------------------------
 function renderRekapKegiatan(container) {
-    // Compile all tasks in the system to calculate SLA status
     const allTasks = [];
 
-    // Map rekap rutin
-    db.rekapRutin.forEach(item => {
+    db.rekapRutin.filter(isTaskForCurrentUser).forEach(item => {
         allTasks.push({
             judul: item.kegiatan,
             jenis: 'Rutin',
             petugas: item.petugas || '-',
             tanggal: item.tanggal,
-            progress: item.status === 'Selesai' ? 100 : 35,
-            status: item.status || 'Draft'
+            progress: item.status === 'Selesai' ? 100 : 30,
+            status: item.status || 'Ditugaskan'
         });
     });
 
-    // Map ad hoc
-    db.adHoc.forEach(item => {
+    db.adHoc.filter(isTaskForCurrentUser).forEach(item => {
         allTasks.push({
             judul: item.kegiatan,
             jenis: 'Ad Hoc',
             petugas: item.petugas || '-',
             tanggal: item.tanggal,
             progress: item.status === 'Selesai' ? 100 : 40,
-            status: item.status || 'Draft'
+            status: item.status || 'Ditugaskan'
         });
     });
 
-    // Map protokoler
-    db.protokoler.forEach(item => {
+    db.protokoler.filter(isTaskForCurrentUser).forEach(item => {
         allTasks.push({
             judul: item.kegiatan,
             jenis: 'Protokoler',
             petugas: item.petugas || '-',
             tanggal: item.tanggal,
             progress: item.status === 'Selesai' ? 100 : 50,
-            status: item.status || 'Draft'
+            status: item.status || 'Ditugaskan'
         });
     });
 
-    // Map MC
-    db.mc.forEach(item => {
+    db.mc.filter(isTaskForCurrentUser).forEach(item => {
         allTasks.push({
             judul: item.kegiatan,
             jenis: 'MC',
             petugas: item.petugas || '-',
             tanggal: item.tanggal,
             progress: item.status === 'Selesai' ? 100 : 50,
-            status: item.status || 'Draft'
+            status: item.status || 'Ditugaskan'
         });
     });
 
-    // Map Content Planner
-    db.contentPlanner.forEach(item => {
+    db.contentPlanner.filter(isTaskForCurrentUser).forEach(item => {
         allTasks.push({
             judul: item.judul,
             jenis: 'Konten Planner',
@@ -1517,7 +1722,6 @@ function renderRekapKegiatan(container) {
         });
     });
 
-    // Evaluate SLA
     let totalSlaAman = 0;
     let totalSlaMendekati = 0;
     let totalSlaTerlambat = 0;
@@ -1529,25 +1733,24 @@ function renderRekapKegiatan(container) {
 
         if (task.progress === 100 || ['Selesai', 'Done', 'Posted'].includes(task.status)) {
             task.sla = 'Aman';
-            task.slaClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200';
+            task.slaClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-305 border-emerald-200 dark:border-emerald-900';
             totalSlaAman++;
         } else if (daysRemaining < 0) {
             task.sla = 'Terlambat';
-            task.slaClass = 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-200';
+            task.slaClass = 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-305 border-rose-200 dark:border-rose-900';
             totalSlaTerlambat++;
         } else if (daysRemaining <= 3) {
-            task.sla = 'Mendekati Deadline';
-            task.slaClass = 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200';
+            task.sla = 'Mendekati';
+            task.slaClass = 'bg-amber-100 text-amber-800 dark:bg-amber-955 dark:text-amber-305 border-amber-200 dark:border-amber-900';
             totalSlaMendekati++;
         } else {
             task.sla = 'Aman';
-            task.slaClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200';
+            task.slaClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-305 border-emerald-200 dark:border-emerald-900';
             totalSlaAman++;
         }
     });
 
-    // Completion percentage
-    const completedTasks = allTasks.filter(t => t.progress === 100).length;
+    const completedTasks = allTasks.filter(t => t.progress === 100 || t.status === 'Selesai').length;
     const completionRate = allTasks.length > 0 ? Math.round((completedTasks / allTasks.length) * 100) : 0;
 
     container.innerHTML = `
@@ -1556,27 +1759,25 @@ function renderRekapKegiatan(container) {
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pantau Service Level Agreement (SLA), persentase penyelesaian, dan daftar seluruh pekerjaan aktif.</p>
         </div>
 
-        <!-- SLA Overview Metrics -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-11 h-11 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-650 shrink-0 font-extrabold text-sm">${completionRate}%</div>
-                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Persentase Selesai</p><p class="text-xl font-black text-slate-800 dark:text-white mt-0.5">${completedTasks} / ${allTasks.length}</p></div>
+                <div class="w-11 h-11 bg-indigo-50 dark:bg-indigo-955 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-650 shrink-0 font-extrabold text-sm">${completionRate}%</div>
+                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Persentase Selesai</p><p class="text-xl font-black text-slate-850 dark:text-white mt-0.5">${completedTasks} / ${allTasks.length}</p></div>
             </div>
             <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-11 h-11 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 shrink-0"><i class="fa-solid fa-circle-check text-lg"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">SLA Aman</p><p class="text-xl font-black text-slate-800 dark:text-white mt-0.5">${totalSlaAman}</p></div>
+                <div class="w-11 h-11 bg-emerald-50 dark:bg-emerald-955 border border-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 shrink-0"><i class="fa-solid fa-circle-check text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">SLA Aman</p><p class="text-xl font-black text-slate-850 dark:text-white mt-0.5">${totalSlaAman}</p></div>
             </div>
             <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-11 h-11 bg-amber-50 dark:bg-amber-950 border border-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0"><i class="fa-solid fa-bell text-lg"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Mendekati Deadline</p><p class="text-xl font-black text-slate-800 dark:text-white mt-0.5">${totalSlaMendekati}</p></div>
+                <div class="w-11 h-11 bg-amber-50 dark:bg-amber-955 border border-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0"><i class="fa-solid fa-bell text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Mendekati Deadline</p><p class="text-xl font-black text-slate-855 dark:text-white mt-0.5">${totalSlaMendekati}</p></div>
             </div>
             <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-11 h-11 bg-rose-50 dark:bg-rose-950 border border-rose-100 rounded-xl flex items-center justify-center text-rose-650 shrink-0"><i class="fa-solid fa-clock-rotate-left text-lg"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Terlambat</p><p class="text-xl font-black text-slate-800 dark:text-white mt-0.5">${totalSlaTerlambat}</p></div>
+                <div class="w-11 h-11 bg-rose-50 dark:bg-rose-955 border border-rose-100 rounded-xl flex items-center justify-center text-rose-650 shrink-0"><i class="fa-solid fa-clock-rotate-left text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Terlambat</p><p class="text-xl font-black text-slate-855 dark:text-white mt-0.5">${totalSlaTerlambat}</p></div>
             </div>
         </div>
 
-        <!-- Active Tasks list -->
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs">
             <h3 class="font-bold text-slate-850 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-solid fa-list-check text-indigo-500"></i> Daftar Pekerjaan Aktif</h3>
             <div class="space-y-4">
@@ -1585,16 +1786,16 @@ function renderRekapKegiatan(container) {
                         <div class="flex-1 mr-4 mb-2 sm:mb-0">
                             <div class="flex items-center gap-2">
                                 <span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-350 border border-slate-200 dark:border-slate-600 rounded text-[8px] font-bold uppercase tracking-wider">${task.jenis}</span>
-                                <h4 class="font-extrabold text-xs text-slate-850 dark:text-slate-200 leading-snug">${task.judul}</h4>
+                                <h4 class="font-extrabold text-xs text-slate-855 dark:text-slate-200 leading-snug">${task.judul}</h4>
                             </div>
                             <p class="text-[10px] text-slate-500 mt-1">PIC: <strong class="text-slate-700 dark:text-slate-300 font-semibold">${task.petugas}</strong> • Batas: ${formatDate(task.tanggal)}</p>
-                            <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1 mt-2">
+                            <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1 mt-2">
                                 <div class="bg-gradient-to-r from-indigo-500 to-indigo-650 h-1 rounded-full" style="width: ${task.progress}%"></div>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
                             <span class="px-2 py-0.5 rounded text-[8px] border font-black uppercase tracking-wider ${task.slaClass}">${task.sla}</span>
-                            <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold text-center shrink-0 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">${task.status}</span>
+                            <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold text-center shrink-0 bg-slate-100 dark:bg-slate-700 text-slate-650 dark:text-slate-300">${task.status}</span>
                         </div>
                     </div>
                 `).join('')}
@@ -1611,21 +1812,18 @@ function renderIntegratedCalendar(container) {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Map all calendar events
     const events = [];
-    db.rekapRutin.forEach(e => events.push({ title: `[Rutin] ${e.kegiatan}`, date: e.tanggal, color: 'bg-indigo-500' }));
-    db.adHoc.forEach(e => events.push({ title: `[AdHoc] ${e.kegiatan}`, date: e.tanggal, color: 'bg-emerald-500' }));
-    db.protokoler.forEach(e => events.push({ title: `[Proto] ${e.kegiatan}`, date: e.tanggal, color: 'bg-violet-500' }));
-    db.mc.forEach(e => events.push({ title: `[MC] ${e.kegiatan}`, date: e.tanggal, color: 'bg-sky-500' }));
-    db.brsRilis.forEach(e => events.push({ title: `[BRS] ${e.judul}`, date: e.tanggal_rilis, color: 'bg-rose-500' }));
-    db.hariBesar.forEach(e => events.push({ title: `[HariBesar] ${e.hari_besar}`, date: e.tanggal, color: 'bg-amber-500' }));
+    db.rekapRutin.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Rutin] ${e.kegiatan}`, date: e.tanggal, color: 'bg-indigo-500' }));
+    db.adHoc.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[AdHoc] ${e.kegiatan}`, date: e.tanggal, color: 'bg-emerald-500' }));
+    db.protokoler.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Proto] ${e.kegiatan}`, date: e.tanggal, color: 'bg-violet-500' }));
+    db.mc.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[MC] ${e.kegiatan}`, date: e.tanggal, color: 'bg-sky-500' }));
+    db.brsRilis.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[BRS] ${e.judul}`, date: e.tanggal_rilis, color: 'bg-rose-500' }));
+    db.hariBesar.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[HariBesar] ${e.hari_besar}`, date: e.tanggal, color: 'bg-amber-500' }));
 
-    // Generate Calendar Grid
     const firstDay = new Date(currentYear, currentMonth, 1).getDay();
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
     let daysHtml = [];
-    // Empty prefix padding
     for (let i = 0; i < firstDay; i++) {
         daysHtml.push(`<div class="h-28 border border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10 p-1"></div>`);
     }
@@ -1663,12 +1861,10 @@ function renderIntegratedCalendar(container) {
                 </div>
             </div>
 
-            <!-- Grid Header Days -->
             <div class="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-700 text-center text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 py-3 rounded-t-xl shrink-0">
                 <div>Minggu</div><div>Senin</div><div>Selasa</div><div>Rabu</div><div>Kamis</div><div>Jumat</div><div>Sabtu</div>
             </div>
 
-            <!-- Calendar Days Grid -->
             <div class="grid grid-cols-7 gap-px bg-slate-100 dark:bg-slate-700 rounded-b-xl overflow-hidden shadow-xs">
                 ${daysHtml.join('')}
             </div>
@@ -1699,7 +1895,7 @@ function renderAuditTrail(container) {
 
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
             <div class="overflow-x-auto">
-                <table class="w-full text-xs text-left text-slate-650 dark:text-slate-350">
+                <table class="w-full text-xs text-left text-slate-655 dark:text-slate-350">
                     <thead class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50/60 dark:bg-slate-900/40 uppercase border-b border-slate-200 dark:border-slate-700 font-black tracking-wider">
                         <tr>
                             <th class="px-6 py-4">Waktu</th>
@@ -1746,7 +1942,7 @@ function drawAuditTrail() {
 
     if (paginatedItems.length === 0) {
         body.innerHTML = `
-            <tr><td colspan="4" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-shoe-prints text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Log audit kosong.</p></td></tr>
+            <tr><td colspan="4" class="py-16 text-center text-slate-450 dark:text-slate-550"><i class="fa-solid fa-shoe-prints text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Log audit kosong.</p></td></tr>
         `;
         pagination.innerHTML = '';
         return;
@@ -1787,11 +1983,10 @@ function renderSettingsPage(container) {
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
-            <!-- Backup & Restore -->
             <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
                 <div>
                     <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-solid fa-database text-indigo-500"></i> Backup & Restore</h3>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Cadangkan seluruh database cache lokal beserta pengaturan sistem ke file JSON. Anda juga dapat mengimpor file backup untuk memulihkan seluruh data sistem.</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Cadangkan seluruh database cache lokal beserta pengaturan sistem ke file JSON. Anda juga dapat mengimpor file backup untuk memulihkan data sistem.</p>
                 </div>
                 <div class="space-y-4">
                     <button onclick="triggerDatabaseBackup()" class="w-full btn-primary py-2.5 text-xs font-bold uppercase tracking-wider flex justify-center items-center gap-2">
@@ -1807,8 +2002,7 @@ function renderSettingsPage(container) {
                 </div>
             </div>
 
-            <!-- Master Data (Rubrikasi & Bidang) -->
-            <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
+            <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex flex-col justify-between">
                 <div>
                     <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-solid fa-sliders text-indigo-500"></i> Data Master Konfigurasi</h3>
                     <div class="grid grid-cols-2 gap-4">
@@ -1832,8 +2026,7 @@ function renderSettingsPage(container) {
             </div>
         </div>
 
-        <!-- User Management table -->
-        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 mt-6 shadow-xs">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-205 dark:border-slate-700 p-6 mt-6 shadow-xs">
             <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
                 <h3 class="font-bold text-slate-850 dark:text-slate-100 text-sm flex items-center gap-1.5"><i class="fa-solid fa-user-gear text-indigo-500"></i> Kelola Pengguna & Hak Akses (RBAC)</h3>
                 <button onclick="openModal('user_manager')" class="btn-primary py-2 px-4 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-user-plus text-xs"></i> Tambah User</button>
@@ -1856,12 +2049,12 @@ function renderSettingsPage(container) {
                                 <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
                                     <td class="px-6 py-3 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">${u.nama}</td>
                                     <td class="px-6 py-3 font-semibold text-slate-500 whitespace-nowrap">${u.username}</td>
-                                    <td class="px-6 py-3 whitespace-nowrap"><span class="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950 text-indigo-750 dark:text-indigo-300 border border-indigo-150 dark:border-indigo-900 rounded font-bold text-[9px] uppercase tracking-wide">${getRoleLabel(u.role)}</span></td>
+                                    <td class="px-6 py-3 whitespace-nowrap"><span class="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-955 text-indigo-750 dark:text-indigo-300 border border-indigo-150 dark:border-indigo-900 rounded font-bold text-[9px] uppercase tracking-wide">${getRoleLabel(u.role)}</span></td>
                                     <td class="px-6 py-3 font-medium text-slate-500 whitespace-nowrap">${u.bidang || '-'}</td>
                                     <td class="px-6 py-3 whitespace-nowrap text-center">
                                         <div class="flex items-center justify-center gap-1">
                                             <button onclick="openModal('user_manager', ${uJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                                            <button onclick="deleteItem('users', ${u.id})" ${u.username === 'admin' ? 'disabled' : ''} class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                                            <button onclick="deleteItem('users', ${u.id})" ${u.username === 'admin' ? 'disabled' : ''} class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -1886,43 +2079,476 @@ function drawMasterDataLists() {
     bList.innerHTML = bidang.map(b => `
         <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-900 rounded-xl">
             <span class="font-bold text-xs text-slate-750 dark:text-slate-350">${b.nama}</span>
-            <button onclick="deleteItem('masterData', ${b.id})" class="text-slate-400 hover:text-rose-600 transition-colors"><i class="fa-solid fa-times-circle text-xs"></i></button>
+            <button onclick="deleteItem('masterData', ${b.id})" class="text-slate-400 hover:text-rose-605 transition-colors"><i class="fa-solid fa-times-circle text-xs"></i></button>
         </div>
     `).join('');
 
     rList.innerHTML = rubrik.map(r => `
         <div class="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-900 rounded-xl">
             <span class="font-bold text-xs text-slate-750 dark:text-slate-350">${r.nama}</span>
-            <button onclick="deleteItem('masterData', ${r.id})" class="text-slate-400 hover:text-rose-600 transition-colors"><i class="fa-solid fa-times-circle text-xs"></i></button>
+            <button onclick="deleteItem('masterData', ${r.id})" class="text-slate-400 hover:text-rose-605 transition-colors"><i class="fa-solid fa-times-circle text-xs"></i></button>
         </div>
     `).join('');
 }
 
-window.openAddMasterModal = function() {
+// -------------------------------------------------------------
+// PRESERVED VIEWS (TEAM, TICKETS, ASSETS, MONITORING)
+// -------------------------------------------------------------
+let teamSearch = '';
+function renderTeam(container) {
+    const isKepala = currentUser.role === 'kepala';
+
+    container.innerHTML = `
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
+            <div>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Direktori Tim Humas</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Daftar anggota tim struktural, jabatan, pembagian seksi kehumasan, dan kontak.</p>
+            </div>
+            ${!isKepala && isUserAdminOrKetua() ? `
+                <button onclick="openModal('team')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-plus text-xs"></i> Tambah Anggota Tim
+                </button>
+            ` : ''}
+        </div>
+
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center shadow-xs">
+            <div class="relative w-full sm:max-w-xs">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <input type="text" id="team-search-input" oninput="handleTeamSearch(this.value)" value="${teamSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-medium focus:bg-white focus:outline-none placeholder-slate-450 text-slate-700 dark:text-white transition-all" placeholder="Cari nama atau jabatan...">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in" id="team-grid">
+            <!-- Filled dynamically -->
+        </div>
+    `;
+
+    drawTeamGrid();
+}
+
+function handleTeamSearch(val) {
+    teamSearch = val;
+    drawTeamGrid();
+}
+
+function drawTeamGrid() {
+    const grid = document.getElementById('team-grid');
+    if (!grid) return;
+
+    let filtered = db.team;
+    if (teamSearch.trim()) {
+        const query = teamSearch.toLowerCase();
+        filtered = filtered.filter(item => 
+            (item.nama && item.nama.toLowerCase().includes(query)) ||
+            (item.jabatan && item.jabatan.toLowerCase().includes(query))
+        );
+    }
+
+    const isKepala = currentUser.role === 'kepala';
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div class="col-span-full bg-white dark:bg-slate-800 p-16 text-center text-slate-400 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
+                <i class="fa-solid fa-user-large-slash text-3xl mb-2 text-slate-350 dark:text-slate-750"></i>
+                <p class="text-xs font-bold">Anggota tim tidak ditemukan.</p>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = filtered.map(member => {
+        const taskCount = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
+        const initials = getPicInitials(member.nama);
+        const avatarBg = getAvatarBg(member.nama);
+        const itemJson = JSON.stringify(member).replace(/"/g, '&quot;');
+        
+        let actionButtons = '';
+        if (!isKepala && isUserAdminOrKetua()) {
+            actionButtons = `
+                <div class="flex items-center" onclick="event.stopPropagation()">
+                    <button onclick="openModal('team', ${itemJson})" title="Edit Profil" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen-to-square text-[10px]"></i></button>
+                    <button onclick="deleteItem('team', ${member.id})" title="Hapus Profil" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="bg-white dark:bg-slate-850 rounded-2xl shadow-sm border border-slate-205 dark:border-slate-700 overflow-hidden hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col group" onclick="showDetail('team', ${itemJson})">
+                <div class="h-20 bg-gradient-to-r from-indigo-750 to-slate-900 dark:from-indigo-950 dark:to-slate-800 relative">
+                    <div class="absolute -bottom-6 left-5 w-14 h-14 rounded-2xl border-4 border-white dark:border-slate-850 shadow-md flex items-center justify-center text-sm font-black tracking-wider transition-transform duration-300 group-hover:scale-105 ${avatarBg}">
+                        ${initials}
+                    </div>
+                </div>
+                <div class="pt-8 pb-4 px-5 flex-1 flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-extrabold text-slate-800 dark:text-slate-100 text-sm group-hover:text-indigo-655 transition-colors">${member.nama}</h3>
+                        <p class="text-[10px] font-bold text-indigo-650 dark:text-indigo-400 tracking-wider mt-0.5">${member.jabatan}</p>
+                        <span class="inline-block mt-3 px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-150 dark:border-slate-600 text-[9px] rounded-full uppercase font-bold tracking-wider">${member.bidang}</span>
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-3 line-clamp-2 leading-relaxed">${member.tugas || 'Belum ada rincian tugas.'}</p>
+                    </div>
+                    <div class="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 dark:border-slate-700">
+                        <div>
+                            <p class="text-[8px] uppercase font-bold text-slate-400 tracking-wider">Tugas Konten</p>
+                            <p class="text-base font-black text-indigo-650 dark:text-indigo-400 mt-0.5">${taskCount}</p>
+                        </div>
+                        ${actionButtons}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+let ticketSearch = '';
+let ticketStatusFilter = '';
+let ticketTypeFilter = '';
+
+function renderTickets(container) {
+    const isInternal = currentUser.role === 'pemohon';
+    const isKepala = currentUser.role === 'kepala';
+
+    container.innerHTML = `
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
+            <div>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Permintaan Layanan Humas</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Sistem antrean permohonan publikasi infografis rilis, pembuatan video reels edukasi, dan dokumentasi acara.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                ${!isInternal ? `
+                    <button onclick="downloadTemplate(['Pengaju', 'Seksi/Bidang', 'Layanan', 'Judul Pengajuan', 'Batas Waktu', 'Status', 'PIC Ditunjuk'], 'Template_Tiket.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                        <i class="fa-solid fa-file-arrow-down"></i> Template
+                    </button>
+                    <button onclick="exportTicketsReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                        <i class="fa-solid fa-file-csv"></i> CSV
+                    </button>
+                    <button onclick="exportTicketsReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
+                        <i class="fa-solid fa-file-excel"></i> Excel
+                    </button>
+                    <button onclick="exportTicketsReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                        <i class="fa-solid fa-print"></i> Cetak
+                    </button>
+                ` : ''}
+                ${isInternal ? `
+                    <button onclick="openTicketModal()" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-plus text-xs"></i> Buat Pengajuan Layanan
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-205 dark:border-slate-700 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-xs">
+            <div class="relative w-full md:max-w-xs">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-405"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <input type="text" id="ticket-search-input" oninput="handleTicketSearch(this.value)" value="${ticketSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-medium focus:bg-white focus:outline-none placeholder-slate-450 text-slate-700 dark:text-white transition-all" placeholder="Cari judul, pengaju, detail...">
+            </div>
+            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-circle-notch mr-0.5 text-slate-450"></i> Status:</span>
+                    <select id="ticket-status-select" onchange="handleTicketStatusFilter(this.value)" class="text-[10px] font-bold py-1.5 px-2 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-lg text-slate-655 dark:text-slate-200 focus:outline-none min-w-[100px] shadow-xs">
+                        <option value="">Semua</option>
+                        <option ${ticketStatusFilter === 'Pending' ? 'selected' : ''} value="Pending">Pending</option>
+                        <option ${ticketStatusFilter === 'Approved' ? 'selected' : ''} value="Approved">Disetujui</option>
+                        <option ${ticketStatusFilter === 'Rejected' ? 'selected' : ''} value="Rejected">Ditolak</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-filter mr-0.5 text-slate-450"></i> Layanan:</span>
+                    <select id="ticket-type-select" onchange="handleTicketTypeFilter(this.value)" class="text-[10px] font-bold py-1.5 px-2 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-lg text-slate-655 dark:text-slate-200 focus:outline-none min-w-[120px] shadow-xs">
+                        <option value="">Semua Layanan</option>
+                        <option ${ticketTypeFilter === 'Infografis' ? 'selected' : ''} value="Infografis">Infografis / Poster</option>
+                        <option ${ticketTypeFilter === 'Pembuatan Video' ? 'selected' : ''} value="Pembuatan Video">Pembuatan Video</option>
+                        <option ${ticketTypeFilter === 'Peliputan' ? 'selected' : ''} value="Peliputan">Peliputan / Dokumentasi</option>
+                        <option ${ticketTypeFilter === 'Desain Publikasi' ? 'selected' : ''} value="Desain Publikasi">Desain Publikasi</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in" id="tickets-grid">
+            <!-- Filled dynamically -->
+        </div>
+    `;
+
+    drawTicketsGrid();
+}
+
+function handleTicketSearch(val) {
+    ticketSearch = val;
+    drawTicketsGrid();
+}
+
+function handleTicketStatusFilter(val) {
+    ticketStatusFilter = val;
+    drawTicketsGrid();
+}
+
+function handleTicketTypeFilter(val) {
+    ticketTypeFilter = val;
+    drawTicketsGrid();
+}
+
+function drawTicketsGrid() {
+    const grid = document.getElementById('tickets-grid');
+    if (!grid) return;
+
+    const isInternal = currentUser.role === 'pemohon';
+    const isKepala = currentUser.role === 'kepala';
+
+    let filtered = db.tickets;
+    if (isInternal) {
+        filtered = filtered.filter(t => t.pengaju.toLowerCase().includes(currentUser.name.toLowerCase()) || t.pengaju.toLowerCase().includes(currentUser.username.toLowerCase()));
+    }
+    if (currentUser.role === 'tim') {
+        const timName = currentUser.name.toLowerCase();
+        filtered = filtered.filter(t => (t.pic || '').toLowerCase().includes(timName) || (t.pic || '').toLowerCase().includes('staf'));
+    }
+
+    if (ticketSearch.trim()) {
+        const query = ticketSearch.toLowerCase();
+        filtered = filtered.filter(item => 
+            (item.judul && item.judul.toLowerCase().includes(query)) ||
+            (item.pengaju && item.pengaju.toLowerCase().includes(query)) ||
+            (item.detail && item.detail.toLowerCase().includes(query))
+        );
+    }
+    if (ticketStatusFilter) {
+        filtered = filtered.filter(item => item.status === ticketStatusFilter);
+    }
+    if (ticketTypeFilter) {
+        filtered = filtered.filter(item => item.jenis === ticketTypeFilter);
+    }
+
+    filtered.sort((a, b) => b.id - a.id);
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div class="col-span-full bg-white dark:bg-slate-800 p-16 text-center text-slate-400 dark:text-slate-500 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
+                <i class="fa-solid fa-ticket-simple text-4xl mb-2.5 text-slate-300 dark:text-slate-700"></i>
+                <p class="text-xs font-bold">Tidak ada pengajuan tiket ditemukan.</p>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = filtered.map(t => {
+        let statusBadge = '';
+        if (t.status === 'Pending') {
+            statusBadge = `<span class="px-2.5 py-0.5 bg-amber-50 text-amber-750 border border-amber-200 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs"><span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>Pending</span>`;
+        } else if (t.status === 'Approved') {
+            statusBadge = `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs"><i class="fa-solid fa-check text-[9px]"></i>Disetujui</span>`;
+        } else {
+            statusBadge = `<span class="px-2.5 py-0.5 bg-rose-50 text-rose-800 border border-rose-200 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs"><i class="fa-solid fa-times text-[9px]"></i>Ditolak</span>`;
+        }
+
+        let actions = '';
+        if (isUserAdminOrKetua() && t.status === 'Pending' && !isKepala) {
+            actions = `
+                <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-700 flex gap-2 justify-end">
+                    <button onclick="approveTicket(${t.id})" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 border border-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-plus"></i> Setujui
+                    </button>
+                    <button onclick="rejectTicket(${t.id})" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 border border-rose-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-ban"></i> Tolak
+                    </button>
+                </div>
+            `;
+        } else if (t.pic) {
+            actions = `
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center gap-2 text-[10px] text-slate-500">
+                    <div class="w-5.5 h-5.5 rounded-full ${getAvatarBg(t.pic)} flex items-center justify-center font-bold text-[8px] shadow-xs">${getPicInitials(t.pic)}</div>
+                    <span>PIC: <strong class="text-slate-800 dark:text-slate-200 font-bold">${t.pic}</strong></span>
+                </div>
+            `;
+        } else if (t.status === 'Rejected') {
+            actions = `
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 text-[10px] text-rose-650 font-bold flex items-center gap-1">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Pengajuan ditolak.
+                </div>
+            `;
+        }
+
+        return `
+            <div class="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
+                <div>
+                    <div class="flex justify-between items-start gap-3">
+                        <span class="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-700 border border-slate-150 dark:border-slate-650 text-slate-650 dark:text-slate-300 rounded-full text-[9px] uppercase font-bold tracking-wider">${t.jenis}</span>
+                        ${statusBadge}
+                    </div>
+                    <h4 class="font-extrabold text-slate-850 dark:text-slate-100 text-sm mt-3 leading-snug">${t.judul}</h4>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-bold uppercase tracking-wider flex items-center gap-1.5"><i class="fa-regular fa-building text-slate-400"></i> ${t.pengaju} (${t.bidang})</p>
+                    <p class="text-xs text-slate-650 dark:text-slate-350 mt-2.5 leading-relaxed whitespace-pre-line">${t.detail}</p>
+                </div>
+                <div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-[10px]">
+                        <span class="text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1"><i class="fa-regular fa-calendar-xmark"></i> Batas: ${formatDate(t.deadline)}</span>
+                        ${isUserAdminOrKetua() && !isKepala ? `
+                            <button onclick="deleteItem('tickets', ${t.id})" title="Hapus Pengajuan" class="text-slate-400 hover:text-rose-600 transition-colors"><i class="fa-solid fa-trash text-xs"></i></button>
+                        ` : ''}
+                    </div>
+                    ${actions}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    window.exportTicketsReport = function(type) {
+        const headers = ["Pengaju", "Seksi/Bidang", "Layanan", "Judul Pengajuan", "Batas Waktu", "Status", "PIC Ditunjuk"];
+        const rows = filtered.map(item => [
+            item.pengaju || '-',
+            item.bidang || '-',
+            item.jenis || '-',
+            item.judul || '-',
+            formatDate(item.deadline),
+            item.status || '-',
+            item.pic || '-'
+        ]);
+
+        if (type === 'csv') downloadCSV(headers, rows, `Tiket_Layanan_${new Date().toISOString().split('T')[0]}.csv`);
+        else if (type === 'excel') downloadExcel(headers, rows, `Tiket_Layanan_${new Date().toISOString().split('T')[0]}.xls`);
+        else openPrintReportWindow("Daftar Pengajuan Layanan Humas Kalbar", headers, rows);
+    };
+}
+
+let assetSearch = '';
+let assetCatFilter = 'Semua';
+
+function renderAssets(container) {
+    const categories = ['Semua', 'Template', 'Logo', 'Foto', 'Dokumen'];
+    const isKepala = currentUser.role === 'kepala';
+
+    container.innerHTML = `
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
+            <div>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Bank Desain & Dokumentasi</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Penyimpanan berkas aset visual resmi, logo brand kit BPS, template feeds, dan dokumentasi visual Humas.</p>
+            </div>
+            ${!isKepala ? `
+                <button onclick="openAssetUploadModal()" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-upload text-xs"></i> Unggah Aset Visual
+                </button>
+            ` : ''}
+        </div>
+
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center shadow-xs">
+            <div class="relative w-full md:max-w-xs">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-455"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                <input type="text" id="asset-search-input" oninput="handleAssetSearch(this.value)" value="${assetSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-medium focus:bg-white focus:outline-none placeholder-slate-450 text-slate-700 dark:text-white transition-all" placeholder="Cari nama aset visual...">
+            </div>
+            <div class="flex flex-wrap gap-1.5" id="assets-filter-bar">
+                ${categories.map(c => `
+                    <button onclick="filterAssets('${c}', this)" class="asset-filter-btn px-4.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border ${
+                        c === assetCatFilter ? 'bg-indigo-650 text-white border-indigo-650 shadow-sm shadow-indigo-100' : 'bg-white text-slate-600 border-slate-200 dark:bg-slate-750 dark:border-slate-700 dark:text-slate-350 hover:bg-slate-50'
+                    } transition-all">${c}</button>
+                `).join('')}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 animate-fade-in" id="assets-grid">
+            <!-- Drawn dynamically -->
+        </div>
+    `;
+
+    drawAssetsGrid();
+}
+
+function handleAssetSearch(val) {
+    assetSearch = val;
+    drawAssetsGrid();
+}
+
+window.filterAssets = function (cat, btn) {
+    assetCatFilter = cat;
+    document.querySelectorAll('.asset-filter-btn').forEach(b => {
+        b.className = 'asset-filter-btn px-4.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border bg-white text-slate-600 border-slate-200 dark:bg-slate-750 dark:border-slate-700 dark:text-slate-350 hover:bg-slate-50 transition-all';
+    });
+    btn.className = 'asset-filter-btn px-4.5 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border bg-indigo-650 text-white border-indigo-650 shadow-sm shadow-indigo-100 transition-all';
+    drawAssetsGrid();
+};
+
+function drawAssetsGrid() {
+    const grid = document.getElementById('assets-grid');
+    if (!grid) return;
+
+    let filtered = db.assets;
+    if (assetCatFilter !== 'Semua') {
+        filtered = filtered.filter(a => a.kategori === assetCatFilter);
+    }
+    if (assetSearch.trim()) {
+        const query = assetSearch.toLowerCase();
+        filtered = filtered.filter(a => a.nama && a.nama.toLowerCase().includes(query));
+    }
+
+    filtered.sort((a, b) => b.id - a.id);
+
+    const isKepala = currentUser.role === 'kepala';
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div class="col-span-full bg-white dark:bg-slate-800 p-16 text-center text-slate-400 dark:text-slate-500 rounded-2xl border border-dashed border-slate-250 dark:border-slate-700">
+                <i class="fa-solid fa-folder-open text-4xl mb-2.5 text-slate-350 dark:text-slate-700"></i>
+                <p class="text-xs font-bold">Belum ada aset digital.</p>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = filtered.map(a => `
+        <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-205 dark:border-slate-700 overflow-hidden shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-300 flex flex-col group">
+            <div class="h-32 bg-slate-100 dark:bg-slate-800 relative overflow-hidden shrink-0 border-b border-slate-100 dark:border-slate-700">
+                <img src="${a.preview}" alt="${a.nama}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                <span class="absolute top-2 left-2 px-2.5 py-0.5 bg-black/60 backdrop-blur-md text-white rounded-md text-[8px] font-bold uppercase tracking-widest">${a.kategori}</span>
+            </div>
+            <div class="p-4 flex-1 flex flex-col justify-between">
+                <div>
+                    <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs truncate leading-snug" title="${a.nama}">${a.nama}</h4>
+                    <p class="text-[9px] text-slate-455 dark:text-slate-450 mt-1 font-semibold uppercase tracking-wider">Ukuran: ${a.ukuran} • Oleh: ${a.pengunggah}</p>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-[9px]">
+                    <span class="text-slate-400 font-semibold uppercase tracking-wider"><i class="fa-regular fa-calendar mr-1"></i>${formatDate(a.tanggal)}</span>
+                    <div class="flex items-center gap-1.5">
+                        ${!isKepala && isUserAdminOrKetua() ? `<button onclick="deleteItem('assets', ${a.id})" title="Hapus Berkas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>` : ''}
+                        <a href="${a.preview}" target="_blank" class="text-indigo-650 dark:text-indigo-400 hover:text-indigo-850 font-bold flex items-center gap-1 uppercase tracking-wider text-[8px] bg-indigo-50 dark:bg-indigo-950/20 px-2 py-1 rounded-lg border border-indigo-150 dark:border-indigo-900 transition-all">
+                            <i class="fa-solid fa-eye"></i> Lihat
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+window.openAssetUploadModal = function () {
+    currentModalType = 'asset_upload';
     const modal = document.createElement('div');
     modal.className = 'modal';
-    modal.id = 'add-master-modal';
+    modal.id = 'dynamic-modal';
     modal.innerHTML = `
         <div class="modal-content p-6 shadow-2xl border border-slate-100 dark:border-slate-700">
             <div class="flex justify-between items-center mb-5 border-b border-slate-100 dark:border-slate-700 pb-3">
-                <h3 class="text-base font-black text-slate-900 dark:text-white">Tambah Master Data</h3>
-                <button onclick="this.closest('.modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
+                <h3 class="text-lg font-black text-slate-900 dark:text-white">Unggah Aset Visual</h3>
+                <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
             </div>
-            <form onsubmit="saveMasterData(event)" class="space-y-4">
+            <form onsubmit="saveAssetUpload(event)" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kategori Master</label>
-                    <select id="master-kategori" class="w-full px-4 py-2.5 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-700 rounded-lg text-sm focus:outline-none">
-                        <option value="Bidang">Bidang / Seksi Kerja</option>
-                        <option value="Rubrikasi">Rubrikasi Pemberitaan</option>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Aset / Judul Berkas <span class="text-rose-500">*</span></label>
+                    <input type="text" id="asset-name" class="w-full px-4 py-2.5 bg-white border border-slate-200 dark:bg-slate-750 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all font-medium text-slate-800 dark:text-white" placeholder="Contoh: Logo Hari Statistik.png" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kategori Aset</label>
+                    <select id="asset-cat" class="w-full px-4 py-2.5 bg-white border border-slate-200 dark:bg-slate-750 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:border-indigo-600 transition-all">
+                        <option value="Template">Template Desain</option>
+                        <option value="Logo">Logo & Brand Kit</option>
+                        <option value="Foto">Foto Dokumentasi</option>
+                        <option value="Dokumen">Dokumen (Press Release / PDF)</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Data Master <span class="text-rose-500">*</span></label>
-                    <input type="text" id="master-nama" class="w-full px-4 py-2.5 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-700 rounded-lg text-sm focus:outline-none font-medium" placeholder="Contoh: Seksi Distribusi" required>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Pilih Berkas <span class="text-rose-500">*</span></label>
+                    <input type="file" id="asset-file" class="w-full border border-dashed border-slate-300 dark:border-slate-600 p-6 rounded-xl bg-slate-50 dark:bg-slate-900 cursor-pointer text-xs focus:outline-none hover:bg-slate-100 dark:hover:bg-slate-800 transition-all" required>
                 </div>
                 <div class="flex gap-3 mt-8 pt-4 border-t border-slate-100 dark:border-slate-700">
-                    <button type="submit" class="btn-primary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider">Simpan</button>
-                    <button type="button" onclick="this.closest('.modal').remove()" class="btn-secondary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider">Batal</button>
+                    <button type="submit" class="btn-primary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider"><i class="fa-solid fa-upload mr-1.5"></i> Unggah</button>
+                    <button type="button" onclick="closeModal()" class="btn-secondary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider">Batal</button>
                 </div>
             </form>
         </div>
@@ -1930,77 +2556,283 @@ window.openAddMasterModal = function() {
     document.body.appendChild(modal);
 };
 
-window.saveMasterData = async function(event) {
-    event.preventDefault();
-    const kategori = document.getElementById('master-kategori').value;
-    const nama = document.getElementById('master-nama').value;
+let monitoringSearch = '';
+let monitoringSentimentFilter = '';
+let monitoringPage = 1;
+const monitoringLimit = 8;
 
-    const newItem = { kategori, nama };
-    await sendDataToServer('add', 'master_data', newItem);
-    document.getElementById('add-master-modal')?.remove();
-    showToast('Data master berhasil ditambahkan!');
-    if (typeof logActivity === 'function') {
-        logActivity('Add Master', `Menambahkan master data ${kategori}: ${nama}.`);
+function renderMonitoring(container) {
+    const isKepala = currentUser.role === 'kepala';
+
+    container.innerHTML = `
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
+            <div>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Media Monitoring</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pantau pemberitaan rilis data BPS Provinsi Kalimantan Barat di berbagai portal berita online lokal.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="downloadTemplate(['Portal Media', 'Headline Kliping', 'Kutipan Ringkasan', 'Tanggal Kliping', 'Indeks Sentimen', 'Tautan URL'], 'Template_Media_Monitoring.csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-file-arrow-down"></i> Template
+                </button>
+                <button onclick="exportMonitoringReport('csv')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-file-csv"></i> CSV
+                </button>
+                <button onclick="exportMonitoringReport('excel')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-255 shadow-xs">
+                    <i class="fa-solid fa-file-excel"></i> Excel
+                </button>
+                <button onclick="exportMonitoringReport('print')" class="btn-secondary text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 py-2.5 px-4 bg-white border border-slate-250 shadow-xs">
+                    <i class="fa-solid fa-print"></i> Cetak
+                </button>
+                ${!isKepala && isUserAdminOrKetua() ? `
+                    <button onclick="openAddMonitoringModal()" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-plus text-xs"></i> Tambah Kliping Berita
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 animate-fade-in font-sans" id="monitoring-stats-grid">
+            <!-- Dynamically populated in drawMonitoringTable() -->
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+            <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="bg-slate-50/50 dark:bg-slate-900/40 p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row gap-4 justify-between items-center">
+                        <div class="relative w-full sm:max-w-xs">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                            <input type="text" id="monitoring-search-input" oninput="handleMonitoringSearch(this.value)" value="${monitoringSearch}" class="w-full pl-9 pr-4 py-2 bg-white border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-medium focus:outline-none placeholder-slate-450 text-slate-700 dark:text-white transition-all" placeholder="Cari portal media atau headline...">
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-filter mr-0.5 text-slate-450"></i> Sentimen:</span>
+                            <select id="monitoring-sentiment-select" onchange="handleMonitoringSentimentFilter(this.value)" class="text-[10px] font-bold py-1.5 px-2 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-lg text-slate-650 dark:text-slate-200 focus:outline-none min-w-[100px] shadow-xs">
+                                <option value="">Semua</option>
+                                <option ${monitoringSentimentFilter === 'Positif' ? 'selected' : ''} value="Positif">Positif</option>
+                                <option ${monitoringSentimentFilter === 'Netral' ? 'selected' : ''} value="Netral">Netral</option>
+                                <option ${monitoringSentimentFilter === 'Negatif' ? 'selected' : ''} value="Negatif">Negatif</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-650 dark:text-slate-300">
+                            <thead class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50/60 dark:bg-slate-900/40 uppercase border-b border-slate-200 dark:border-slate-700 font-bold tracking-wider">
+                                <tr>
+                                    <th class="px-6 py-4">Portal Media</th>
+                                    <th class="px-6 py-4">Kliping Headline & Kutipan</th>
+                                    <th class="px-6 py-4">Tanggal</th>
+                                    <th class="px-6 py-4 text-center">Sentimen</th>
+                                    <th class="px-6 py-4 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="monitoring-table-body">
+                                <!-- Filled by drawMonitoringTable() -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between" id="monitoring-pagination">
+                    <!-- Filled dynamically -->
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm flex flex-col justify-between min-h-[360px]" id="monitoring-chart-panel">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b pb-2 border-slate-100 dark:border-slate-700 flex items-center gap-1.5"><i class="fa-solid fa-chart-pie text-indigo-650 text-base"></i> Proporsi Sentimen</h3>
+                <div class="w-36 h-36 relative mx-auto flex items-center justify-center">
+                    <canvas id="mediaSentimentChart" class="w-full h-full"></canvas>
+                </div>
+                <div class="mt-6 flex flex-col gap-2 w-full text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider" id="sentiment-breakdown">
+                    <!-- Filled dynamically -->
+                </div>
+            </div>
+        </div>
+    `;
+
+    drawMonitoringTable();
+}
+
+function handleMonitoringSearch(val) {
+    monitoringSearch = val;
+    monitoringPage = 1;
+    drawMonitoringTable();
+}
+
+function handleMonitoringSentimentFilter(val) {
+    monitoringSentimentFilter = val;
+    monitoringPage = 1;
+    drawMonitoringTable();
+}
+
+function drawMonitoringTable() {
+    const tableBody = document.getElementById('monitoring-table-body');
+    const pagination = document.getElementById('monitoring-pagination');
+    const statsGrid = document.getElementById('monitoring-stats-grid');
+    const breakdown = document.getElementById('sentiment-breakdown');
+    
+    if (!tableBody || !pagination || !statsGrid || !breakdown) return;
+
+    let filtered = db.monitoring;
+    if (monitoringSearch.trim()) {
+        const query = monitoringSearch.toLowerCase();
+        filtered = filtered.filter(item => 
+            (item.media && item.media.toLowerCase().includes(query)) ||
+            (item.judul && item.judul.toLowerCase().includes(query)) ||
+            (item.ringkasan && item.ringkasan.toLowerCase().includes(query))
+        );
     }
-    renderSettingsPage(document.getElementById('app-content'));
-};
-
-window.triggerDatabaseBackup = function() {
-    const filename = `Backup_DB_SIMHumas_${new Date().toISOString().split('T')[0]}.json`;
-    const jsonStr = JSON.stringify(db, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(jsonStr);
-
-    const link = document.createElement('a');
-    link.setAttribute('href', dataUri);
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    showToast('Database berhasil dibackup!');
-    if (typeof logActivity === 'function') {
-        logActivity('Backup Database', `Mencadangkan database sistem ke file JSON.`);
+    if (monitoringSentimentFilter) {
+        filtered = filtered.filter(item => item.sentimen === monitoringSentimentFilter);
     }
-};
 
-window.triggerDatabaseRestore = function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+    filtered.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
 
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        try {
-            const restoredDb = JSON.parse(e.target.result);
-            // Quick schema validation
-            if (!restoredDb.team || !restoredDb.tickets || !restoredDb.contentPlanner) {
-                throw new Error('Skema file cadangan tidak valid.');
+    const totalCount = filtered.length;
+    const posCount = filtered.filter(m => m.sentimen === 'Positif').length;
+    const netCount = filtered.filter(m => m.sentimen === 'Netral').length;
+    const negCount = filtered.filter(m => m.sentimen === 'Negatif').length;
+    const positiveRate = totalCount > 0 ? Math.round((posCount / totalCount) * 100) : 0;
+
+    statsGrid.innerHTML = `
+        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+            <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Kliping</p><p class="text-xl font-black text-slate-800 dark:text-white mt-1">${totalCount}</p></div>
+            <div class="w-10 h-10 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center justify-center text-indigo-650 text-lg"><i class="fa-solid fa-newspaper"></i></div>
+        </div>
+        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+            <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sentimen Positif</p><p class="text-xl font-black text-emerald-650 mt-1">${posCount}</p></div>
+            <div class="w-10 h-10 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded-xl flex items-center justify-center text-emerald-600 text-lg"><i class="fa-regular fa-face-smile"></i></div>
+        </div>
+        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+            <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sentimen Negatif</p><p class="text-xl font-black text-rose-650 mt-1">${negCount}</p></div>
+            <div class="w-10 h-10 bg-rose-50 dark:bg-rose-955 border border-rose-100 dark:border-rose-900 rounded-xl flex items-center justify-center text-rose-650 text-lg"><i class="fa-regular fa-face-frown"></i></div>
+        </div>
+        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+            <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pemberitaan Positif</p><p class="text-xl font-black text-indigo-600 dark:text-white mt-1">${positiveRate}%</p></div>
+            <div class="w-10 h-10 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center justify-center text-indigo-600 text-lg"><i class="fa-solid fa-chart-line"></i></div>
+        </div>
+    `;
+
+    breakdown.innerHTML = `
+        <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span> Positif</span><strong>${posCount} (${totalCount ? Math.round((posCount / totalCount) * 100) : 0}%)</strong></div>
+        <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-slate-450 rounded-full"></span> Netral</span><strong>${netCount} (${totalCount ? Math.round((netCount / totalCount) * 100) : 0}%)</strong></div>
+        <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-rose-500 rounded-full"></span> Negatif</span><strong>${negCount} (${totalCount ? Math.round((negCount / totalCount) * 100) : 0}%)</strong></div>
+    `;
+
+    const totalPages = Math.ceil(totalCount / monitoringLimit) || 1;
+    if (monitoringPage > totalPages) monitoringPage = totalPages;
+    const offset = (monitoringPage - 1) * monitoringLimit;
+    const paginatedItems = filtered.slice(offset, offset + monitoringLimit);
+
+    if (paginatedItems.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="py-16 text-center text-slate-400 dark:text-slate-550">
+                    <i class="fa-solid fa-face-meh text-3xl mb-2 text-slate-350 dark:text-slate-750"></i>
+                    <p class="text-xs font-bold">Kliping berita tidak ditemukan.</p>
+                </td>
+            </tr>
+        `;
+        pagination.innerHTML = '';
+        return;
+    }
+
+    const isKepala = currentUser.role === 'kepala';
+
+    tableBody.innerHTML = paginatedItems.map(m => {
+        let badge = '';
+        if (m.sentimen === 'Positif') {
+            badge = `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-250 rounded text-[9px] font-bold flex items-center justify-center gap-1 w-20 shadow-xs"><i class="fa-solid fa-smile-wink"></i>Positif</span>`;
+        } else if (m.sentimen === 'Negatif') {
+            badge = `<span class="px-2.5 py-0.5 bg-rose-50 text-rose-800 border border-rose-250 rounded text-[9px] font-bold flex items-center justify-center gap-1 w-20 shadow-xs"><i class="fa-solid fa-frown-open"></i>Negatif</span>`;
+        } else {
+            badge = `<span class="px-2.5 py-0.5 bg-slate-50 text-slate-655 border border-slate-200 rounded text-[9px] font-bold flex items-center justify-center gap-1 w-20 shadow-xs"><i class="fa-solid fa-meh"></i>Netral</span>`;
+        }
+
+        let actionButton = '';
+        if (!isKepala) {
+            actionButton = `
+                <td class="px-6 py-4 text-center whitespace-nowrap" onclick="event.stopPropagation()">
+                    <div class="flex items-center justify-center gap-1.5">
+                        ${isUserAdminOrKetua() ? `<button onclick="deleteItem('monitoring', ${m.id})" title="Hapus Kliping" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>` : ''}
+                        <a href="${m.url}" target="_blank" class="text-indigo-655 hover:text-indigo-850 flex items-center justify-center gap-1 uppercase tracking-wider text-[8px] bg-slate-50 dark:bg-slate-750 dark:text-indigo-300 hover:bg-indigo-50 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-lg font-bold transition-all">
+                            <i class="fa-solid fa-external-link"></i> Buka
+                        </a>
+                    </div>
+                </td>
+            `;
+        } else {
+            actionButton = `
+                <td class="px-6 py-4 text-center whitespace-nowrap">
+                    <a href="${m.url}" target="_blank" class="text-indigo-650 hover:text-indigo-850 flex items-center justify-center gap-1 uppercase tracking-wider text-[8px] bg-slate-50 dark:bg-slate-750 dark:text-indigo-300 hover:bg-indigo-50 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-lg font-bold transition-all">
+                        <i class="fa-solid fa-external-link"></i> Buka
+                    </a>
+                </td>
+            `;
+        }
+
+        return `
+            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
+                <td class="px-6 py-4 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">${m.media}</td>
+                <td class="px-6 py-4">
+                    <div class="font-extrabold text-slate-800 dark:text-slate-200 leading-snug">${m.judul}</div>
+                    <div class="text-[10px] text-slate-550 dark:text-slate-400 mt-1 leading-relaxed">${m.ringkasan}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-500">${formatDate(m.tanggal)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-center flex justify-center items-center h-full pt-6">${badge}</td>
+                ${actionButton}
+            </tr>
+        `;
+    }).join('');
+
+    pagination.innerHTML = `
+        <span class="text-[10px] font-semibold text-slate-450">Menampilkan ${offset + 1} - ${Math.min(offset + monitoringLimit, totalCount)} dari ${totalCount} kliping</span>
+        <div class="flex gap-2">
+            <button onclick="changeMonitoringPage(${monitoringPage - 1})" ${monitoringPage === 1 ? 'disabled' : ''} class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-550 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-all"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
+            <button onclick="changeMonitoringPage(${monitoringPage + 1})" ${monitoringPage === totalPages ? 'disabled' : ''} class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-550 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-all"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+        </div>
+    `;
+
+    window.changeMonitoringPage = function(p) {
+        if (p < 1 || p > totalPages) return;
+        monitoringPage = p;
+        drawMonitoringTable();
+    };
+
+    setTimeout(() => {
+        const ctx = document.getElementById('mediaSentimentChart')?.getContext('2d');
+        if (ctx) {
+            if (window.sentimentChartInstance) {
+                window.sentimentChartInstance.destroy();
             }
-
-            // Map variables
-            TABLES.forEach(tb => {
-                if (restoredDb[tb] !== undefined) {
-                    db[tb] = restoredDb[tb];
-                    saveLocalFallback(tb);
+            window.sentimentChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Positif', 'Netral', 'Negatif'],
+                    datasets: [{
+                        data: [posCount, netCount, negCount],
+                        backgroundColor: ['#10b981', '#94a3b8', '#ef4444'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.95)', padding: 8 }
+                    },
+                    cutout: '72%'
                 }
             });
-
-            showToast('Database berhasil dipulihkan!');
-            if (typeof logActivity === 'function') {
-                logActivity('Restore Database', `Memulihkan database sistem dari file backup.`);
-            }
-            router(currentState);
-
-        } catch (error) {
-            console.error('Restore failed:', error);
-            showToast('Pemulihan gagal: File tidak cocok', 'error');
         }
-    };
-    reader.readAsText(file);
-};
+    }, 50);
 
-// -------------------------------------------------------------
-// PRESERVED VIEWS (TEAM, TICKETS, ASSETS, MONITORING)
-// -------------------------------------------------------------
-// Note: We already define these above with local fallback caching.
-// Including the rendering calls to connect hooks seamlessly.
-// -------------------------------------------------------------
+    window.exportMonitoringReport = function(type) {
+        const headers = ["Portal Media", "Headline Kliping", "Kutipan Ringkasan", "Tanggal Kliping", "Indeks Sentimen", "Tautan URL"];
+        const rows = filtered.map(item => [item.media || '-', item.judul || '-', item.ringkasan || '-', formatDate(item.tanggal), item.sentimen || '-', item.url || '-']);
+        if (type === 'csv') downloadCSV(headers, rows, `Kliping_Berita_${new Date().toISOString().split('T')[0]}.csv`);
+        else if (type === 'excel') downloadExcel(headers, rows, `Kliping_Berita_${new Date().toISOString().split('T')[0]}.xls`);
+        else openPrintReportWindow("Kliping Media Monitoring BPS Kalbar", headers, rows);
+    };
+}
