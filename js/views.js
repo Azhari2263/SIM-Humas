@@ -26,11 +26,11 @@ function isTaskForCurrentUser(item) {
 
     if (!picFields.trim()) return false;
 
-    return picFields.includes(userName) || 
-           picFields.includes(displayName) || 
-           displayName.includes(userName) ||
-           picFields.includes('staf humas') || 
-           displayName.includes('staf humas');
+    return picFields.includes(userName) ||
+        picFields.includes(displayName) ||
+        displayName.includes(userName) ||
+        picFields.includes('staf humas') ||
+        displayName.includes('staf humas');
 }
 
 // Helper: Get user avatar initials
@@ -113,7 +113,7 @@ function downloadExcel(headers, rows, filename) {
         </body>
         </html>
     `;
-    
+
     const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -185,7 +185,7 @@ function openPrintReportWindow(title, headers, rows) {
 // -------------------------------------------------------------
 function renderDashboard(container) {
     const userRole = currentUser.role;
-    
+
     if (userRole === 'pemohon') {
         renderPemohonDashboard(container);
         return;
@@ -244,7 +244,7 @@ function renderDashboard(container) {
         const pTasks = db.protokoler.filter(p => p.petugas && p.petugas.includes(member.nama)).length;
         const mTasks = db.mc.filter(m => m.petugas && m.petugas.includes(member.nama)).length;
         const cTasks = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
-        
+
         return {
             name: member.nama.split(' ')[0],
             rTasks,
@@ -269,8 +269,8 @@ function renderDashboard(container) {
             sumber: item.jadwal ? 'Konten' : 'Layanan',
             pic: item.assignedTo || item.pic || '-'
         }))
-        .filter(item => item.tanggal && new Date(item.tanggal) >= new Date().setHours(0,0,0,0))
-        .sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal))
+        .filter(item => item.tanggal && new Date(item.tanggal) >= new Date().setHours(0, 0, 0, 0))
+        .sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
         .slice(0, 4);
 
     const overdueTasks = [...plannerSrc, ...rutinSrc, ...adHocSrc]
@@ -280,7 +280,7 @@ function renderDashboard(container) {
             status: item.status,
             pic: item.assignedTo || item.petugas || '-'
         }))
-        .filter(item => item.tanggal && new Date(item.tanggal) < new Date().setHours(0,0,0,0) && !['Selesai', 'Done', 'Posted'].includes(item.status))
+        .filter(item => item.tanggal && new Date(item.tanggal) < new Date().setHours(0, 0, 0, 0) && !['Selesai', 'Done', 'Posted'].includes(item.status))
         .slice(0, 4);
 
     const todayStr = new Date().toISOString().split('T')[0];
@@ -357,7 +357,7 @@ function renderDashboard(container) {
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="bg-gradient-to-br from-indigo-500/10 to-indigo-650/10 border border-indigo-150 dark:border-indigo-950 p-5 rounded-2xl">
                 <div class="flex justify-between items-start">
-                    <h4 class="text-[10px] font-black text-indigo-750 dark:text-indigo-400 uppercase tracking-widest">Statistik MC</h4>
+                    <h4 class="text-[10px] font-black text-indigo-750 dark:text-indigo-400 uppercase tracking-widest">Master of Ceremony</h4>
                     <span class="px-2 py-0.5 bg-indigo-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalMc} Tugas</span>
                 </div>
                 <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalMc} <span class="text-xs font-semibold text-slate-455">agenda</span></p>
@@ -574,11 +574,10 @@ function renderPemohonDashboard(container) {
                                     <span>Batas: ${formatDate(item.deadline)}</span>
                                 </p>
                             </div>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                item.status === 'Approved' ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200' : 
-                                item.status === 'Pending' ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-305 border border-amber-200' : 
-                                'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-305 border border-rose-200'
-                            }">${item.status === 'Approved' ? 'Disetujui' : item.status === 'Pending' ? 'Menunggu' : 'Ditolak'}</span>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${item.status === 'Approved' ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200' :
+            item.status === 'Pending' ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-305 border border-amber-200' :
+                'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-305 border border-rose-200'
+        }">${item.status === 'Approved' ? 'Disetujui' : item.status === 'Pending' ? 'Menunggu' : 'Ditolak'}</span>
                         </div>
                     `).join('') : `
                         <div class="text-center py-12 text-slate-400">
@@ -619,7 +618,7 @@ let plannerPicFilter = '';
 
 function renderPlanner(container) {
     const isKepala = currentUser.role === 'kepala';
-    
+
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
@@ -680,7 +679,7 @@ function drawPlannerBoard() {
     let filtered = db.contentPlanner.filter(isTaskForCurrentUser);
     if (plannerSearch.trim()) {
         const query = plannerSearch.toLowerCase();
-        filtered = filtered.filter(item => 
+        filtered = filtered.filter(item =>
             (item.judul && item.judul.toLowerCase().includes(query)) ||
             (item.konsep && item.konsep.toLowerCase().includes(query))
         );
@@ -697,10 +696,10 @@ function drawPlannerBoard() {
             const avatarBg = getAvatarBg(item.assignedTo);
             const initials = getPicInitials(item.assignedTo);
             const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
-            
+
             let nextIndex = statuses.indexOf(status) + 1;
             let prevIndex = statuses.indexOf(status) - 1;
-            
+
             let moveButtons = '';
             if (!isKepala) {
                 moveButtons = `
@@ -778,11 +777,10 @@ function drawPlannerBoard() {
             <div class="flex-1 min-w-[280px] max-w-[320px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col max-h-[660px]">
                 <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-200 dark:border-slate-800">
                     <div class="flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full ${
-                            status === 'Draft' ? 'bg-slate-450' :
-                            status === 'In Progress' ? 'bg-blue-500' :
-                            status === 'Done' ? 'bg-violet-500' : 'bg-emerald-500'
-                        }"></span>
+                        <span class="w-2.5 h-2.5 rounded-full ${status === 'Draft' ? 'bg-slate-450' :
+                status === 'In Progress' ? 'bg-blue-500' :
+                    status === 'Done' ? 'bg-violet-500' : 'bg-emerald-500'
+            }"></span>
                         <h3 class="font-black text-slate-700 dark:text-slate-350 text-xs tracking-wider uppercase">${status}</h3>
                     </div>
                     <span class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 shadow-xs">${cards.length}</span>
@@ -799,7 +797,7 @@ function drawPlannerBoard() {
         `;
     }).join('');
 
-    window.moveKanbanTask = async function(taskId, newStatus) {
+    window.moveKanbanTask = async function (taskId, newStatus) {
         if (isKepala) return;
         const item = db.contentPlanner.find(c => c.id === taskId);
         if (!item) return;
@@ -825,8 +823,8 @@ let rutinDateFilter = '';
 function renderRekapRutin(container) {
     const isKepala = currentUser.role === 'kepala';
     const rubrics = [
-        '#haribesar', '#rilisbrs', '#infografisbrs', '#rilispublikasi', 
-        '#SElasaSEnsus', '#promosistatistik', '#rripontianak', 
+        '#haribesar', '#rilisbrs', '#infografisbrs', '#rilispublikasi',
+        '#SElasaSEnsus', '#promosistatistik', '#rripontianak',
         '#zonaintegritas', '#SKD', '#ddakalbar', 'KLIK', 'Laporan'
     ];
 
@@ -897,8 +895,8 @@ function drawRutinTable() {
     let filtered = db.rekapRutin.filter(isTaskForCurrentUser);
     if (rutinSearch.trim()) {
         const q = rutinSearch.toLowerCase();
-        filtered = filtered.filter(item => 
-            (item.kegiatan && item.kegiatan.toLowerCase().includes(q)) || 
+        filtered = filtered.filter(item =>
+            (item.kegiatan && item.kegiatan.toLowerCase().includes(q)) ||
             (item.petugas && item.petugas.toLowerCase().includes(q))
         );
     }
@@ -923,7 +921,7 @@ function drawRutinTable() {
     body.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
         let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
-        
+
         let actionButtons = '';
         if (!isKepala) {
             actionButtons = `
@@ -951,7 +949,7 @@ function drawRutinTable() {
         `;
     }).join('');
 
-    window.exportRutinReport = function(type) {
+    window.exportRutinReport = function (type) {
         const headers = ["Tanggal", "Hari", "Rubrikasi", "Kegiatan", "Petugas", "Status"];
         const rows = filtered.map(item => [formatDate(item.tanggal), item.hari || '-', item.rubrikasi || '-', item.kegiatan, item.petugas || '-', item.status || 'Ditugaskan']);
         if (type === 'csv') downloadCSV(headers, rows, `Rekap_Rutin_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
@@ -1025,8 +1023,8 @@ function drawAdHocTable() {
     let filtered = db.adHoc.filter(isTaskForCurrentUser);
     if (adHocSearch.trim()) {
         const q = adHocSearch.toLowerCase();
-        filtered = filtered.filter(item => 
-            (item.kegiatan && item.kegiatan.toLowerCase().includes(q)) || 
+        filtered = filtered.filter(item =>
+            (item.kegiatan && item.kegiatan.toLowerCase().includes(q)) ||
             (item.petugas && item.petugas.toLowerCase().includes(q))
         );
     }
@@ -1077,7 +1075,7 @@ function drawAdHocTable() {
         `;
     }).join('');
 
-    window.exportAdHocReport = function(type) {
+    window.exportAdHocReport = function (type) {
         const headers = ["Tanggal", "Hari", "Nama Kegiatan", "Jumlah Bertugas", "Nama Petugas", "Keterangan", "Status"];
         const rows = filtered.map(item => [formatDate(item.tanggal), item.hari || '-', item.kegiatan, item.jumlah_bertugas || '-', item.petugas || '-', item.keterangan || '-', item.status || 'Ditugaskan']);
         if (type === 'csv') downloadCSV(headers, rows, `Rekap_AdHoc_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
@@ -1145,8 +1143,8 @@ function drawProtokolerTable() {
     let filtered = db.protokoler.filter(isTaskForCurrentUser);
     if (protoSearch.trim()) {
         const q = protoSearch.toLowerCase();
-        filtered = filtered.filter(item => 
-            (item.kegiatan && item.kegiatan.toLowerCase().includes(q)) || 
+        filtered = filtered.filter(item =>
+            (item.kegiatan && item.kegiatan.toLowerCase().includes(q)) ||
             (item.lokasi && item.lokasi.toLowerCase().includes(q))
         );
     }
@@ -1171,7 +1169,7 @@ function drawProtokolerTable() {
     list.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
         let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
-        
+
         let actionsHtml = '';
         if (!isKepala) {
             actionsHtml = `
@@ -1198,9 +1196,8 @@ function drawProtokolerTable() {
         return `
             <div class="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-205 dark:border-slate-700/80 hover:shadow-md hover:border-slate-350 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col md:flex-row justify-between items-start md:items-center gap-4" onclick="showDetail('protokoler', ${itemJson})">
                 <div class="flex items-start gap-4">
-                    <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${
-                        ['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 border-indigo-150 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-900' : 'bg-amber-50 border-amber-150 text-amber-700 dark:bg-amber-950 dark:text-amber-300 dark:border-indigo-900'
-                    }">
+                    <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 border-indigo-150 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-900' : 'bg-amber-50 border-amber-150 text-amber-700 dark:bg-amber-950 dark:text-amber-300 dark:border-indigo-900'
+            }">
                         <i class="fa-solid fa-crown text-lg"></i>
                     </div>
                     <div>
@@ -1218,7 +1215,7 @@ function drawProtokolerTable() {
         `;
     }).join('');
 
-    window.exportProtokolerReport = function(type) {
+    window.exportProtokolerReport = function (type) {
         const headers = ["Tanggal", "Bulan", "Nama Kegiatan", "Lokasi", "Jam Mulai", "Jenis", "Level", "Petugas", "Keterangan", "Status"];
         const rows = filtered.map(item => [formatDate(item.tanggal), item.bulan || '-', item.kegiatan, item.lokasi || '-', item.jam_mulai || '-', item.jenis || 'Internal', item.level || '-', item.petugas || '-', item.keterangan || '-', item.status || 'Ditugaskan']);
         if (type === 'csv') downloadCSV(headers, rows, `Agenda_Protokoler_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
@@ -1286,8 +1283,8 @@ function drawMcTable() {
     let filtered = db.mc.filter(isTaskForCurrentUser);
     if (mcSearch.trim()) {
         const q = mcSearch.toLowerCase();
-        filtered = filtered.filter(item => 
-            (item.kegiatan && item.kegiatan.toLowerCase().includes(q)) || 
+        filtered = filtered.filter(item =>
+            (item.kegiatan && item.kegiatan.toLowerCase().includes(q)) ||
             (item.lokasi && item.lokasi.toLowerCase().includes(q))
         );
     }
@@ -1312,7 +1309,7 @@ function drawMcTable() {
     list.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
         let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
-        
+
         let actionsHtml = '';
         if (!isKepala) {
             actionsHtml = `
@@ -1339,9 +1336,8 @@ function drawMcTable() {
         return `
             <div class="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-205 dark:border-slate-700/80 hover:shadow-md hover:border-slate-350 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col md:flex-row justify-between items-start md:items-center gap-4" onclick="showDetail('mc', ${itemJson})">
                 <div class="flex items-start gap-4">
-                    <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${
-                        ['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 border-indigo-150 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-900' : 'bg-amber-50 border-amber-150 text-amber-700 dark:bg-amber-950 dark:text-amber-300 dark:border-indigo-900'
-                    }">
+                    <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 border-indigo-150 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-900' : 'bg-amber-50 border-amber-150 text-amber-700 dark:bg-amber-950 dark:text-amber-300 dark:border-indigo-900'
+            }">
                         <i class="fa-solid fa-microphone-lines text-lg"></i>
                     </div>
                     <div>
@@ -1359,7 +1355,7 @@ function drawMcTable() {
         `;
     }).join('');
 
-    window.exportMcReport = function(type) {
+    window.exportMcReport = function (type) {
         const headers = ["Tanggal", "Bulan", "Nama Kegiatan", "Lokasi", "Jam Mulai", "Jenis", "Level", "Petugas MC", "Keterangan", "Status"];
         const rows = filtered.map(item => [formatDate(item.tanggal), item.bulan || '-', item.kegiatan, item.lokasi || '-', item.jam_mulai || '-', item.jenis || 'Internal', item.level || '-', item.petugas || '-', item.keterangan || '-', item.status || 'Ditugaskan']);
         if (type === 'csv') downloadCSV(headers, rows, `Penugasan_MC_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
@@ -1434,7 +1430,7 @@ function drawBrsGrid() {
 
     grid.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
-        
+
         let actionsPanel = '';
         if (!isKepala) {
             actionsPanel = `
@@ -1479,7 +1475,7 @@ function drawBrsGrid() {
         `;
     }).join('');
 
-    window.exportBrsReport = function(type) {
+    window.exportBrsReport = function (type) {
         const headers = ["Tanggal Rilis", "Judul Rilis Data", "PIC Poster & Info", "PIC Dok Ruang", "PIC Dok YT Zoom", "Highlight"];
         const rows = filtered.map(item => [formatDate(item.tanggal_rilis), item.judul, item.pic_poster_info || '-', item.pic_doc_ruang || '-', item.pic_doc_yt_zoom || '-', item.highlight || '-']);
         if (type === 'csv') downloadCSV(headers, rows, `Arsip_BRS_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
@@ -1567,7 +1563,7 @@ function drawHariBesarTable() {
     body.innerHTML = filtered.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
         let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-850 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-850 dark:bg-indigo-950/40 dark:text-indigo-300';
-        
+
         let actionButtons = '';
         if (!isKepala) {
             actionButtons = `
@@ -1593,7 +1589,7 @@ function drawHariBesarTable() {
         `;
     }).join('');
 
-    window.exportHariBesarReport = function(type) {
+    window.exportHariBesarReport = function (type) {
         const headers = ["Tanggal", "Hari Besar", "Pembuat Konten (PIC)", "Status", "Data Pendukung"];
         const rows = filtered.map(item => [formatDate(item.tanggal), item.hari_besar, item.pembuat_konten || '-', item.status || 'Ditugaskan', item.data_pendukung || '-']);
         if (type === 'csv') downloadCSV(headers, rows, `Kalender_HariBesar_${new Date().toISOString().split('T')[0]}.csv`);
@@ -1669,7 +1665,7 @@ function renderRekapKegiatan(container) {
 
     allTasks.forEach(task => {
         const deadlineDate = new Date(task.tanggal);
-        const today = new Date().setHours(0,0,0,0);
+        const today = new Date().setHours(0, 0, 0, 0);
         const daysRemaining = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24));
 
         if (task.progress === 100 || ['Selesai', 'Done', 'Posted'].includes(task.status)) {
@@ -1814,7 +1810,7 @@ function renderIntegratedCalendar(container) {
 }
 
 // Global Calendar Event Popup Modal
-window.showCalendarDayEvents = function(dateStr) {
+window.showCalendarDayEvents = function (dateStr) {
     const formattedDate = new Date(dateStr).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const dayEvents = [];
 
@@ -1871,8 +1867,8 @@ window.showCalendarDayEvents = function(dateStr) {
         listContent = `
             <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
                 ${dayEvents.map(ev => {
-                    const itemJson = JSON.stringify(ev.item).replace(/"/g, '&quot;');
-                    return `
+            const itemJson = JSON.stringify(ev.item).replace(/"/g, '&quot;');
+            return `
                         <div class="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl hover:border-indigo-400 dark:hover:border-indigo-600 transition-all cursor-pointer flex flex-col justify-between" onclick="closeCalendarDayModal(); showDetailFromCalendar('${ev.type}', ${itemJson})">
                             <div class="flex items-center justify-between mb-1.5">
                                 <span class="px-2 py-0.5 ${ev.color} text-white font-black text-[8px] rounded uppercase tracking-wider">${ev.label}</span>
@@ -1885,7 +1881,7 @@ window.showCalendarDayEvents = function(dateStr) {
                             </div>
                         </div>
                     `;
-                }).join('')}
+        }).join('')}
             </div>
         `;
     }
@@ -1908,12 +1904,12 @@ window.showCalendarDayEvents = function(dateStr) {
     document.body.appendChild(modal);
 };
 
-window.closeCalendarDayModal = function() {
+window.closeCalendarDayModal = function () {
     const modal = document.getElementById('calendar-day-modal');
     if (modal) modal.remove();
 };
 
-window.showDetailFromCalendar = function(type, item) {
+window.showDetailFromCalendar = function (type, item) {
     if (typeof showDetail === 'function') {
         showDetail(type, item);
     } else {
@@ -1997,8 +1993,8 @@ function renderSettingsPage(container) {
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                         ${db.users.map(u => {
-                            const uJson = JSON.stringify(u).replace(/"/g, '&quot;');
-                            return `
+        const uJson = JSON.stringify(u).replace(/"/g, '&quot;');
+        return `
                                 <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
                                     <td class="px-6 py-3 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">${u.nama}</td>
                                     <td class="px-6 py-3 font-semibold text-slate-500 whitespace-nowrap">${u.username}</td>
@@ -2012,7 +2008,7 @@ function renderSettingsPage(container) {
                                     </td>
                                 </tr>
                             `;
-                        }).join('')}
+    }).join('')}
                     </tbody>
                 </table>
             </div>
@@ -2091,7 +2087,7 @@ function drawTeamGrid() {
     let filtered = db.team;
     if (teamSearch.trim()) {
         const query = teamSearch.toLowerCase();
-        filtered = filtered.filter(item => 
+        filtered = filtered.filter(item =>
             (item.nama && item.nama.toLowerCase().includes(query)) ||
             (item.jabatan && item.jabatan.toLowerCase().includes(query))
         );
@@ -2114,7 +2110,7 @@ function drawTeamGrid() {
         const initials = getPicInitials(member.nama);
         const avatarBg = getAvatarBg(member.nama);
         const itemJson = JSON.stringify(member).replace(/"/g, '&quot;');
-        
+
         let actionButtons = '';
         if (!isKepala && isUserAdminOrKetua()) {
             actionButtons = `
@@ -2249,7 +2245,7 @@ function drawTicketsGrid() {
 
     if (ticketSearch.trim()) {
         const query = ticketSearch.toLowerCase();
-        filtered = filtered.filter(item => 
+        filtered = filtered.filter(item =>
             (item.judul && item.judul.toLowerCase().includes(query)) ||
             (item.pengaju && item.pengaju.toLowerCase().includes(query)) ||
             (item.detail && item.detail.toLowerCase().includes(query))
@@ -2335,7 +2331,7 @@ function drawTicketsGrid() {
         `;
     }).join('');
 
-    window.exportTicketsReport = function(type) {
+    window.exportTicketsReport = function (type) {
         const headers = ["Pengaju", "Seksi/Bidang", "Layanan", "Judul Pengajuan", "Batas Waktu", "Status", "PIC Ditunjuk"];
         const rows = filtered.map(item => [
             item.pengaju || '-',
@@ -2458,13 +2454,13 @@ function drawMonitoringTable() {
     const pagination = document.getElementById('monitoring-pagination');
     const statsGrid = document.getElementById('monitoring-stats-grid');
     const breakdown = document.getElementById('sentiment-breakdown');
-    
+
     if (!tableBody || !pagination || !statsGrid || !breakdown) return;
 
     let filtered = db.monitoring;
     if (monitoringSearch.trim()) {
         const query = monitoringSearch.toLowerCase();
-        filtered = filtered.filter(item => 
+        filtered = filtered.filter(item =>
             (item.media && item.media.toLowerCase().includes(query)) ||
             (item.judul && item.judul.toLowerCase().includes(query)) ||
             (item.ringkasan && item.ringkasan.toLowerCase().includes(query))
@@ -2581,7 +2577,7 @@ function drawMonitoringTable() {
         </div>
     `;
 
-    window.changeMonitoringPage = function(p) {
+    window.changeMonitoringPage = function (p) {
         if (p < 1 || p > totalPages) return;
         monitoringPage = p;
         drawMonitoringTable();
@@ -2617,7 +2613,7 @@ function drawMonitoringTable() {
         }
     }, 50);
 
-    window.exportMonitoringReport = function(type) {
+    window.exportMonitoringReport = function (type) {
         const headers = ["Portal Media", "Headline Kliping", "Kutipan Ringkasan", "Tanggal Kliping", "Indeks Sentimen", "Tautan URL"];
         const rows = filtered.map(item => [item.media || '-', item.judul || '-', item.ringkasan || '-', formatDate(item.tanggal), item.sentimen || '-', item.url || '-']);
         if (type === 'csv') downloadCSV(headers, rows, `Kliping_Berita_${new Date().toISOString().split('T')[0]}.csv`);
