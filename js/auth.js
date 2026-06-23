@@ -86,7 +86,7 @@ function handleLogin(event) {
     
     currentUser = { 
         username: user.username, 
-        role: user.role, 
+        role: String(user.role || '').toLowerCase().trim(), 
         name: user.nama,
         bidang: user.bidang || '' 
     };
@@ -118,7 +118,7 @@ function quickLogin(role) {
         name = 'User Bidang'; 
     }
 
-    currentUser = { username, role, name };
+    currentUser = { username, role: String(role).toLowerCase().trim(), name };
     localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
     showToast('Masuk sebagai ' + getRoleLabel(role));
     
@@ -154,7 +154,7 @@ function handleLogout() {
 
 function simulateRole(role) {
     if (!currentUser) return;
-    currentUser.role = role;
+    currentUser.role = String(role).toLowerCase().trim();
     if (role === 'admin') currentUser.name = 'Super Admin';
     else if (role === 'kepala') currentUser.name = 'Kepala BPS Kalbar';
     else if (role === 'koordinator') currentUser.name = 'Azhari (Koordinator)';
