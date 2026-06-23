@@ -52,12 +52,30 @@ function parseIndonesianDate(str) {
     if (!str) return null;
     if (str instanceof Date) return str;
     str = String(str).trim();
+
+    // 1. Try YYYY-MM-DD or YYYY/MM/DD (Local time zone, avoiding UTC shifts)
+    const matchIso = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    if (matchIso) {
+        const year = parseInt(matchIso[1], 10);
+        const month = parseInt(matchIso[2], 10) - 1;
+        const day = parseInt(matchIso[3], 10);
+        return new Date(year, month, day);
+    }
+
+    // 2. Try DD/MM/YYYY or DD-MM-YYYY (Local time zone)
+    const matchDmy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (matchDmy) {
+        const day = parseInt(matchDmy[1], 10);
+        const month = parseInt(matchDmy[2], 10) - 1;
+        const year = parseInt(matchDmy[3], 10);
+        return new Date(year, month, day);
+    }
     
-    // Try standard Date parsing first
+    // 3. Try standard Date parsing (for ISO strings with hours/timezone)
     let d = new Date(str);
     if (!isNaN(d.getTime())) return d;
     
-    // Try DD Month YYYY (e.g. 23 Juni 2026)
+    // 4. Try DD Month YYYY (e.g. 23 Juni 2026)
     const indMonthNames = {
         'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5,
         'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11,
@@ -74,15 +92,6 @@ function parseIndonesianDate(str) {
         if (!isNaN(day) && !isNaN(year) && indMonthNames[monthStr] !== undefined) {
             return new Date(year, indMonthNames[monthStr], day);
         }
-    }
-    
-    // Try DD/MM/YYYY or DD-MM-YYYY
-    const match = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-    if (match) {
-        const day = parseInt(match[1], 10);
-        const month = parseInt(match[2], 10) - 1;
-        const year = parseInt(match[3], 10);
-        return new Date(year, month, day);
     }
     
     return null;
@@ -113,6 +122,51 @@ function formatDateInput(dateString) {
         return '';
     }
 }
+
+// Time Formatting Helpers
+function formatTime(timeStr) {
+    if (!timeStr) return '-';
+    timeStr = String(timeStr).trim();
+    
+    // Check if it's an ISO datetime string (like 1899-12-30T01:22:48.000Z)
+    if (timeStr.includes('T')) {
+        try {
+            const d = new Date(timeStr);
+            if (!isNaN(d.getTime())) {
+                const hours = String(d.getHours()).padStart(2, '0');
+                const minutes = String(d.getMinutes()).padStart(2, '0');
+                return `${hours}:${minutes}`;
+            }
+        } catch (e) {
+            // fallback
+        }
+    }
+    
+    // Match standard HH:MM:SS or HH:MM
+    const match = timeStr.match(/^(\d{1,2}):(\d{1,2})/);
+    if (match) {
+        const hours = match[1].padStart(2, '0');
+        const minutes = match[2].padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+    
+    return timeStr;
+}
+
+function formatTimeInput(timeStr) {
+    if (!timeStr) return '08:30';
+    const formatted = formatTime(timeStr);
+    if (formatted === '-') return '08:30';
+    return formatted;
+}
+
+// Expose helpers globally to avoid script loading order issues with views.js
+window.parseIndonesianDate = parseIndonesianDate;
+window.formatDate = formatDate;
+window.formatDateInput = formatDateInput;
+window.formatTime = formatTime;
+window.formatTimeInput = formatTimeInput;
+
 
 // Helpers for opening modals and viewing details via ID
 function getItemByTypeAndId(type, id) {
@@ -486,7 +540,7 @@ function openModal(type, item = null) {
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jam Mulai <span class="text-rose-500">*</span></label>
-                        <input type="time" id="jam_mulai" value="${item?.jam_mulai || '08:30'}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
+                        <input type="time" id="jam_mulai" value="${formatTimeInput(item?.jam_mulai)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">

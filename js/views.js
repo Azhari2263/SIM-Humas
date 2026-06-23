@@ -283,13 +283,13 @@ function renderDashboard(container) {
         .filter(item => item.tanggal && new Date(item.tanggal) < new Date().setHours(0, 0, 0, 0) && !['Selesai', 'Done', 'Posted'].includes(item.status))
         .slice(0, 4);
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = formatDateInput(new Date());
     const todayActivities = [
-        ...rutinSrc.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Rutin', jam: 'Rutin', pic: i.petugas })),
-        ...adHocSrc.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Ad Hoc', jam: 'Ad Hoc', pic: i.petugas })),
-        ...protoSrc.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Protokoler', jam: i.jam_mulai || '08:00', pic: i.petugas })),
-        ...mcSrc.filter(i => i.tanggal && i.tanggal.includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'MC', jam: i.jam_mulai || '08:00', pic: i.petugas })),
-        ...brsSrc.filter(i => i.tanggal_rilis && i.tanggal_rilis.includes(todayStr)).map(i => ({ judul: i.judul, tipe: 'Rilis BRS', jam: '09:00', pic: 'Tim Humas' }))
+        ...rutinSrc.filter(i => i.tanggal && formatDateInput(i.tanggal).includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Rutin', jam: 'Rutin', pic: i.petugas })),
+        ...adHocSrc.filter(i => i.tanggal && formatDateInput(i.tanggal).includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Ad Hoc', jam: 'Ad Hoc', pic: i.petugas })),
+        ...protoSrc.filter(i => i.tanggal && formatDateInput(i.tanggal).includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Protokoler', jam: formatTime(i.jam_mulai), pic: i.petugas })),
+        ...mcSrc.filter(i => i.tanggal && formatDateInput(i.tanggal).includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'MC', jam: formatTime(i.jam_mulai), pic: i.petugas })),
+        ...brsSrc.filter(i => i.tanggal_rilis && formatDateInput(i.tanggal_rilis).includes(todayStr)).map(i => ({ judul: i.judul, tipe: 'Rilis BRS', jam: '09:00', pic: 'Tim Humas' }))
     ];
 
     container.innerHTML = `
@@ -1203,7 +1203,7 @@ function drawProtokolerTable() {
                         <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-y-1 gap-x-4 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                             <p class="flex items-center gap-1.5"><i class="fa-regular fa-calendar text-slate-400"></i> ${formatDate(item.tanggal)}</p>
                             <p class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-slate-400"></i> Lokasi: ${item.lokasi}</p>
-                            <p class="flex items-center gap-1.5"><i class="fa-regular fa-clock text-slate-400"></i> Waktu: ${item.jam_mulai || '-'}</p>
+                            <p class="flex items-center gap-1.5"><i class="fa-regular fa-clock text-slate-400"></i> Waktu: ${formatTime(item.jam_mulai)}</p>
                             <p class="flex items-center gap-1.5 text-indigo-655 dark:text-indigo-400"><i class="fa-solid fa-users text-slate-400"></i> Petugas: ${item.petugas || 'Belum ditunjuk'}</p>
                         </div>
                     </div>
@@ -1215,7 +1215,7 @@ function drawProtokolerTable() {
 
     window.exportProtokolerReport = function (type) {
         const headers = ["Tanggal", "Bulan", "Nama Kegiatan", "Lokasi", "Jam Mulai", "Jenis", "Level", "Petugas", "Keterangan", "Status"];
-        const rows = filtered.map(item => [formatDate(item.tanggal), item.bulan || '-', item.kegiatan, item.lokasi || '-', item.jam_mulai || '-', item.jenis || 'Internal', item.level || '-', item.petugas || '-', item.keterangan || '-', item.status || 'Ditugaskan']);
+        const rows = filtered.map(item => [formatDate(item.tanggal), item.bulan || '-', item.kegiatan, item.lokasi || '-', formatTime(item.jam_mulai), item.jenis || 'Internal', item.level || '-', item.petugas || '-', item.keterangan || '-', item.status || 'Ditugaskan']);
         if (type === 'csv') downloadCSV(headers, rows, `Agenda_Protokoler_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
         else if (type === 'excel') downloadExcel(headers, rows, `Agenda_Protokoler_SIMHumas_${new Date().toISOString().split('T')[0]}.xls`);
         else openPrintReportWindow("Daftar Agenda Protokoler BPS Kalbar", headers, rows);
@@ -1343,7 +1343,7 @@ function drawMcTable() {
                         <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-y-1 gap-x-4 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                             <p class="flex items-center gap-1.5"><i class="fa-regular fa-calendar text-slate-400"></i> ${formatDate(item.tanggal)}</p>
                             <p class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-slate-400"></i> Lokasi: ${item.lokasi}</p>
-                            <p class="flex items-center gap-1.5"><i class="fa-regular fa-clock text-slate-400"></i> Waktu: ${item.jam_mulai || '-'}</p>
+                            <p class="flex items-center gap-1.5"><i class="fa-regular fa-clock text-slate-400"></i> Waktu: ${formatTime(item.jam_mulai)}</p>
                             <p class="flex items-center gap-1.5 text-indigo-655 dark:text-indigo-400"><i class="fa-solid fa-users text-slate-400"></i> Petugas MC: ${item.petugas || 'Belum ditunjuk'}</p>
                         </div>
                     </div>
@@ -1355,7 +1355,7 @@ function drawMcTable() {
 
     window.exportMcReport = function (type) {
         const headers = ["Tanggal", "Bulan", "Nama Kegiatan", "Lokasi", "Jam Mulai", "Jenis", "Level", "Petugas MC", "Keterangan", "Status"];
-        const rows = filtered.map(item => [formatDate(item.tanggal), item.bulan || '-', item.kegiatan, item.lokasi || '-', item.jam_mulai || '-', item.jenis || 'Internal', item.level || '-', item.petugas || '-', item.keterangan || '-', item.status || 'Ditugaskan']);
+        const rows = filtered.map(item => [formatDate(item.tanggal), item.bulan || '-', item.kegiatan, item.lokasi || '-', formatTime(item.jam_mulai), item.jenis || 'Internal', item.level || '-', item.petugas || '-', item.keterangan || '-', item.status || 'Ditugaskan']);
         if (type === 'csv') downloadCSV(headers, rows, `Penugasan_MC_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
         else if (type === 'excel') downloadExcel(headers, rows, `Penugasan_MC_SIMHumas_${new Date().toISOString().split('T')[0]}.xls`);
         else openPrintReportWindow("Daftar Penugasan Petugas MC BPS Kalbar", headers, rows);
@@ -1751,13 +1751,13 @@ function renderIntegratedCalendar(container) {
     }
 
     const events = [];
-    db.rekapRutin.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Rutin] ${e.kegiatan}`, date: e.tanggal, color: 'bg-indigo-500' }));
-    db.adHoc.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[AdHoc] ${e.kegiatan}`, date: e.tanggal, color: 'bg-emerald-500' }));
-    db.protokoler.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Proto] ${e.kegiatan}`, date: e.tanggal, color: 'bg-violet-500' }));
-    db.mc.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[MC] ${e.kegiatan}`, date: e.tanggal, color: 'bg-sky-500' }));
-    db.brsRilis.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[BRS] ${e.judul}`, date: e.tanggal_rilis, color: 'bg-rose-500' }));
-    db.hariBesar.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[HariBesar] ${e.hari_besar}`, date: e.tanggal, color: 'bg-amber-500' }));
-    db.contentPlanner.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Konten] ${e.judul}`, date: e.jadwal, color: 'bg-teal-600' }));
+    db.rekapRutin.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Rutin] ${e.kegiatan}`, date: formatDateInput(e.tanggal), color: 'bg-indigo-500' }));
+    db.adHoc.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[AdHoc] ${e.kegiatan}`, date: formatDateInput(e.tanggal), color: 'bg-emerald-500' }));
+    db.protokoler.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Proto] ${e.kegiatan}`, date: formatDateInput(e.tanggal), color: 'bg-violet-500' }));
+    db.mc.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[MC] ${e.kegiatan}`, date: formatDateInput(e.tanggal), color: 'bg-sky-500' }));
+    db.brsRilis.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[BRS] ${e.judul}`, date: formatDateInput(e.tanggal_rilis), color: 'bg-rose-500' }));
+    db.hariBesar.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[HariBesar] ${e.hari_besar}`, date: formatDateInput(e.tanggal), color: 'bg-amber-500' }));
+    db.contentPlanner.filter(isTaskForCurrentUser).forEach(e => events.push({ title: `[Konten] ${e.judul}`, date: formatDateInput(e.jadwal), color: 'bg-teal-600' }));
 
     const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     let headerTitle = '';
@@ -1910,43 +1910,43 @@ window.showCalendarDayEvents = function (dateStr) {
     const dayEvents = [];
 
     db.rekapRutin.filter(isTaskForCurrentUser).forEach(e => {
-        if (e.tanggal && e.tanggal.includes(dateStr)) {
+        if (e.tanggal && formatDateInput(e.tanggal).includes(dateStr)) {
             dayEvents.push({ type: 'rekap_rutin', label: 'Rutin', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-indigo-500' });
         }
     });
 
     db.adHoc.filter(isTaskForCurrentUser).forEach(e => {
-        if (e.tanggal && e.tanggal.includes(dateStr)) {
+        if (e.tanggal && formatDateInput(e.tanggal).includes(dateStr)) {
             dayEvents.push({ type: 'ad_hoc', label: 'Ad Hoc', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-emerald-500' });
         }
     });
 
     db.protokoler.filter(isTaskForCurrentUser).forEach(e => {
-        if (e.tanggal && e.tanggal.includes(dateStr)) {
+        if (e.tanggal && formatDateInput(e.tanggal).includes(dateStr)) {
             dayEvents.push({ type: 'protokoler', label: 'Protokoler', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-violet-500' });
         }
     });
 
     db.mc.filter(isTaskForCurrentUser).forEach(e => {
-        if (e.tanggal && e.tanggal.includes(dateStr)) {
+        if (e.tanggal && formatDateInput(e.tanggal).includes(dateStr)) {
             dayEvents.push({ type: 'mc', label: 'Master of Ceremony', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-sky-500' });
         }
     });
 
     db.brsRilis.filter(isTaskForCurrentUser).forEach(e => {
-        if (e.tanggal_rilis && e.tanggal_rilis.includes(dateStr)) {
+        if (e.tanggal_rilis && formatDateInput(e.tanggal_rilis).includes(dateStr)) {
             dayEvents.push({ type: 'brs_rilis', label: 'BRS Rilis', title: e.judul, pic: e.pic_poster_info || '-', status: 'Rilis', item: e, color: 'bg-rose-500' });
         }
     });
 
     db.hariBesar.filter(isTaskForCurrentUser).forEach(e => {
-        if (e.tanggal && e.tanggal.includes(dateStr)) {
+        if (e.tanggal && formatDateInput(e.tanggal).includes(dateStr)) {
             dayEvents.push({ type: 'hari_besar', label: 'Hari Besar', title: e.hari_besar, pic: e.pembuat_konten || '-', status: e.status, item: e, color: 'bg-amber-500' });
         }
     });
 
     db.contentPlanner.filter(isTaskForCurrentUser).forEach(e => {
-        if (e.jadwal && e.jadwal.includes(dateStr)) {
+        if (e.jadwal && formatDateInput(e.jadwal).includes(dateStr)) {
             dayEvents.push({ type: 'content', label: 'Konten', title: e.judul, pic: e.assignedTo || '-', status: e.status, item: e, color: 'bg-teal-600' });
         }
     });

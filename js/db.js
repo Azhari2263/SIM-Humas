@@ -139,6 +139,11 @@ async function fetchDataFromSheets(silent = false) {
             }
         }
 
+        // Apply pending local changes from sync queue on top of fetched database
+        if (typeof applySyncQueueToDb === 'function') {
+            applySyncQueueToDb();
+        }
+
         // Parse numeric/date properties safely
         TABLES.forEach(tb => {
             if (db[tb]) {
@@ -186,7 +191,40 @@ async function fetchDataFromSheets(silent = false) {
     }
 }
 
-// Send local changes back to the GAS backend
+// Persistent Sync Queue for Offline-Safe Operations
+let syncQueue = JSON.parse(localStorage.getItem('sim_humas_sync_queue')) || [];
+let isProcessingQueue = false;
+
+function saveSyncQueue() {
+    localStorage.setItem('sim_humas_sync_queue', JSON.stringify(syncQueue));
+}
+
+function applySyncQueueToDb() {
+    syncQueue.forEach(task => {
+        const varName = SHEET_TO_VAR[task.sheet] || task.sheet;
+        if (!db[varName]) return;
+        
+        if (task.action === 'add') {
+            const idx = db[varName].findIndex(i => Number(i.id) === Number(task.item.id));
+            if (idx === -1) {
+                db[varName].push(task.item);
+            } else {
+                db[varName][idx] = task.item;
+            }
+        } else if (task.action === 'update') {
+            const idx = db[varName].findIndex(i => Number(i.id) === Number(task.item.id));
+            if (idx !== -1) {
+                db[varName][idx] = task.item;
+            } else {
+                db[varName].push(task.item);
+            }
+        } else if (task.action === 'delete') {
+            db[varName] = db[varName].filter(i => Number(i.id) !== Number(task.item.id));
+        }
+    });
+}
+
+// Send local changes back to the GAS backend (Queued & Offline-Safe)
 async function sendDataToServer(action, sheetName, item) {
     const varName = SHEET_TO_VAR[sheetName] || sheetName;
     
@@ -196,11 +234,18 @@ async function sendDataToServer(action, sheetName, item) {
             const maxId = db[varName].reduce((max, i) => Math.max(max, Number(i.id) || 0), 0);
             item.id = maxId + 1;
         }
-        db[varName].push(item);
+        const idx = db[varName].findIndex(i => Number(i.id) === Number(item.id));
+        if (idx === -1) {
+            db[varName].push(item);
+        } else {
+            db[varName][idx] = item;
+        }
     } else if (action === 'update') {
         const idx = db[varName].findIndex(i => Number(i.id) === Number(item.id));
         if (idx !== -1) {
             db[varName][idx] = item;
+        } else {
+            db[varName].push(item);
         }
     } else if (action === 'delete') {
         db[varName] = db[varName].filter(i => Number(i.id) !== Number(item.id));
@@ -209,33 +254,80 @@ async function sendDataToServer(action, sheetName, item) {
     saveLocalFallback(varName);
     router(currentState); // Instantly update view
 
-    try {
-        const payload = {
-            action: action,
-            sheet: sheetName,
-            item: item
-        };
+    // Add task to sync queue
+    syncQueue.push({ action, sheet: sheetName, item });
+    saveSyncQueue();
 
-        const response = await fetch(GOOGLE_SHEETS_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8'
-            },
-            body: JSON.stringify(payload)
-        });
+    // Process queue in the background
+    processSyncQueue();
+}
 
-        if (!response.ok) throw new Error('HTTP Status ' + response.status);
-        
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error || 'Server error');
-
-        showToast('Perubahan berhasil disimpan ke database!');
-
-    } catch (error) {
-        console.warn('Gagal menyimpan ke Google Sheets, tetap disimpan lokal:', error);
-        showToast('Tersimpan di penyimpanan lokal (Offline)', 'warning');
+// Background Sync Queue Worker
+async function processSyncQueue() {
+    if (isProcessingQueue || syncQueue.length === 0) return;
+    isProcessingQueue = true;
+    
+    console.log(`[Sync] Processing sync queue. Tasks: ${syncQueue.length}`);
+    let successCount = 0;
+    
+    while (syncQueue.length > 0) {
+        const task = syncQueue[0];
+        try {
+            const payload = {
+                action: task.action,
+                sheet: task.sheet,
+                item: task.item
+            };
+            
+            const response = await fetch(GOOGLE_SHEETS_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) throw new Error('HTTP Status ' + response.status);
+            
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || 'Server error');
+            
+            // Remove successfully processed task
+            syncQueue.shift();
+            saveSyncQueue();
+            successCount++;
+            console.log(`[Sync] Successfully synced task: ${task.action} on ${task.sheet}`);
+            
+        } catch (error) {
+            console.warn('[Sync] Sync queue paused due to error:', error);
+            break;
+        }
+    }
+    
+    isProcessingQueue = false;
+    
+    if (successCount > 0) {
+        if (syncQueue.length === 0) {
+            showToast('Semua perubahan berhasil disinkronkan ke server database!');
+        } else {
+            showToast('Beberapa perubahan disinkronkan, sisa masih disimpan offline', 'info');
+        }
+    } else if (syncQueue.length > 0) {
+        showToast('Tersimpan di penyimpanan lokal (Menunggu jaringan/online)', 'warning');
     }
 }
+
+// Retry sync queue when network goes online
+window.addEventListener('online', () => {
+    console.log('[Sync] Network back online. Retrying sync queue...');
+    processSyncQueue();
+});
+
+// Periodic retry and initialization
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(processSyncQueue, 3000); // Wait 3s after boot
+    setInterval(processSyncQueue, 120000); // Retry every 2 minutes
+});
 
 async function syncData() {
     await fetchDataFromSheets();
