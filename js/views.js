@@ -724,7 +724,7 @@ function drawPlannerBoard() {
                 actionsPanel = `
                     <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-1">
                         <div class="flex items-center">
-                            <button onclick="openModal('content', ${itemJson})" title="Ubah tugas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-655 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                            <button onclick="openModalById('content', ${item.id})" title="Ubah tugas" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-655 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
                                 <i class="fa-solid fa-pen text-[10px]"></i>
                             </button>
                             ${isUserAdminOrKetua() ? `
@@ -745,7 +745,7 @@ function drawPlannerBoard() {
                         <span class="text-xs">${postTypeIcons[item.postType] || ''}</span>
                     </div>
 
-                    <h4 onclick="showDetail('content', ${itemJson})" class="font-bold text-slate-855 dark:text-slate-200 text-xs hover:text-indigo-650 transition-colors cursor-pointer line-clamp-2 leading-snug" title="${item.judul}">${item.judul}</h4>
+                    <h4 onclick="showDetailById('content', ${item.id})" class="font-bold text-slate-855 dark:text-slate-200 text-xs hover:text-indigo-650 transition-colors cursor-pointer line-clamp-2 leading-snug" title="${item.judul}">${item.judul}</h4>
                     <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed" title="${item.konsep}">${item.konsep || 'Tidak ada konsep.'}</p>
                     
                     <!-- Progress Bar -->
@@ -919,7 +919,6 @@ function drawRutinTable() {
     }
 
     body.innerHTML = filtered.map(item => {
-        const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
         let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
 
         let actionButtons = '';
@@ -927,7 +926,7 @@ function drawRutinTable() {
             actionButtons = `
                 <td class="px-6 py-4 whitespace-nowrap text-center">
                     <div class="flex items-center justify-center gap-1.5" onclick="event.stopPropagation()">
-                        <button onclick="openModal('rekap_rutin', ${itemJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        <button onclick="openModalById('rekap_rutin', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
                         ${isUserAdminOrKetua() ? `
                             <button onclick="deleteItem('rekap_rutin', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-rose-605 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Hapus"><i class="fa-solid fa-trash text-[10px]"></i></button>
                         ` : ''}
@@ -1041,7 +1040,6 @@ function drawAdHocTable() {
     }
 
     body.innerHTML = filtered.map(item => {
-        const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
         const staffList = item.petugas ? item.petugas.split(',') : [];
         const staffBadges = staffList.map(st => `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900 rounded font-bold text-[9px]">${st.trim()}</span>`).join(' ');
 
@@ -1052,7 +1050,7 @@ function drawAdHocTable() {
             actionButtons = `
                 <td class="px-6 py-4 whitespace-nowrap text-center">
                     <div class="flex items-center justify-center gap-1.5" onclick="event.stopPropagation()">
-                        <button onclick="openModal('ad_hoc', ${itemJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        <button onclick="openModalById('ad_hoc', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
                         ${isUserAdminOrKetua() ? `
                             <button onclick="deleteItem('ad_hoc', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-450 hover:text-rose-606 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Hapus"><i class="fa-solid fa-trash text-[10px]"></i></button>
                         ` : ''}
@@ -1177,7 +1175,7 @@ function drawProtokolerTable() {
                     <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span>
                     <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-950 dark:text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
                     <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-350">${item.jenis || 'Internal'}</span>
-                    <button onclick="openModal('protokoler', ${itemJson})" title="Ubah" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    <button onclick="openModalById('protokoler', ${item.id})" title="Ubah" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
                     ${isUserAdminOrKetua() ? `
                         <button onclick="deleteItem('protokoler', ${item.id})" title="Hapus" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
                     ` : ''}
@@ -1194,7 +1192,7 @@ function drawProtokolerTable() {
         }
 
         return `
-            <div class="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-205 dark:border-slate-700/80 hover:shadow-md hover:border-slate-350 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col md:flex-row justify-between items-start md:items-center gap-4" onclick="showDetail('protokoler', ${itemJson})">
+            <div class="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-205 dark:border-slate-700/80 hover:shadow-md hover:border-slate-350 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col md:flex-row justify-between items-start md:items-center gap-4" onclick="showDetailById('protokoler', ${item.id})">
                 <div class="flex items-start gap-4">
                     <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 border-indigo-150 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-900' : 'bg-amber-50 border-amber-150 text-amber-700 dark:bg-amber-950 dark:text-amber-300 dark:border-indigo-900'
             }">
@@ -1317,7 +1315,7 @@ function drawMcTable() {
                     <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span>
                     <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-955 text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-955 text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
                     <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-605 dark:text-slate-350">${item.jenis || 'Internal'}</span>
-                    <button onclick="openModal('mc', ${itemJson})" title="Ubah" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-655 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    <button onclick="openModalById('mc', ${item.id})" title="Ubah" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-655 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
                     ${isUserAdminOrKetua() ? `
                         <button onclick="deleteItem('mc', ${item.id})" title="Hapus" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
                     ` : ''}
@@ -1334,7 +1332,7 @@ function drawMcTable() {
         }
 
         return `
-            <div class="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-205 dark:border-slate-700/80 hover:shadow-md hover:border-slate-350 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col md:flex-row justify-between items-start md:items-center gap-4" onclick="showDetail('mc', ${itemJson})">
+            <div class="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-205 dark:border-slate-700/80 hover:shadow-md hover:border-slate-350 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col md:flex-row justify-between items-start md:items-center gap-4" onclick="showDetailById('mc', ${item.id})">
                 <div class="flex items-start gap-4">
                     <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 border-indigo-150 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-900' : 'bg-amber-50 border-amber-150 text-amber-700 dark:bg-amber-950 dark:text-amber-300 dark:border-indigo-900'
             }">
@@ -1436,18 +1434,18 @@ function drawBrsGrid() {
             actionsPanel = `
                 <div class="mt-6 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center text-[10px]">
                     <div class="flex items-center gap-1.5">
-                        <button onclick="openModal('brs_rilis', ${itemJson})" title="Ubah" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        <button onclick="openModalById('brs_rilis', ${item.id})" title="Ubah" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
                         ${isUserAdminOrKetua() ? `
                             <button onclick="deleteItem('brs_rilis', ${item.id})" title="Hapus" class="w-6.5 h-6.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
                         ` : ''}
                     </div>
-                    <button onclick="showDetail('brs_rilis', ${itemJson})" class="text-[9px] font-bold text-indigo-650 dark:text-indigo-400 hover:underline">Lihat Rincian →</button>
+                    <button onclick="showDetailById('brs_rilis', ${item.id})" class="text-[9px] font-bold text-indigo-650 dark:text-indigo-400 hover:underline">Lihat Rincian →</button>
                 </div>
             `;
         } else {
             actionsPanel = `
                 <div class="mt-6 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end text-[10px]">
-                    <button onclick="showDetail('brs_rilis', ${itemJson})" class="text-[9px] font-bold text-indigo-650 dark:text-indigo-400 hover:underline">Lihat Rincian →</button>
+                    <button onclick="showDetailById('brs_rilis', ${item.id})" class="text-[9px] font-bold text-indigo-650 dark:text-indigo-400 hover:underline">Lihat Rincian →</button>
                 </div>
             `;
         }
@@ -1458,7 +1456,7 @@ function drawBrsGrid() {
                     <div class="flex justify-between items-start gap-2">
                         <span class="text-[9px] text-slate-450 dark:text-slate-500 font-extrabold uppercase tracking-widest"><i class="fa-solid fa-calendar mr-1"></i> ${formatDate(item.tanggal_rilis)}</span>
                     </div>
-                    <h4 class="font-extrabold text-slate-855 dark:text-slate-100 text-sm mt-3 leading-snug cursor-pointer hover:text-indigo-655 transition-colors" onclick="showDetail('brs_rilis', ${itemJson})">${item.judul}</h4>
+                    <h4 class="font-extrabold text-slate-855 dark:text-slate-100 text-sm mt-3 leading-snug cursor-pointer hover:text-indigo-655 transition-colors" onclick="showDetailById('brs_rilis', ${item.id})">${item.judul}</h4>
                     
                     <div class="mt-4 space-y-2 text-[10px] text-slate-600 dark:text-slate-400 font-medium">
                         <div class="flex justify-between"><span>PIC Poster & Info:</span><strong class="text-slate-800 dark:text-slate-200">${item.pic_poster_info || '-'}</strong></div>
@@ -1569,7 +1567,7 @@ function drawHariBesarTable() {
             actionButtons = `
                 <td class="px-6 py-4 whitespace-nowrap text-center">
                     <div class="flex items-center justify-center gap-1.5" onclick="event.stopPropagation()">
-                        <button onclick="openModal('hari_besar', ${itemJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-455 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                        <button onclick="openModalById('hari_besar', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-455 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Ubah"><i class="fa-solid fa-pen text-[10px]"></i></button>
                         ${isUserAdminOrKetua() ? `
                             <button onclick="deleteItem('hari_besar', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-455 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" title="Hapus"><i class="fa-solid fa-trash text-[10px]"></i></button>
                         ` : ''}
@@ -1869,7 +1867,7 @@ window.showCalendarDayEvents = function (dateStr) {
                 ${dayEvents.map(ev => {
             const itemJson = JSON.stringify(ev.item).replace(/"/g, '&quot;');
             return `
-                        <div class="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl hover:border-indigo-400 dark:hover:border-indigo-600 transition-all cursor-pointer flex flex-col justify-between" onclick="closeCalendarDayModal(); showDetailFromCalendar('${ev.type}', ${itemJson})">
+                        <div class="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl hover:border-indigo-400 dark:hover:border-indigo-600 transition-all cursor-pointer flex flex-col justify-between" onclick="closeCalendarDayModal(); showDetailFromCalendar('${ev.type}', ${ev.item.id})">
                             <div class="flex items-center justify-between mb-1.5">
                                 <span class="px-2 py-0.5 ${ev.color} text-white font-black text-[8px] rounded uppercase tracking-wider">${ev.label}</span>
                                 <span class="text-[9px] font-bold text-slate-450 dark:text-slate-500 uppercase">${ev.status || '-'}</span>
@@ -1909,9 +1907,9 @@ window.closeCalendarDayModal = function () {
     if (modal) modal.remove();
 };
 
-window.showDetailFromCalendar = function (type, item) {
-    if (typeof showDetail === 'function') {
-        showDetail(type, item);
+window.showDetailFromCalendar = function (type, id) {
+    if (typeof showDetailById === 'function') {
+        showDetailById(type, id);
     } else {
         showToast('Gagal memuat modul rincian.', 'error');
     }
@@ -2002,7 +2000,7 @@ function renderSettingsPage(container) {
                                     <td class="px-6 py-3 font-medium text-slate-500 whitespace-nowrap">${u.bidang || '-'}</td>
                                     <td class="px-6 py-3 whitespace-nowrap text-center">
                                         <div class="flex items-center justify-center gap-1">
-                                            <button onclick="openModal('user_manager', ${uJson})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                                            <button onclick="openModalById('user_manager', ${u.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
                                             <button onclick="deleteItem('users', ${u.id})" ${u.username === 'admin' ? 'disabled' : ''} class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
                                         </div>
                                     </td>
@@ -2115,14 +2113,14 @@ function drawTeamGrid() {
         if (!isKepala && isUserAdminOrKetua()) {
             actionButtons = `
                 <div class="flex items-center" onclick="event.stopPropagation()">
-                    <button onclick="openModal('team', ${itemJson})" title="Edit Profil" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen-to-square text-[10px]"></i></button>
+                    <button onclick="openModalById('team', ${member.id})" title="Edit Profil" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen-to-square text-[10px]"></i></button>
                     <button onclick="deleteItem('team', ${member.id})" title="Hapus Profil" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
                 </div>
             `;
         }
 
         return `
-            <div class="bg-white dark:bg-slate-850 rounded-2xl shadow-sm border border-slate-205 dark:border-slate-700 overflow-hidden hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col group" onclick="showDetail('team', ${itemJson})">
+            <div class="bg-white dark:bg-slate-850 rounded-2xl shadow-sm border border-slate-205 dark:border-slate-700 overflow-hidden hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-300 cursor-pointer flex flex-col group" onclick="showDetailById('team', ${member.id})">
                 <div class="h-20 bg-gradient-to-r from-indigo-750 to-slate-900 dark:from-indigo-950 dark:to-slate-800 relative">
                     <div class="absolute -bottom-6 left-5 w-14 h-14 rounded-2xl border-4 border-white dark:border-slate-850 shadow-md flex items-center justify-center text-sm font-black tracking-wider transition-transform duration-300 group-hover:scale-105 ${avatarBg}">
                         ${initials}

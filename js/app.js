@@ -47,12 +47,54 @@ function showToast(message, type = 'success') {
     }, 3200);
 }
 
-// UI Helper: Date Formatting
+// UI Helper: Date Formatting & Parsing
+function parseIndonesianDate(str) {
+    if (!str) return null;
+    if (str instanceof Date) return str;
+    str = String(str).trim();
+    
+    // Try standard Date parsing first
+    let d = new Date(str);
+    if (!isNaN(d.getTime())) return d;
+    
+    // Try DD Month YYYY (e.g. 23 Juni 2026)
+    const indMonthNames = {
+        'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5,
+        'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11,
+        'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'mei': 4, 'jun': 5,
+        'jul': 6, 'agu': 7, 'sep': 8, 'okt': 9, 'nov': 10, 'des': 11
+    };
+    
+    const parts = str.toLowerCase().split(/\s+/);
+    if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const monthStr = parts[1];
+        const year = parseInt(parts[2], 10);
+        
+        if (!isNaN(day) && !isNaN(year) && indMonthNames[monthStr] !== undefined) {
+            return new Date(year, indMonthNames[monthStr], day);
+        }
+    }
+    
+    // Try DD/MM/YYYY or DD-MM-YYYY
+    const match = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (match) {
+        const day = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10) - 1;
+        const year = parseInt(match[3], 10);
+        return new Date(year, month, day);
+    }
+    
+    return null;
+}
+
 function formatDate(dateString) {
     if (!dateString) return '-';
     try {
+        let d = parseIndonesianDate(dateString);
+        if (!d || isNaN(d.getTime())) return dateString;
         const options = { day: 'numeric', month: 'long', year: 'numeric' };
-        return new Date(dateString).toLocaleDateString('id-ID', options);
+        return d.toLocaleDateString('id-ID', options);
     } catch (e) {
         return dateString;
     }
@@ -61,11 +103,56 @@ function formatDate(dateString) {
 function formatDateInput(dateString) {
     if (!dateString) return '';
     try {
-        return new Date(dateString).toISOString().split('T')[0];
+        let d = parseIndonesianDate(dateString);
+        if (!d || isNaN(d.getTime())) return '';
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     } catch (e) {
         return '';
     }
 }
+
+// Helpers for opening modals and viewing details via ID
+function getItemByTypeAndId(type, id) {
+    const sheetMapping = {
+        'content': 'content_planner',
+        'rekap_rutin': 'rekap_rutin',
+        'ad_hoc': 'ad_hoc_2026',
+        'protokoler': 'protokoler',
+        'mc': 'mc',
+        'brs_rilis': 'brs_rilis',
+        'hari_besar': 'hari_besar',
+        'team': 'team',
+        'user_manager': 'users'
+    };
+    const sheetName = sheetMapping[type] || type;
+    const varName = SHEET_TO_VAR[sheetName] || type;
+    if (!db[varName]) return null;
+    return db[varName].find(i => Number(i.id) === Number(id));
+}
+
+window.openModalById = function (type, id) {
+    const item = getItemByTypeAndId(type, id);
+    openModal(type, item);
+};
+
+window.showDetailById = function (type, id) {
+    const item = getItemByTypeAndId(type, id);
+    if (item) {
+        showDetail(type, item);
+    }
+};
+
+window.getIndonesianMonthName = function (dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    return monthNames[d.getMonth()];
+};
+
 
 // Mobile Sidebar Operations
 function openMobileSidebar() {
@@ -385,7 +472,7 @@ function openModal(type, item = null) {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Acara <span class="text-rose-500">*</span></label>
-                        <input type="date" id="tanggal" value="${formatDateInput(item?.tanggal)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
+                        <input type="date" id="tanggal" value="${formatDateInput(item?.tanggal)}" onchange="document.getElementById('bulan').value = getIndonesianMonthName(this.value)" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Bulan Acara</label>
@@ -773,11 +860,14 @@ async function saveData(event) {
         `${action === 'add' ? 'Menambahkan' : 'Mengubah'} ${label}: "${itemDesc}".`
     );
 
-    await sendDataToServer(action, sheetName, item);
+    // Simpan secara asinkron ke Google Sheets di latar belakang
+    sendDataToServer(action, sheetName, item).catch(err => {
+        console.error('Sync error:', err);
+    });
 
     setSubmitLoading(false);
     closeModal();
-    showToast('Data berhasil disimpan ke database!');
+    showToast('Data berhasil disimpan lokal (Sedang disinkronkan)...');
     router(currentState);
 }
 

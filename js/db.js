@@ -227,8 +227,6 @@ async function sendDataToServer(action, sheetName, item) {
         if (!result.success) throw new Error(result.error || 'Server error');
 
         showToast('Perubahan berhasil disimpan ke database!');
-        // Silently fetch fresh data in background
-        fetchDataFromSheets(true);
 
     } catch (error) {
         console.warn('Gagal menyimpan ke Google Sheets, tetap disimpan lokal:', error);
