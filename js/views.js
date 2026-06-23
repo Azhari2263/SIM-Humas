@@ -1825,7 +1825,11 @@ function renderRekapKegiatan(container) {
                 `).join('')}
             </div>
         </div>
-    // 10. INTEGRATED CALENDAR VIEW
+    `;
+}
+
+// -------------------------------------------------------------
+// 10. INTEGRATED CALENDAR VIEW
 // -------------------------------------------------------------
 let calendarFilter = 'all';
 
