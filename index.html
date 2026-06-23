@@ -319,6 +319,20 @@
         .sidebar-overlay.open {
             display: block;
         }
+
+        /* Specific overrides for login input text visibility on focus and autofill */
+        #login-layout input,
+        #login-layout input:focus,
+        #login-layout input:-webkit-autofill,
+        #login-layout input:-webkit-autofill:hover, 
+        #login-layout input:-webkit-autofill:focus, 
+        #login-layout input:-webkit-autofill:active {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            background-color: rgba(30, 41, 59, 0.8) !important;
+            -webkit-box-shadow: 0 0 0 30px rgba(30, 41, 59, 0.8) inset !important;
+            border-color: rgba(99, 102, 241, 0.4) !important;
+        }
     </style>
 </head>
 

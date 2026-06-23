@@ -1777,7 +1777,7 @@ function renderIntegratedCalendar(container) {
         `).join('');
 
         daysHtml.push(`
-            <div class="h-28 border border-slate-100 dark:border-slate-800 p-2 bg-white dark:bg-slate-850 flex flex-col justify-between overflow-y-auto">
+            <div onclick="showCalendarDayEvents('${dateStr}')" class="h-28 border border-slate-100 dark:border-slate-800 p-2 bg-white dark:bg-slate-850 flex flex-col justify-between overflow-y-auto cursor-pointer hover:bg-indigo-50/40 dark:hover:bg-slate-800/80 hover:border-indigo-200 dark:hover:border-slate-700 transition-all">
                 <span class="text-xs font-black text-slate-700 dark:text-slate-350">${d}</span>
                 <div class="flex-1 overflow-y-auto mt-1">${eventsListHtml}</div>
             </div>
@@ -1812,6 +1812,114 @@ function renderIntegratedCalendar(container) {
         </div>
     `;
 }
+
+// Global Calendar Event Popup Modal
+window.showCalendarDayEvents = function(dateStr) {
+    const formattedDate = new Date(dateStr).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const dayEvents = [];
+
+    // Filter events by role and date
+    db.rekapRutin.filter(isTaskForCurrentUser).forEach(e => {
+        if (e.tanggal && e.tanggal.includes(dateStr)) {
+            dayEvents.push({ type: 'rekap_rutin', label: 'Rutin', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-indigo-500' });
+        }
+    });
+
+    db.adHoc.filter(isTaskForCurrentUser).forEach(e => {
+        if (e.tanggal && e.tanggal.includes(dateStr)) {
+            dayEvents.push({ type: 'ad_hoc', label: 'Ad Hoc', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-emerald-500' });
+        }
+    });
+
+    db.protokoler.filter(isTaskForCurrentUser).forEach(e => {
+        if (e.tanggal && e.tanggal.includes(dateStr)) {
+            dayEvents.push({ type: 'protokoler', label: 'Protokoler', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-violet-500' });
+        }
+    });
+
+    db.mc.filter(isTaskForCurrentUser).forEach(e => {
+        if (e.tanggal && e.tanggal.includes(dateStr)) {
+            dayEvents.push({ type: 'mc', label: 'Modul MC', title: e.kegiatan, pic: e.petugas || '-', status: e.status, item: e, color: 'bg-sky-500' });
+        }
+    });
+
+    db.brsRilis.filter(isTaskForCurrentUser).forEach(e => {
+        if (e.tanggal_rilis && e.tanggal_rilis.includes(dateStr)) {
+            dayEvents.push({ type: 'brs_rilis', label: 'BRS Rilis', title: e.judul, pic: e.pic_poster_info || '-', status: 'Rilis', item: e, color: 'bg-rose-500' });
+        }
+    });
+
+    db.hariBesar.filter(isTaskForCurrentUser).forEach(e => {
+        if (e.tanggal && e.tanggal.includes(dateStr)) {
+            dayEvents.push({ type: 'hari_besar', label: 'Hari Besar', title: e.hari_besar, pic: e.pembuat_konten || '-', status: e.status, item: e, color: 'bg-amber-500' });
+        }
+    });
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'calendar-day-modal';
+
+    let listContent = '';
+    if (dayEvents.length === 0) {
+        listContent = `
+            <div class="py-12 text-center text-slate-400 dark:text-slate-500">
+                <i class="fa-regular fa-calendar-minus text-4xl mb-3 opacity-60"></i>
+                <p class="text-xs font-bold">Tidak ada agenda atau penugasan kegiatan pada tanggal ini.</p>
+            </div>
+        `;
+    } else {
+        listContent = `
+            <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
+                ${dayEvents.map(ev => {
+                    const itemJson = JSON.stringify(ev.item).replace(/"/g, '&quot;');
+                    return `
+                        <div class="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl hover:border-indigo-400 dark:hover:border-indigo-600 transition-all cursor-pointer flex flex-col justify-between" onclick="closeCalendarDayModal(); showDetailFromCalendar('${ev.type}', ${itemJson})">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="px-2 py-0.5 ${ev.color} text-white font-black text-[8px] rounded uppercase tracking-wider">${ev.label}</span>
+                                <span class="text-[9px] font-bold text-slate-450 dark:text-slate-500 uppercase">${ev.status || '-'}</span>
+                            </div>
+                            <h4 class="text-xs font-black text-slate-800 dark:text-white leading-relaxed line-clamp-2">${ev.title}</h4>
+                            <div class="flex items-center gap-1.5 mt-2 text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+                                <i class="fa-regular fa-user text-xs"></i>
+                                <span>Petugas/PIC: <strong class="text-slate-700 dark:text-slate-200 font-bold">${ev.pic}</strong></span>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    modal.innerHTML = `
+        <div class="modal-content p-6 max-w-md border border-slate-100 dark:border-slate-750 shadow-2xl">
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 dark:border-slate-700 pb-3">
+                <div>
+                    <h3 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Detail Agenda Harian</h3>
+                    <h4 class="text-xs font-black text-slate-900 dark:text-white mt-1">${formattedDate}</h4>
+                </div>
+                <button onclick="closeCalendarDayModal()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
+            </div>
+            ${listContent}
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeCalendarDayModal()" class="btn-primary px-6 py-2.5 text-xs font-bold uppercase tracking-wider">Tutup</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+};
+
+window.closeCalendarDayModal = function() {
+    const modal = document.getElementById('calendar-day-modal');
+    if (modal) modal.remove();
+};
+
+window.showDetailFromCalendar = function(type, item) {
+    if (typeof showDetail === 'function') {
+        showDetail(type, item);
+    } else {
+        showToast('Gagal memuat modul rincian.', 'error');
+    }
+};
 
 // -------------------------------------------------------------
 // 11. AUDIT TRAIL VIEW (DELETED)

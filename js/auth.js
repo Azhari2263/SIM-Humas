@@ -40,7 +40,7 @@ function renderLoginScreen() {
                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
                             <i class="fa-regular fa-user"></i>
                         </span>
-                        <input type="text" id="login-username" class="w-full pl-10 pr-4 py-2 bg-slate-800/80 border border-slate-700/60 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 placeholder-slate-500 transition-all font-medium" placeholder="Username (admin / kepala / koordinator / tim / pemohon)..." value="admin" required>
+                        <input type="text" id="login-username" class="w-full pl-10 pr-4 py-2 bg-slate-800/80 border border-slate-700/60 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 placeholder-slate-500 transition-all font-medium" placeholder="Masukkan username Anda..." required>
                     </div>
                 </div>
                 <div>
@@ -49,69 +49,53 @@ function renderLoginScreen() {
                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
                             <i class="fa-solid fa-lock"></i>
                         </span>
-                        <input type="password" id="login-password" class="w-full pl-10 pr-4 py-2 bg-slate-800/80 border border-slate-700/60 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 placeholder-slate-500 transition-all font-medium" placeholder="••••••••" value="password" required>
+                        <input type="password" id="login-password" class="w-full pl-10 pr-4 py-2 bg-slate-800/80 border border-slate-700/60 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 placeholder-slate-500 transition-all font-medium" placeholder="••••••••" required>
                     </div>
                 </div>
                 <button type="submit" class="w-full bg-gradient-to-r from-indigo-500 to-indigo-650 hover:from-indigo-400 hover:to-indigo-550 text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all duration-300 shadow-md shadow-indigo-500/10 hover:shadow-indigo-550/30 transform active:scale-[0.98]">
                     Masuk ke Sistem
                 </button>
             </form>
-            
-            <div class="mt-6 border-t border-slate-800/60 pt-4">
-                <p class="text-center text-[9px] text-indigo-250 mb-3 font-bold tracking-wider uppercase">Pilih Peran Demo untuk Uji Coba:</p>
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="quickLogin('admin')" class="py-1.5 px-2 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-indigo-500/30 rounded-xl font-bold transition-all text-white text-[9px] flex flex-col items-center justify-center gap-0.5">
-                        <i class="fa-solid fa-user-shield text-indigo-400 text-sm"></i> Super Admin
-                    </button>
-                    <button onclick="quickLogin('kepala')" class="py-1.5 px-2 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-indigo-500/30 rounded-xl font-bold transition-all text-white text-[9px] flex flex-col items-center justify-center gap-0.5">
-                        <i class="fa-solid fa-user-tie text-indigo-400 text-sm"></i> Kepala BPS
-                    </button>
-                    <button onclick="quickLogin('koordinator')" class="py-1.5 px-2 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-indigo-500/30 rounded-xl font-bold transition-all text-white text-[9px] flex flex-col items-center justify-center gap-0.5">
-                        <i class="fa-solid fa-people-roof text-indigo-400 text-sm"></i> Koordinator
-                    </button>
-                    <button onclick="quickLogin('tim')" class="py-1.5 px-2 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-indigo-500/30 rounded-xl font-bold transition-all text-white text-[9px] flex flex-col items-center justify-center gap-0.5">
-                        <i class="fa-solid fa-users text-indigo-400 text-sm"></i> Tim Humas
-                    </button>
-                    <button onclick="quickLogin('pemohon')" class="col-span-2 py-1.5 px-2 bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-indigo-500/30 rounded-xl font-bold transition-all text-white text-[9px] flex flex-row items-center justify-center gap-2">
-                        <i class="fa-solid fa-file-invoice text-indigo-400 text-sm"></i> Pegawai / Pemohon Layanan
-                    </button>
-                </div>
-            </div>
         </div>
     `;
 }
 
 function handleLogin(event) {
     event.preventDefault();
-    const username = document.getElementById('login-username').value;
-    let role = 'tim';
-    let name = 'Staf Humas';
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    
+    if (!username || !password) {
+        showToast('Username dan password harus diisi!', 'error');
+        return;
+    }
     
     const lowerUsername = username.toLowerCase();
-    if (lowerUsername === 'admin') { 
-        role = 'admin'; 
-        name = 'Super Admin'; 
-    } else if (lowerUsername === 'kepala') { 
-        role = 'kepala'; 
-        name = 'Kepala BPS Kalbar'; 
-    } else if (lowerUsername === 'koordinator' || lowerUsername === 'azhari') { 
-        role = 'koordinator'; 
-        name = 'Azhari (Koordinator)'; 
-    } else if (lowerUsername === 'tim' || lowerUsername === 'rian' || lowerUsername === 'siska' || lowerUsername === 'dian') { 
-        role = 'tim'; 
-        name = lowerUsername.charAt(0).toUpperCase() + lowerUsername.slice(1); 
-    } else { 
-        role = 'pemohon'; 
-        name = username.charAt(0).toUpperCase() + username.slice(1); 
-    }
-
-    currentUser = { username, role, name };
-    localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
-    showToast('Selamat datang, ' + name + '!');
+    const user = db.users.find(u => u.username && u.username.toLowerCase() === lowerUsername);
     
-    // Log user log in to audit trail
+    if (!user) {
+        showToast('Username tidak terdaftar!', 'error');
+        return;
+    }
+    
+    const expectedPassword = user.password || 'password';
+    if (password !== expectedPassword) {
+        showToast('Kata sandi salah!', 'error');
+        return;
+    }
+    
+    currentUser = { 
+        username: user.username, 
+        role: user.role, 
+        name: user.nama,
+        bidang: user.bidang || '' 
+    };
+    
+    localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
+    showToast('Selamat datang, ' + user.nama + '!');
+    
     if (window.logActivity) {
-        logActivity('Login', `User ${name} masuk sebagai ${getRoleLabel(role)}.`);
+        logActivity('Login', `User ${user.nama} masuk sebagai ${getRoleLabel(user.role)}.`);
     }
 
     checkAuth();

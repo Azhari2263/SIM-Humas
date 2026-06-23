@@ -985,6 +985,37 @@ function showDetail(type, item) {
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Highlight Data:</strong><span class="font-bold">${item.highlight ? `<a href="${item.highlight}" target="_blank" class="text-indigo-650 hover:underline">Lihat PDF</a>` : '-'}</span></div>
             </div>
         `;
+    } else if (type === 'rekap_rutin') {
+        content = `
+            <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Kegiatan:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.kegiatan}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal & Hari:</strong><span class="font-bold">${formatDate(item.tanggal)} (${item.hari || '-'})</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Rubrikasi:</strong><span class="font-bold text-indigo-650 dark:text-indigo-400">${item.rubrikasi || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Petugas Humas:</strong><span class="font-bold text-slate-800 dark:text-white">${item.petugas || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || '-'}</span></div>
+            </div>
+        `;
+    } else if (type === 'ad_hoc') {
+        content = `
+            <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Kegiatan:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.kegiatan}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal & Hari:</strong><span class="font-bold">${formatDate(item.tanggal)} (${item.hari || '-'})</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jumlah Bertugas:</strong><span class="font-bold">${item.jumlah_bertugas || 1} orang</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Petugas:</strong><span class="font-bold text-slate-800 dark:text-white">${item.petugas || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || '-'}</span></div>
+                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Keterangan:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.keterangan || 'Tidak ada keterangan tambahan.'}</span></div>
+            </div>
+        `;
+    } else if (type === 'hari_besar') {
+        content = `
+            <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Ucapan Hari Besar:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.hari_besar}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal:</strong><span class="font-bold">${formatDate(item.tanggal)}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Pembuat Konten (PIC):</strong><span class="font-bold text-slate-800 dark:text-white">${item.pembuat_konten || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status Konten:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Aset Pendukung:</strong><span class="font-bold">${item.data_pendukung ? `<a href="${item.data_pendukung}" target="_blank" class="text-indigo-650 hover:underline">Buka Link Aset</a>` : '-'}</span></div>
+            </div>
+        `;
     } else if (type === 'team') {
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
@@ -1114,6 +1145,9 @@ function router(page) {
     }
 }
 
+// Expose showDetail globally
+window.showDetail = showDetail;
+
 // App Initialization
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
@@ -1125,4 +1159,13 @@ document.addEventListener('DOMContentLoaded', () => {
             renderNotificationsUI();
         }
     }, 15000);
+
+    // Periodically sync data in the background silently (every 5 minutes)
+    setInterval(() => {
+        if (currentUser) {
+            if (typeof fetchDataFromSheets === 'function') {
+                fetchDataFromSheets(true);
+            }
+        }
+    }, 300000);
 });

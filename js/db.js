@@ -114,16 +114,17 @@ function saveLocalFallback(tb) {
 }
 
 // Fetch data from Google Sheets API
-async function fetchDataFromSheets() {
+async function fetchDataFromSheets(silent = false) {
     if (isLoading) return;
     isLoading = true;
     isError = false;
     errorMessage = '';
 
     // First load from local storage fallback to ensure instant load (Optimistic Load)
-    loadLocalFallbacks();
-
-    updateLoadingStateUI(true);
+    if (!silent) {
+        loadLocalFallbacks();
+        updateLoadingStateUI(true);
+    }
 
     try {
         const response = await fetch(GOOGLE_SHEETS_API_URL);
@@ -167,17 +168,22 @@ async function fetchDataFromSheets() {
         const mobileSyncEl = document.getElementById('mobile-last-sync-date');
         if (mobileSyncEl) mobileSyncEl.textContent = dateStr;
 
-        showToast('Data berhasil disinkronkan dari Google Sheets!');
+        if (!silent) {
+            showToast('Data berhasil disinkronkan dari Google Sheets!');
+        }
         router(currentState);
 
     } catch (error) {
         console.error('Error fetching data from sheets, using offline local copy:', error);
-        // We already loaded local fallbacks, so we just inform the user and proceed
-        showToast('Menampilkan data offline lokal (Koneksi Sheets terhambat)', 'info');
+        if (!silent) {
+            showToast('Menampilkan data offline lokal (Koneksi Sheets terhambat)', 'info');
+        }
         router(currentState);
     } finally {
         isLoading = false;
-        updateLoadingStateUI(false);
+        if (!silent) {
+            updateLoadingStateUI(false);
+        }
     }
 }
 
@@ -222,19 +228,8 @@ async function sendDataToServer(action, sheetName, item) {
         if (!result.success) throw new Error(result.error || 'Server error');
 
         showToast('Perubahan berhasil disimpan ke database!');
-        // Silently fetch fresh data
-        const freshResponse = await fetch(GOOGLE_SHEETS_API_URL);
-        if (freshResponse.ok) {
-            const freshData = await freshResponse.json();
-            for (let sName in SHEET_TO_VAR) {
-                const vName = SHEET_TO_VAR[sName];
-                if (freshData[sName] !== undefined && Array.isArray(freshData[sName])) {
-                    db[vName] = freshData[sName];
-                    saveLocalFallback(vName);
-                }
-            }
-            router(currentState);
-        }
+        // Silently fetch fresh data in background
+        fetchDataFromSheets(true);
 
     } catch (error) {
         console.warn('Gagal menyimpan ke Google Sheets, tetap disimpan lokal:', error);
