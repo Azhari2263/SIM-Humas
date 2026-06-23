@@ -208,6 +208,7 @@ function renderDashboard(container) {
     const brsSrc = db.brsRilis.filter(isTaskForCurrentUser);
     const hbSrc = db.hariBesar.filter(isTaskForCurrentUser);
     const plannerSrc = db.contentPlanner.filter(isTaskForCurrentUser);
+    const assignmentSrc = db.assignments.filter(isTaskForCurrentUser);
 
     const totalRutin = rutinSrc.filter(item => getMonthFilter(item.tanggal)).length;
     const totalAdHoc = adHocSrc.filter(item => getMonthFilter(item.tanggal)).length;
@@ -215,8 +216,9 @@ function renderDashboard(container) {
     const totalMc = mcSrc.filter(item => getMonthFilter(item.tanggal)).length;
     const totalBrs = brsSrc.filter(item => getMonthFilter(item.tanggal_rilis)).length;
     const totalHariBesar = hbSrc.filter(item => getMonthFilter(item.tanggal)).length;
+    const totalAssignments = assignmentSrc.filter(item => getMonthFilter(item.deadline)).length;
 
-    const totalKegiatanBulanIni = totalRutin + totalAdHoc + totalProto + totalMc + totalBrs + totalHariBesar;
+    const totalKegiatanBulanIni = totalRutin + totalAdHoc + totalProto + totalMc + totalBrs + totalHariBesar + totalAssignments;
 
     let selesaiCount = 0;
     let progressCount = 0;
@@ -225,7 +227,7 @@ function renderDashboard(container) {
         if (!status) return;
         const st = status.toLowerCase();
         if (st === 'selesai' || st === 'done' || st === 'posted') selesaiCount++;
-        else if (st === 'ditugaskan' || st === 'on progress' || st === 'in progress' || st === 'revisi' || st === 'draft') progressCount++;
+        else if (st === 'ditugaskan' || st === 'on progress' || st === 'in progress' || st === 'revisi' || st === 'draft' || st === 'belum mulai' || st === 'sedang dikerjakan') progressCount++;
     };
 
     rutinSrc.forEach(i => evalStatus(i.status));
@@ -234,6 +236,7 @@ function renderDashboard(container) {
     mcSrc.forEach(i => evalStatus(i.status));
     hbSrc.forEach(i => evalStatus(i.status));
     plannerSrc.forEach(i => evalStatus(i.status));
+    assignmentSrc.forEach(i => evalStatus(i.status));
 
     const totalPegawaiAktif = db.team.length;
 
@@ -243,6 +246,7 @@ function renderDashboard(container) {
         const pTasks = db.protokoler.filter(p => p.petugas && p.petugas.includes(member.nama)).length;
         const mTasks = db.mc.filter(m => m.petugas && m.petugas.includes(member.nama)).length;
         const cTasks = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
+        const asTasks = db.assignments.filter(as => as.assigned_to === member.nama).length;
 
         return {
             name: member.nama.split(' ')[0],
@@ -251,7 +255,8 @@ function renderDashboard(container) {
             pTasks,
             mTasks,
             cTasks,
-            total: rTasks + aTasks + pTasks + mTasks + cTasks
+            asTasks,
+            total: rTasks + aTasks + pTasks + mTasks + cTasks + asTasks
         };
     });
 
@@ -259,25 +264,25 @@ function renderDashboard(container) {
     const rutinData = memberTasks.map(m => m.rTasks);
     const adhocData = memberTasks.map(m => m.aTasks);
     const protoData = memberTasks.map(m => m.pTasks + m.mTasks);
-    const plannerData = memberTasks.map(m => m.cTasks);
+    const plannerData = memberTasks.map(m => m.cTasks + m.asTasks);
 
-    const upcomingDeadlines = [...plannerSrc, ...db.tickets.filter(t => t.status === 'Approved').filter(isTaskForCurrentUser)]
+    const upcomingDeadlines = [...plannerSrc, ...db.tickets.filter(t => t.status === 'Approved').filter(isTaskForCurrentUser), ...assignmentSrc]
         .map(item => ({
-            judul: item.judul,
+            judul: item.judul || item.tugas,
             tanggal: item.jadwal || item.deadline,
-            sumber: item.jadwal ? 'Konten' : 'Layanan',
-            pic: item.assignedTo || item.pic || '-'
+            sumber: item.jadwal ? 'Konten' : (item.tugas ? 'Tugas' : 'Layanan'),
+            pic: item.assignedTo || item.pic || item.assigned_to || '-'
         }))
         .filter(item => item.tanggal && new Date(item.tanggal) >= new Date().setHours(0, 0, 0, 0))
         .sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
         .slice(0, 4);
 
-    const overdueTasks = [...plannerSrc, ...rutinSrc, ...adHocSrc]
+    const overdueTasks = [...plannerSrc, ...rutinSrc, ...adHocSrc, ...assignmentSrc]
         .map(item => ({
-            judul: item.judul || item.kegiatan,
-            tanggal: item.jadwal || item.tanggal,
+            judul: item.judul || item.kegiatan || item.tugas,
+            tanggal: item.jadwal || item.tanggal || item.deadline,
             status: item.status,
-            pic: item.assignedTo || item.petugas || '-'
+            pic: item.assignedTo || item.petugas || item.assigned_to || '-'
         }))
         .filter(item => item.tanggal && new Date(item.tanggal) < new Date().setHours(0, 0, 0, 0) && !['Selesai', 'Done', 'Posted'].includes(item.status))
         .slice(0, 4);
@@ -1743,6 +1748,17 @@ function renderRekapKegiatan(container) {
             tanggal: item.jadwal,
             progress: item.progres || 0,
             status: item.status || 'Draft'
+        });
+    });
+
+    db.assignments.filter(isTaskForCurrentUser).forEach(item => {
+        allTasks.push({
+            judul: item.tugas,
+            jenis: 'Assignment',
+            petugas: item.assigned_to || '-',
+            tanggal: item.deadline,
+            progress: item.progres || 0,
+            status: item.status || 'Belum Mulai'
         });
     });
 
