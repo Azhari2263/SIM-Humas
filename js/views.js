@@ -1384,7 +1384,7 @@ function renderBrsRilis(container) {
                 </button>
                 ${!isKepala && isUserAdminOrKetua() ? `
                     <button onclick="openModal('brs_rilis')" class="btn-primary flex items-center gap-2 shadow-md py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
-                        <i class="fa-solid fa-plus text-xs"></i> Unggah Dokumen BRS
+                        <i class="fa-solid fa-plus text-xs"></i> Tambah Kegiatan BRS
                     </button>
                 ` : ''}
             </div>
@@ -1393,7 +1393,7 @@ function renderBrsRilis(container) {
         <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex justify-between items-center shadow-xs">
             <div class="relative w-full max-w-xs">
                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
-                <input type="text" oninput="brsSearch = this.value; drawBrsGrid();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari judul rilis data BRS...">
+                <input type="text" oninput="brsSearch = this.value; drawBrsGrid();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari judul kegiatan BRS...">
             </div>
         </div>
 
@@ -1476,7 +1476,7 @@ function drawBrsGrid() {
     }).join('');
 
     window.exportBrsReport = function (type) {
-        const headers = ["Tanggal Rilis", "Judul Rilis Data", "PIC Poster & Info", "PIC Dok Ruang", "PIC Dok YT Zoom", "Highlight"];
+        const headers = ["Tanggal Rilis", "Judul Kegiatan Rilis", "PIC Poster & Info", "PIC Dok Ruang", "PIC Dok YT Zoom", "Highlight"];
         const rows = filtered.map(item => [formatDate(item.tanggal_rilis), item.judul, item.pic_poster_info || '-', item.pic_doc_ruang || '-', item.pic_doc_yt_zoom || '-', item.highlight || '-']);
         if (type === 'csv') downloadCSV(headers, rows, `Arsip_BRS_SIMHumas_${new Date().toISOString().split('T')[0]}.csv`);
         else if (type === 'excel') downloadExcel(headers, rows, `Arsip_BRS_SIMHumas_${new Date().toISOString().split('T')[0]}.xls`);

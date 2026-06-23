@@ -441,11 +441,11 @@ function openModal(type, item = null) {
             </div>
         `;
     } else if (type === 'brs_rilis') {
-        title = item ? 'Edit Dokumen BRS' : 'Unggah Dokumen BRS';
+        title = item ? 'Edit Kegiatan BRS' : 'Tambah Kegiatan BRS';
         fields = `
             <div class="space-y-4 text-slate-700 dark:text-slate-350">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Judul Rilis Data BRS <span class="text-rose-500">*</span></label>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Judul Kegiatan BRS <span class="text-rose-500">*</span></label>
                     <input type="text" id="judul" value="${item?.judul || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-medium" placeholder="Contoh: Rilis Pertumbuhan Ekonomi Triwulan I" required>
                 </div>
                 <div>
@@ -476,8 +476,8 @@ function openModal(type, item = null) {
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan PDF Highlight Data (URL)</label>
-                    <input type="text" id="highlight" value="${item?.highlight || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="https://example.com/highlight.pdf">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Highlight</label>
+                    <input type="text" id="highlight" value="${item?.highlight || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
                 </div>
             </div>
         `;
@@ -959,7 +959,7 @@ function showDetail(type, item) {
     } else if (type === 'brs_rilis') {
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Judul Rilis Data:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.judul}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Judul Kegiatan Rilis:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.judul}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal Rilis:</strong><span class="font-bold">${formatDate(item.tanggal_rilis)}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC Poster & Infografis:</strong><span class="font-bold text-slate-800 dark:text-white">${item.pic_poster_info || '-'}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC Dokumentasi Ruang:</strong><span class="font-bold text-slate-800 dark:text-white">${item.pic_doc_ruang || '-'}</span></div>
