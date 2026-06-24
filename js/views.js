@@ -1087,6 +1087,55 @@ window.drawPlannerBoard = function() {
             </tr>
         `;
     }).join('');
+
+    // Populate mobile card view
+    const mobileBody = document.getElementById('planner-mobile-body');
+    if (mobileBody) {
+        mobileBody.innerHTML = filtered.map((item, index) => {
+            const initials2 = getPicInitials(item.assignedTo);
+            const avatarBg2 = getAvatarBg(item.assignedTo);
+            let statusCls = '';
+            switch (item.status) {
+                case 'Draft': statusCls = 'badge badge-neutral'; break;
+                case 'In Progress': statusCls = 'badge badge-progress'; break;
+                case 'Done': statusCls = 'badge badge-progress'; break;
+                case 'Posted': statusCls = 'badge badge-selesai'; break;
+                default: statusCls = 'badge badge-neutral';
+            }
+            const mobileActions = !isKepala ? `
+                <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+                    <button onclick="openModalById('content', ${item.id})" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><i class="fa-solid fa-pen text-xs"></i></button>
+                    ${isUserAdminOrKetua() ? `<button onclick="deleteItem('content', ${item.id})" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
+                </div>` : '';
+            return `
+                <div class="mobile-data-card cursor-pointer" onclick="showDetailById('content', ${item.id})">
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 leading-snug flex-1 min-w-0 truncate">${item.judul}</p>
+                        <span class="${statusCls} shrink-0">${item.status || '-'}</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">${item.konsep || '-'}</p>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${avatarBg2}">${initials2}</div>
+                            <span class="text-[10px] font-semibold text-slate-500">${item.assignedTo || '-'}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[9px] font-bold text-rose-600"><i class="fa-regular fa-calendar-check mr-1"></i>${formatDate(item.jadwal)}</span>
+                            ${mobileActions}
+                        </div>
+                    </div>
+                    <div class="mt-2.5">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[9px] text-slate-400 font-semibold">Progres</span>
+                            <span class="text-[9px] font-bold text-indigo-600">${item.progres}%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5">
+                            <div class="bg-gradient-to-r from-indigo-500 to-violet-500 h-1.5 rounded-full" style="width:${item.progres}%"></div>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
 }
 
 // -------------------------------------------------------------
@@ -1141,7 +1190,8 @@ function renderRekapRutin(container) {
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
-            <div class="overflow-x-auto">
+            <!-- Desktop Table -->
+            <div class="desktop-table-view hidden md:block overflow-x-auto">
                 <table class="w-full text-xs text-left text-slate-650 dark:text-slate-300">
                     <thead class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50/60 dark:bg-slate-900/40 uppercase border-b border-slate-200 dark:border-slate-700 font-black tracking-wider">
                         <tr>
@@ -1158,6 +1208,10 @@ function renderRekapRutin(container) {
                         <!-- Filled by drawRutinTable -->
                     </tbody>
                 </table>
+            </div>
+            <!-- Mobile Card View -->
+            <div class="mobile-table-view md:hidden p-4 space-y-3" id="rutin-mobile-body">
+                <!-- Filled by drawRutinTable -->
             </div>
         </div>
     `;
@@ -1188,9 +1242,10 @@ function drawRutinTable() {
     const isKepala = currentUser.role === 'kepala';
 
     if (filtered.length === 0) {
-        body.innerHTML = `
-            <tr><td colspan="${isKepala ? 6 : 7}" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Tidak ada kegiatan rutin ditemukan.</p></td></tr>
-        `;
+        const emptyHtml = `<tr><td colspan="${isKepala ? 6 : 7}" class="py-0"><div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-clipboard-list"></i></div><p class="empty-state-title">Tidak Ada Data Kegiatan Rutin</p><p class="empty-state-desc">Coba ubah filter atau kata kunci pencarian.</p></div></td></tr>`;
+        body.innerHTML = emptyHtml;
+        const mobileBody = document.getElementById('rutin-mobile-body');
+        if (mobileBody) mobileBody.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-clipboard-list"></i></div><p class="empty-state-title">Tidak Ada Data</p><p class="empty-state-desc">Coba ubah filter atau kata kunci.</p></div>`;
         return;
     }
 
@@ -1223,6 +1278,36 @@ function drawRutinTable() {
             </tr>
         `;
     }).join('');
+
+    // Mobile card view
+    const mobileBody = document.getElementById('rutin-mobile-body');
+    if (mobileBody) {
+        mobileBody.innerHTML = filtered.map(item => {
+            const statusCls = item.status === 'Selesai' ? 'badge badge-selesai' : 'badge badge-progress';
+            const mobileActs = !isKepala ? `
+                <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
+                    <button onclick="openModalById('rekap_rutin', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    ${isUserAdminOrKetua() ? `<button onclick="deleteItem('rekap_rutin', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>` : ''}
+                </div>` : '';
+            return `
+                <div class="mobile-data-card">
+                    <div class="flex items-start justify-between gap-2 mb-1.5">
+                        <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 flex-1 min-w-0 leading-snug">${item.kegiatan}</p>
+                        <span class="${statusCls} shrink-0">${item.status || 'Ditugaskan'}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] text-slate-500 font-semibold">${formatDate(item.tanggal)} (${item.hari || '-'})</p>
+                            <span class="inline-block mt-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded text-[9px] font-bold uppercase">${item.rubrikasi || '-'}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">${item.petugas || '-'}</span>
+                            ${mobileActs}
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
 
     window.exportRutinReport = function (type) {
         const headers = ["Tanggal", "Hari", "Rubrikasi", "Kegiatan", "Petugas", "Status"];
@@ -1259,22 +1344,23 @@ function renderAdHoc(container) {
             </div>
         </div>
 
-        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-205 dark:border-slate-700 mb-6 flex justify-between items-center shadow-xs">
-            <div class="relative w-full max-w-xs">
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-205 dark:border-slate-700 mb-6 shadow-xs">
+            <div class="relative w-full">
                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
                 <input type="text" oninput="adHocSearch = this.value; drawAdHocTable();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari kegiatan atau petugas...">
             </div>
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
-            <div class="overflow-x-auto">
+            <!-- Desktop Table -->
+            <div class="desktop-table-view hidden md:block overflow-x-auto">
                 <table class="w-full text-xs text-left text-slate-650 dark:text-slate-300">
                     <thead class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50/60 dark:bg-slate-900/40 uppercase border-b border-slate-200 dark:border-slate-700 font-black tracking-wider">
                         <tr>
                             <th class="px-6 py-4">Tanggal</th>
                             <th class="px-6 py-4">Hari</th>
                             <th class="px-6 py-4">Nama Kegiatan</th>
-                            <th class="px-6 py-4 text-center">Jumlah Petugas</th>
+                            <th class="px-6 py-4 text-center">Jml Petugas</th>
                             <th class="px-6 py-4">Nama Petugas</th>
                             <th class="px-6 py-4">Keterangan</th>
                             <th class="px-6 py-4 text-center">Status</th>
@@ -1285,6 +1371,10 @@ function renderAdHoc(container) {
                         <!-- Filled by drawAdHocTable -->
                     </tbody>
                 </table>
+            </div>
+            <!-- Mobile Card View -->
+            <div class="mobile-table-view md:hidden p-4 space-y-3" id="adhoc-mobile-body">
+                <!-- Filled by drawAdHocTable -->
             </div>
         </div>
     `;
@@ -1348,6 +1438,35 @@ function drawAdHocTable() {
             </tr>
         `;
     }).join('');
+
+    // Mobile card view for Ad Hoc
+    const mobileBody = document.getElementById('adhoc-mobile-body');
+    if (mobileBody) {
+        mobileBody.innerHTML = filtered.map(item => {
+            const staffList2 = item.petugas ? item.petugas.split(',') : [];
+            const statusCls = item.status === 'Selesai' ? 'badge badge-selesai' : 'badge badge-progress';
+            const mobileActs = !isKepala ? `
+                <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
+                    <button onclick="openModalById('ad_hoc', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    ${isUserAdminOrKetua() ? `<button onclick="deleteItem('ad_hoc', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>` : ''}
+                </div>` : '';
+            return `
+                <div class="mobile-data-card">
+                    <div class="flex items-start justify-between gap-2 mb-1.5">
+                        <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 flex-1 min-w-0 leading-snug">${item.kegiatan}</p>
+                        <span class="${statusCls} shrink-0">${item.status || 'Ditugaskan'}</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500 font-semibold mb-2">${formatDate(item.tanggal)} (${item.hari || '-'})</p>
+                    <div class="flex flex-wrap gap-1 mb-3">
+                        ${staffList2.map(s => `<span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded text-[9px] font-bold">${s.trim()}</span>`).join('')}
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] text-slate-500 font-medium truncate max-w-[60%]">${item.keterangan || '-'}</span>
+                        ${mobileActs}
+                    </div>
+                </div>`;
+        }).join('');
+    }
 
     window.exportAdHocReport = function (type) {
         const headers = ["Tanggal", "Hari", "Nama Kegiatan", "Jumlah Bertugas", "Nama Petugas", "Keterangan", "Status"];
@@ -1664,8 +1783,8 @@ function renderBrsRilis(container) {
             </div>
         </div>
 
-        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex justify-between items-center shadow-xs">
-            <div class="relative w-full max-w-xs">
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 shadow-xs">
+            <div class="relative w-full">
                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
                 <input type="text" oninput="brsSearch = this.value; drawBrsGrid();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari judul kegiatan BRS...">
             </div>
@@ -1784,15 +1903,16 @@ function renderHariBesar(container) {
             </div>
         </div>
 
-        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex justify-between items-center shadow-xs">
-            <div class="relative w-full max-w-xs">
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 shadow-xs">
+            <div class="relative w-full">
                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-450"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
                 <input type="text" oninput="hariBesarSearch = this.value; drawHariBesarTable();" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none" placeholder="Cari hari besar...">
             </div>
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
-            <div class="overflow-x-auto">
+            <!-- Desktop Table -->
+            <div class="desktop-table-view hidden md:block overflow-x-auto">
                 <table class="w-full text-xs text-left text-slate-650 dark:text-slate-300">
                     <thead class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50/60 dark:bg-slate-900/40 uppercase border-b border-slate-200 dark:border-slate-700 font-black tracking-wider">
                         <tr>
@@ -1807,6 +1927,10 @@ function renderHariBesar(container) {
                         <!-- Filled by drawHariBesarTable -->
                     </tbody>
                 </table>
+            </div>
+            <!-- Mobile Card View -->
+            <div class="mobile-table-view md:hidden p-4 space-y-3" id="haribesar-mobile-body">
+                <!-- Filled by drawHariBesarTable -->
             </div>
         </div>
     `;
@@ -1862,6 +1986,33 @@ function drawHariBesarTable() {
             </tr>
         `;
     }).join('');
+
+    // Mobile card view for Hari Besar
+    const mobileBody = document.getElementById('haribesar-mobile-body');
+    if (mobileBody) {
+        mobileBody.innerHTML = filtered.map(item => {
+            const statusCls = item.status === 'Selesai' ? 'badge badge-selesai' : 'badge badge-progress';
+            const mobileActs = !isKepala ? `
+                <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
+                    <button onclick="openModalById('hari_besar', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                    ${isUserAdminOrKetua() ? `<button onclick="deleteItem('hari_besar', ${item.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>` : ''}
+                </div>` : '';
+            return `
+                <div class="mobile-data-card">
+                    <div class="flex items-start justify-between gap-2 mb-1.5">
+                        <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 flex-1 min-w-0 leading-snug">${item.hari_besar}</p>
+                        <span class="${statusCls} shrink-0">${item.status || 'Ditugaskan'}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] text-slate-500 font-semibold">${formatDate(item.tanggal)}</p>
+                            <p class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 mt-1">PIC: ${item.pembuat_konten || '-'}</p>
+                        </div>
+                        ${mobileActs}
+                    </div>
+                </div>`;
+        }).join('');
+    }
 
     window.exportHariBesarReport = function (type) {
         const headers = ["Tanggal", "Hari Besar", "Pembuat Konten (PIC)", "Status", "Data Pendukung"];
@@ -1985,22 +2136,22 @@ function renderRekapKegiatan(container) {
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pantau Service Level Agreement (SLA), persentase penyelesaian, dan daftar seluruh pekerjaan aktif.</p>
         </div>
 
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-11 h-11 bg-indigo-50 dark:bg-indigo-955 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-650 shrink-0 font-extrabold text-sm">${completionRate}%</div>
-                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Persentase Selesai</p><p class="text-xl font-black text-slate-850 dark:text-white mt-0.5">${completedTasks} / ${allTasks.length}</p></div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-3">
+                <div class="w-10 h-10 sm:w-11 sm:h-11 bg-indigo-50 dark:bg-indigo-955 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-650 shrink-0 font-extrabold text-xs sm:text-sm">${completionRate}%</div>
+                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Selesai</p><p class="text-lg sm:text-xl font-black text-slate-850 dark:text-white mt-0.5">${completedTasks}/${allTasks.length}</p></div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-11 h-11 bg-emerald-50 dark:bg-emerald-955 border border-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 shrink-0"><i class="fa-solid fa-circle-check text-lg"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">SLA Aman</p><p class="text-xl font-black text-slate-850 dark:text-white mt-0.5">${totalSlaAman}</p></div>
+            <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-3">
+                <div class="w-10 h-10 sm:w-11 sm:h-11 bg-emerald-50 dark:bg-emerald-955 border border-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 shrink-0"><i class="fa-solid fa-circle-check text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">SLA Aman</p><p class="text-lg sm:text-xl font-black text-slate-850 dark:text-white mt-0.5">${totalSlaAman}</p></div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-11 h-11 bg-amber-50 dark:bg-amber-955 border border-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0"><i class="fa-solid fa-bell text-lg"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Mendekati Deadline</p><p class="text-xl font-black text-slate-855 dark:text-white mt-0.5">${totalSlaMendekati}</p></div>
+            <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-3">
+                <div class="w-10 h-10 sm:w-11 sm:h-11 bg-amber-50 dark:bg-amber-955 border border-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0"><i class="fa-solid fa-bell text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Mendekati</p><p class="text-lg sm:text-xl font-black text-slate-855 dark:text-white mt-0.5">${totalSlaMendekati}</p></div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-11 h-11 bg-rose-50 dark:bg-rose-955 border border-rose-100 rounded-xl flex items-center justify-center text-rose-650 shrink-0"><i class="fa-solid fa-clock-rotate-left text-lg"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Terlambat</p><p class="text-xl font-black text-slate-855 dark:text-white mt-0.5">${totalSlaTerlambat}</p></div>
+            <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-205 dark:border-slate-700 shadow-xs flex items-center gap-3">
+                <div class="w-10 h-10 sm:w-11 sm:h-11 bg-rose-50 dark:bg-rose-955 border border-rose-100 rounded-xl flex items-center justify-center text-rose-650 shrink-0"><i class="fa-solid fa-clock-rotate-left text-lg"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Terlambat</p><p class="text-lg sm:text-xl font-black text-slate-855 dark:text-white mt-0.5">${totalSlaTerlambat}</p></div>
             </div>
         </div>
 
@@ -2195,12 +2346,17 @@ function renderIntegratedCalendar(container) {
                 <span class="inline-flex items-center"><span class="w-2.5 h-2.5 bg-rose-600 rounded-md mr-1.5"></span> Tugas</span>
             </div>
 
-            <div class="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-700 text-center text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 py-3 rounded-t-2xl shrink-0">
-                <div>Minggu</div><div>Senin</div><div>Selasa</div><div>Rabu</div><div>Kamis</div><div>Jumat</div><div>Sabtu</div>
-            </div>
+            <!-- Calendar grid: wrapped in overflow container for mobile -->
+            <div class="overflow-x-auto -mx-1">
+                <div style="min-width: 420px;">
+                    <div class="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-700 text-center text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 py-3 rounded-t-2xl shrink-0">
+                        <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+                    </div>
 
-            <div class="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-700 rounded-b-2xl overflow-hidden shadow-xs border-r border-l border-b border-slate-200 dark:border-slate-700">
-                ${daysHtml.join('')}
+                    <div class="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-700 rounded-b-2xl overflow-hidden shadow-xs border-r border-l border-b border-slate-200 dark:border-slate-700">
+                        ${daysHtml.join('')}
+                    </div>
+                </div>
             </div>
         </div>
     `;
@@ -2654,7 +2810,7 @@ function renderTickets(container) {
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in" id="tickets-grid">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-fade-in" id="tickets-grid">
             <!-- Filled dynamically -->
         </div>
     `;
@@ -2826,7 +2982,7 @@ function renderMonitoring(container) {
             </div>
         </div>
 
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 animate-fade-in font-sans" id="monitoring-stats-grid">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8 animate-fade-in font-sans" id="monitoring-stats-grid">
             <!-- Dynamically populated in drawMonitoringTable() -->
         </div>
 
@@ -3147,7 +3303,8 @@ function renderAssignmentPage(container) {
 
         <!-- TABLE VIEW -->
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
-            <div class="overflow-x-auto">
+            <!-- Desktop Table -->
+            <div class="desktop-table-view hidden md:block overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 select-none">
@@ -3181,6 +3338,10 @@ function renderAssignmentPage(container) {
                         <!-- Dynamically populated -->
                     </tbody>
                 </table>
+            </div>
+            <!-- Mobile Card View -->
+            <div class="mobile-table-view md:hidden p-4 space-y-3" id="assignment-mobile-body">
+                <!-- Dynamically populated -->
             </div>
         </div>
     `;
@@ -3519,6 +3680,47 @@ window.drawAssignmentTable = function() {
             </tr>
         `;
     }).join('');
+
+    // Mobile card view for Assignment
+    const mobileBody = document.getElementById('assignment-mobile-body');
+    if (mobileBody) {
+        if (aggregated.length === 0) {
+            mobileBody.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="fa-solid fa-folder-open"></i></div><p class="empty-state-title">Tidak Ada Tugas</p><p class="empty-state-desc">Belum ada tugas yang ditugaskan kepada Anda.</p></div>`;
+        } else {
+            mobileBody.innerHTML = aggregated.map((item, index) => {
+                const initials2 = getPicInitials(item.assigned_to);
+                const avatarBg2 = getAvatarBg(item.assigned_to);
+                let statusCls = 'badge badge-neutral';
+                if (['Sedang Dikerjakan','In Progress','Ditugaskan'].includes(item.status)) statusCls = 'badge badge-progress';
+                else if (['Selesai','Done','Posted'].includes(item.status)) statusCls = 'badge badge-selesai';
+                else if (item.status === 'Revisi') statusCls = 'badge badge-terlambat';
+                return `
+                    <div class="mobile-data-card cursor-pointer" onclick="showDetailById('${item.originalType}', ${item.originalId})">
+                        <div class="flex items-start justify-between gap-2 mb-2">
+                            <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 flex-1 min-w-0 leading-snug truncate">${item.tugas}</p>
+                            <span class="${statusCls} shrink-0">${item.status || '-'}</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mb-2 line-clamp-2">${item.deskripsi || '-'}</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${avatarBg2}">${initials2}</div>
+                                <span class="text-[10px] font-semibold text-slate-500">${item.assigned_to || '-'}</span>
+                            </div>
+                            <span class="text-[9px] font-bold text-rose-600"><i class="fa-regular fa-calendar-check mr-1"></i>${formatDate(item.deadline)}</span>
+                        </div>
+                        <div class="mt-2.5">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[9px] text-slate-400 font-semibold">Progres</span>
+                                <span class="text-[9px] font-bold text-indigo-600">${item.progres || 0}%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5">
+                                <div class="bg-gradient-to-r from-indigo-500 to-violet-500 h-1.5 rounded-full" style="width:${item.progres || 0}%"></div>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+    }
 };
 
 window.handleAssignmentSearch = function(val) {
