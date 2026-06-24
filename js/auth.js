@@ -103,6 +103,9 @@ function handleLogin(event) {
     }
 
     checkAuth();
+    if (typeof startRealtimePolling === 'function') {
+        startRealtimePolling();
+    }
 }
 
 function quickLogin(role) {
@@ -134,6 +137,9 @@ function quickLogin(role) {
     }, 100);
 
     checkAuth();
+    if (typeof startRealtimePolling === 'function') {
+        startRealtimePolling();
+    }
 }
 
 function handleLogout() {
@@ -153,6 +159,9 @@ function handleLogout() {
         window.sentimentChartInstance = null;
     }
     showToast('Anda telah keluar dari sistem.');
+    if (typeof stopRealtimePolling === 'function') {
+        stopRealtimePolling();
+    }
     checkAuth();
 }
 
@@ -171,6 +180,13 @@ function simulateRole(role) {
     
     if (typeof logActivity === 'function') {
         logActivity('Simulasi Role', `Mengubah peran aktif menjadi ${getRoleLabel(role)}.`);
+    }
+
+    if (typeof stopRealtimePolling === 'function') {
+        stopRealtimePolling();
+    }
+    if (typeof startRealtimePolling === 'function') {
+        startRealtimePolling();
     }
 
     router(currentState);

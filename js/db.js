@@ -95,23 +95,29 @@ async function fetchDataFromSheets(silent = false) {
 
         const data = await response.json();
 
+        // Create temporary DB for comparison
+        let tempDb = {};
+
         // Map database collections dynamically
         for (let sheetName in SHEET_TO_VAR) {
             const varName = SHEET_TO_VAR[sheetName];
-            if (data[sheetName] !== undefined && Array.isArray(data[sheetName])) {
-                db[varName] = data[sheetName];
+            // Support both snake_case (sheet name) and camelCase (variable name)
+            const incoming = data[sheetName] !== undefined ? data[sheetName] : data[varName];
+            if (incoming !== undefined && Array.isArray(incoming)) {
+                // Perform deep copy to isolate tempDb from network payload references
+                tempDb[varName] = JSON.parse(JSON.stringify(incoming));
+            } else {
+                tempDb[varName] = [];
             }
         }
 
         // Apply pending local changes from sync queue on top of fetched database
-        if (typeof applySyncQueueToDb === 'function') {
-            applySyncQueueToDb();
-        }
+        applySyncQueueToTempDb(tempDb);
 
         // Parse numeric/date properties safely
         TABLES.forEach(tb => {
-            if (db[tb]) {
-                db[tb].forEach(item => {
+            if (tempDb[tb]) {
+                tempDb[tb].forEach(item => {
                     if (item.id !== undefined) item.id = Number(item.id);
                     if (item.progres !== undefined) item.progres = Number(item.progres);
                     if (item.progress !== undefined) item.progress = Number(item.progress);
@@ -122,10 +128,32 @@ async function fetchDataFromSheets(silent = false) {
             }
         });
 
-        // Cache all synced data
-        TABLES.forEach(tb => {
-            saveLocalFallback(tb);
-        });
+        // Detect if any table has changed
+        let hasChanges = false;
+        for (let i = 0; i < TABLES.length; i++) {
+            const tb = TABLES[i];
+            if (!areTablesEqual(db[tb], tempDb[tb])) {
+                hasChanges = true;
+                break;
+            }
+        }
+
+        // If changes detected or initial non-silent sync, update and re-render
+        if (hasChanges || !silent) {
+            db = tempDb;
+
+            // Cache all synced data
+            TABLES.forEach(tb => {
+                saveLocalFallback(tb);
+            });
+
+            if (!silent) {
+                showToast('Data berhasil disinkronkan dari Google Sheets!');
+            }
+            router(currentState);
+        } else {
+            console.log('[RealTime] Tidak ada perubahan data di database, lewati re-render.');
+        }
 
         const now = new Date();
         const dateStr = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' WIB';
@@ -135,11 +163,6 @@ async function fetchDataFromSheets(silent = false) {
 
         const mobileSyncEl = document.getElementById('mobile-last-sync-date');
         if (mobileSyncEl) mobileSyncEl.textContent = dateStr;
-
-        if (!silent) {
-            showToast('Data berhasil disinkronkan dari Google Sheets!');
-        }
-        router(currentState);
 
     } catch (error) {
         console.error('Error fetching data from sheets, using offline local copy:', error);
@@ -163,29 +186,48 @@ function saveSyncQueue() {
     localStorage.setItem('sim_humas_sync_queue', JSON.stringify(syncQueue));
 }
 
-function applySyncQueueToDb() {
+// Helper to compare two tables (arrays of objects) structurally
+function areTablesEqual(tableA, tableB) {
+    if (!tableA && !tableB) return true;
+    if (!tableA || !tableB) return false;
+    if (tableA.length !== tableB.length) return false;
+
+    // Create sorted copies to ensure order differences don't trigger mismatch
+    const sortedA = [...tableA].sort((x, y) => Number(x.id || 0) - Number(y.id || 0));
+    const sortedB = [...tableB].sort((x, y) => Number(x.id || 0) - Number(y.id || 0));
+
+    // Fast comparison using JSON stringify
+    return JSON.stringify(sortedA) === JSON.stringify(sortedB);
+}
+
+// Apply offline sync queue to a temporary database object
+function applySyncQueueToTempDb(targetDb) {
     syncQueue.forEach(task => {
         const varName = SHEET_TO_VAR[task.sheet] || task.sheet;
-        if (!db[varName]) return;
+        if (!targetDb[varName]) return;
 
         if (task.action === 'add') {
-            const idx = db[varName].findIndex(i => Number(i.id) === Number(task.item.id));
+            const idx = targetDb[varName].findIndex(i => Number(i.id) === Number(task.item.id));
             if (idx === -1) {
-                db[varName].push(task.item);
+                targetDb[varName].push(task.item);
             } else {
-                db[varName][idx] = task.item;
+                targetDb[varName][idx] = task.item;
             }
         } else if (task.action === 'update') {
-            const idx = db[varName].findIndex(i => Number(i.id) === Number(task.item.id));
+            const idx = targetDb[varName].findIndex(i => Number(i.id) === Number(task.item.id));
             if (idx !== -1) {
-                db[varName][idx] = task.item;
+                targetDb[varName][idx] = task.item;
             } else {
-                db[varName].push(task.item);
+                targetDb[varName].push(task.item);
             }
         } else if (task.action === 'delete') {
-            db[varName] = db[varName].filter(i => Number(i.id) !== Number(task.item.id));
+            targetDb[varName] = targetDb[varName].filter(i => Number(i.id) !== Number(task.item.id));
         }
     });
+}
+
+function applySyncQueueToDb() {
+    applySyncQueueToTempDb(db);
 }
 
 // Send local changes back to the GAS backend (Queued & Offline-Safe)
@@ -301,7 +343,17 @@ const MIN_FETCH_GAP_MS = 10000;    // Minimal 10 detik antar fetch (anti-spam)
 
 function startRealtimePolling() {
     if (realtimePollingInterval) return; // Sudah berjalan
-    console.log('[RealTime] Memulai auto-polling setiap 30 detik...');
+
+    // Polling hanya berjalan jika role termasuk admin, koordinator, kepala, atau tim
+    const userRole = typeof currentUser !== 'undefined' && currentUser ? currentUser.role : null;
+    const allowedRoles = ['admin', 'koordinator', 'kepala', 'tim'];
+
+    if (!userRole || !allowedRoles.includes(userRole)) {
+        console.log(`[RealTime] Auto-polling dinonaktifkan untuk peran '${userRole || 'anonymous'}'.`);
+        return;
+    }
+
+    console.log(`[RealTime] Memulai auto-polling setiap 30 detik untuk peran '${userRole}'...`);
 
     realtimePollingInterval = setInterval(async () => {
         // Skip jika tab sedang tidak aktif (hemat bandwidth)
