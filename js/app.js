@@ -249,7 +249,7 @@ function formatTime(timeStr) {
 }
 
 function formatTimeInput(timeStr) {
-    if (!timeStr) return '08:30';
+    if (!timeStr) return '08.30';
     timeStr = String(timeStr).trim();
     
     let hours = '';
@@ -281,10 +281,10 @@ function formatTimeInput(timeStr) {
     }
     
     if (hours && minutes) {
-        return `${hours}:${minutes}`;
+        return `${hours}.${minutes}`;
     }
     
-    return '08:30';
+    return '08.30';
 }
 
 // Expose helpers globally to avoid script loading order issues with views.js
@@ -825,7 +825,7 @@ function getModalFieldsHTML(type, item) {
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jam Mulai <span class="text-rose-500">*</span></label>
-                        <input type="time" id="jam_mulai" value="${formatTimeInput(item?.jam_mulai)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
+                        <input type="text" id="jam_mulai" value="${formatTimeInput(item?.jam_mulai)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold" placeholder="Contoh: 08.30 atau 14.15" pattern="^(0[0-9]|1[0-9]|2[0-3])([:.])[0-5][0-9]$" title="Harap masukkan format waktu 24 jam yang valid, contoh: 08.30 atau 14.15" required>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
@@ -1209,6 +1209,122 @@ window.downloadExcelTemplate = function(type) {
         'assignment': ["tugas", "deskripsi", "prioritas", "status", "tanggal_penugasan", "deadline", "progres", "lampiran", "assigned_to"]
     };
 
+    const examples = {
+        'content': ["Infografis Inflasi Juni 2026", "Menampilkan data inflasi Kalbar bulanan", "Infografis", "Feeds", 50, "2026-06-25", "Draft", "Azhari"],
+        'rekap_rutin': ["2026-06-24", "Rabu", "Humas", "Rapat Koordinasi Mingguan", "Rian", "Selesai"],
+        'ad_hoc': ["2026-06-24", "Rabu", "Peliputan Kunjungan Kerja Gubernur", 2, "Dian, Siska", "Mendokumentasikan acara di pendopo", "Selesai"],
+        'protokoler': ["2026-06-24", "Juni", "Audiensi BPS dengan Kepala Dinas Kominfo", "Kantor Dinas Kominfo", "09.00", "Eksternal", "Formal", "Dian", "Membahas integrasi portal satu data", "Ditugaskan"],
+        'mc': ["2026-06-24", "Juni", "Upacara Hari Lahir Pancasila", "Halaman Kantor Gubernur", "07.30", "Eksternal", "Super Formal", "Siska", "Membawa acara upacara bendera", "Ditugaskan"],
+        'brs_rilis': ["2026-07-01", "Rilis Indeks Pembangunan Manusia 2026", "Rian", "Siska", "Dian", "IPM Kalbar meningkat pesat"],
+        'hari_besar': ["2026-08-17", "Hari Kemerdekaan Republik Indonesia", "Link materi desain", "Azhari", "Draft"],
+        'team': ["Azhari", "Pranata Komputer", "IPDS", "Penanggung Jawab Website BPS Kalbar", "08123456789"],
+        'user_manager': ["Dian Pratama", "dian_pratama", "tim", "IPDS"],
+        'assignment': ["Membuat Naskah BRS Inflasi", "Tulis draf rilis untuk persetujuan kepala", "Tinggi", "Dalam Proses", "2026-06-24", "2026-06-30", 30, "link_drive", "Rian"]
+    };
+
+    const guidance = {
+        'content': [
+            ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
+            ["judul", "Wajib. Judul rencana konten.", "Bebas"],
+            ["konsep", "Opsional. Konsep atau deskripsi konten.", "Bebas"],
+            ["jenis", "Opsional. Jenis media konten.", "Infografis, Video, Artikel, Rilis, Hari Besar"],
+            ["postType", "Opsional. Tipe postingan.", "Feeds, Story, Reels, IGTV, Website"],
+            ["progres", "Opsional. Angka kemajuan (0-100).", "0 s/d 100"],
+            ["jadwal", "Wajib. Tanggal tayang konten (Format: YYYY-MM-DD).", "Contoh: 2026-06-25"],
+            ["status", "Opsional. Status pengerjaan.", "Rencana, Draft, Posting, Selesai"],
+            ["assignedTo", "Opsional. Nama petugas penanggung jawab.", "Bebas (Nama anggota tim)"]
+        ],
+        'rekap_rutin': [
+            ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
+            ["tanggal", "Wajib. Tanggal kegiatan (Format: YYYY-MM-DD).", "Contoh: 2026-06-24"],
+            ["hari", "Opsional. Nama hari pelaksanaan.", "Senin, Selasa, Rabu, Kamis, Jumat, Sabtu, Minggu"],
+            ["rubrikasi", "Opsional. Kategori rubrikasi kegiatan.", "Bebas"],
+            ["kegiatan", "Wajib. Deskripsi kegiatan rutin.", "Bebas"],
+            ["petugas", "Opsional. Nama petugas pelaksana.", "Bebas"],
+            ["status", "Opsional. Status pelaksanaan.", "Ditugaskan, Selesai"]
+        ],
+        'ad_hoc': [
+            ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
+            ["tanggal", "Wajib. Tanggal kegiatan (Format: YYYY-MM-DD).", "Contoh: 2026-06-24"],
+            ["hari", "Opsional. Nama hari pelaksanaan.", "Senin, Selasa, Rabu, Kamis, Jumat, Sabtu, Minggu"],
+            ["kegiatan", "Wajib. Deskripsi kegiatan ad hoc.", "Bebas"],
+            ["jumlah_bertugas", "Opsional. Jumlah orang yang bertugas (Angka).", "Contoh: 2"],
+            ["petugas", "Wajib. Nama-nama petugas pelaksana.", "Bebas (Gunakan koma untuk multi-person)"],
+            ["keterangan", "Opsional. Catatan atau deskripsi tambahan.", "Bebas"],
+            ["status", "Opsional. Status pelaksanaan.", "Ditugaskan, Selesai"]
+        ],
+        'protokoler': [
+            ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
+            ["tanggal", "Wajib. Tanggal agenda (Format: YYYY-MM-DD).", "Contoh: 2026-06-24"],
+            ["bulan", "Opsional. Nama bulan pelaksanaan.", "Contoh: Juni"],
+            ["kegiatan", "Wajib. Nama agenda/kegiatan keprotokolan.", "Bebas"],
+            ["lokasi", "Wajib. Lokasi tempat kegiatan.", "Bebas"],
+            ["jam_mulai", "Wajib. Waktu mulai (Format 24 Jam: HH.MM).", "Contoh: 09.00 atau 14.30"],
+            ["jenis", "Opsional. Jenis keprotokolan.", "Internal, Eksternal"],
+            ["level", "Opsional. Level formalitas acara.", "Super Formal, Formal, Semi Formal, Non Formal"],
+            ["petugas", "Opsional. Nama petugas penanggung jawab.", "Bebas"],
+            ["keterangan", "Opsional. Keterangan tambahan.", "Bebas"],
+            ["status", "Opsional. Status agenda.", "Ditugaskan, Selesai"]
+        ],
+        'mc': [
+            ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
+            ["tanggal", "Wajib. Tanggal agenda (Format: YYYY-MM-DD).", "Contoh: 2026-06-24"],
+            ["bulan", "Opsional. Nama bulan pelaksanaan.", "Contoh: Juni"],
+            ["kegiatan", "Wajib. Nama agenda/kegiatan MC.", "Bebas"],
+            ["lokasi", "Wajib. Lokasi tempat kegiatan.", "Bebas"],
+            ["jam_mulai", "Wajib. Waktu mulai (Format 24 Jam: HH.MM).", "Contoh: 09.00 atau 14.30"],
+            ["jenis", "Opsional. Jenis acara.", "Internal, Eksternal"],
+            ["level", "Opsional. Level formalitas acara.", "Super Formal, Formal, Semi Formal, Non Formal"],
+            ["petugas", "Opsional. Nama petugas MC.", "Bebas"],
+            ["keterangan", "Opsional. Keterangan tambahan.", "Bebas"],
+            ["status", "Opsional. Status agenda.", "Ditugaskan, Selesai"]
+        ],
+        'brs_rilis': [
+            ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
+            ["tanggal_rilis", "Wajib. Tanggal rilis BRS (Format: YYYY-MM-DD).", "Contoh: 2026-07-01"],
+            ["judul", "Wajib. Judul materi rilis BRS.", "Bebas"],
+            ["pic_poster_info", "Opsional. Penanggung jawab poster info.", "Bebas"],
+            ["pic_doc_ruang", "Opsional. Penanggung jawab dokumentasi ruang.", "Bebas"],
+            ["pic_doc_yt_zoom", "Opsional. Penanggung jawab YouTube / Zoom.", "Bebas"],
+            ["highlight", "Opsional. Poin penting/highlight rilis.", "Bebas"]
+        ],
+        'hari_besar': [
+            ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
+            ["tanggal", "Wajib. Tanggal peringatan (Format: YYYY-MM-DD).", "Contoh: 2026-08-17"],
+            ["hari_besar", "Wajib. Nama hari besar/nasional/internasional.", "Bebas"],
+            ["data_pendukung", "Opsional. Link materi pendukung atau narasi.", "Bebas"],
+            ["pembuat_konten", "Opsional. Nama pembuat konten grafis.", "Bebas"],
+            ["status", "Opsional. Status pengerjaan.", "Rencana, Draft, Posting, Selesai"]
+        ],
+        'team': [
+            ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
+            ["nama", "Wajib. Nama lengkap anggota tim.", "Bebas"],
+            ["jabatan", "Wajib. Jabatan fungsional/struktural.", "Bebas"],
+            ["bidang", "Opsional. Seksi/bidang asal.", "Bebas"],
+            ["tugas", "Wajib. Deskripsi tugas di tim humas.", "Bebas"],
+            ["kontak", "Wajib. Nomor HP/WhatsApp aktif.", "Contoh: 08123456789"]
+        ],
+        'user_manager': [
+            ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
+            ["nama", "Wajib. Nama lengkap user.", "Bebas"],
+            ["username", "Wajib. Username untuk login (Unik, huruf kecil, tanpa spasi).", "Contoh: dian_pratama"],
+            ["role", "Wajib. Peran hak akses sistem.", "admin, kepala, koordinator, tim, pemohon"],
+            ["bidang", "Opsional. Seksi/bidang asal user.", "Bebas"]
+        ],
+        'assignment': [
+            ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
+            ["tugas", "Wajib. Nama tugas yang didelegasikan.", "Bebas"],
+            ["deskripsi", "Wajib. Rincian deskripsi instruksi tugas.", "Bebas"],
+            ["prioritas", "Opsional. Tingkat prioritas tugas.", "Tinggi, Sedang, Rendah"],
+            ["status", "Opsional. Status pengerjaan tugas.", "Belum Dimulai, Dalam Proses, Selesai, Tertunda"],
+            ["tanggal_penugasan", "Wajib. Tanggal penugasan (Format: YYYY-MM-DD).", "Contoh: 2026-06-24"],
+            ["deadline", "Wajib. Batas waktu pengerjaan (Format: YYYY-MM-DD).", "Contoh: 2026-06-30"],
+            ["progres", "Opsional. Angka kemajuan tugas (0-100).", "0 s/d 100"],
+            ["lampiran", "Opsional. Link materi pendukung / instruksi.", "Bebas"],
+            ["assigned_to", "Wajib. Nama anggota tim pelaksana tugas.", "Bebas (Sesuai nama tim)"]
+        ]
+    };
+
     const headers = schemas[type];
     if (!headers) return;
 
@@ -1217,9 +1333,14 @@ window.downloadExcelTemplate = function(type) {
             showToast('Library parsing Excel sedang memuat. Coba lagi dalam 1 detik.', 'warning');
             return;
         }
-        const ws = XLSX.utils.aoa_to_sheet([headers]);
+        
+        const wsTemplate = XLSX.utils.aoa_to_sheet([headers, examples[type]]);
+        const wsPanduan = XLSX.utils.aoa_to_sheet(guidance[type]);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Template");
+        
+        XLSX.utils.book_append_sheet(wb, wsTemplate, "Template");
+        XLSX.utils.book_append_sheet(wb, wsPanduan, "Panduan");
+        
         XLSX.writeFile(wb, `template_${type}.xlsx`);
         showToast('Template Excel berhasil diunduh!');
     } catch (e) {
