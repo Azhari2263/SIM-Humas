@@ -19,6 +19,9 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <!-- SheetJS (Excel) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -723,7 +726,7 @@
                     <button onclick="toggleDesktopSidebar()" id="sidebar-toggle-btn"
                         class="hidden md:flex w-8 h-8 rounded-xl items-center justify-center text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all"
                         title="Tampilkan/Sembunyikan Sidebar">
-                        <i class="fa-solid fa-sidebar text-sm" id="sidebar-toggle-icon"></i>
+                        <i class="fa-solid fa-angles-left text-sm" id="sidebar-toggle-icon"></i>
                     </button>
                     <div>
                         <h2 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">

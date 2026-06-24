@@ -323,7 +323,7 @@ function toggleDesktopSidebar() {
     localStorage.setItem('sim_humas_sidebar_collapsed', isCollapsed ? 'true' : 'false');
 
     if (icon) {
-        icon.className = isCollapsed ? 'fa-solid fa-sidebar-flip text-sm' : 'fa-solid fa-sidebar text-sm';
+        icon.className = isCollapsed ? 'fa-solid fa-angles-right text-sm' : 'fa-solid fa-angles-left text-sm';
     }
 }
 
@@ -333,7 +333,7 @@ function initSidebarState() {
     const isCollapsed = localStorage.getItem('sim_humas_sidebar_collapsed') === 'true';
     if (sidebar && isCollapsed) {
         sidebar.classList.add('collapsed');
-        if (icon) icon.className = 'fa-solid fa-sidebar-flip text-sm';
+        if (icon) icon.className = 'fa-solid fa-angles-right text-sm';
     }
 }
 
@@ -548,21 +548,10 @@ function handleGlobalSearch(query) {
 }
 
 // Modal Form Operations
-function openModal(type, item = null) {
-    currentModalType = type;
-    currentEditItem = item;
-    isSubmitting = false;
-
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.id = 'dynamic-modal';
-
-    let title = '';
-    let fields = '';
-
+// Helper to generate input fields HTML for each feature type
+function getModalFieldsHTML(type, item) {
     if (type === 'content') {
-        title = item ? 'Edit Rencana Konten' : 'Tambah Rencana Konten';
-        fields = `
+        return `
             <div class="space-y-4 text-slate-700 dark:text-slate-300">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Judul Konten <span class="text-rose-500">*</span></label>
@@ -623,8 +612,7 @@ function openModal(type, item = null) {
             </div>
         `;
     } else if (type === 'assignment') {
-        title = item ? 'Edit Assignment Tugas' : 'Tambah Assignment Baru';
-        fields = `
+        return `
             <div class="space-y-4 text-slate-700 dark:text-slate-300">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tugas <span class="text-rose-500">*</span></label>
@@ -683,8 +671,7 @@ function openModal(type, item = null) {
             </div>
         `;
     } else if (type === 'rekap_rutin') {
-        title = item ? 'Edit Kegiatan Rutin' : 'Tambah Kegiatan Rutin';
-        fields = `
+        return `
             <div class="space-y-4 text-slate-700 dark:text-slate-350">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Kegiatan <span class="text-rose-500">*</span></label>
@@ -702,7 +689,7 @@ function openModal(type, item = null) {
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Rubrikasi</label>
                         <select id="rubrikasi" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
                             <option value="">Pilih Rubrik...</option>
-                            ${db.masterData.filter(m => m.kategori === 'Rubrikasi').map(m => `<option ${item?.rubrikasi === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
+                            ${db.masterData.filter(m => m.kategori === 'Bidang').length > 0 ? db.masterData.filter(m => m.kategori === 'Rubrikasi').map(m => `<option ${item?.rubrikasi === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('') : '<option value="Rilis Berita Utama">Rilis Berita Utama</option>'}
                         </select>
                     </div>
                 </div>
@@ -729,8 +716,7 @@ function openModal(type, item = null) {
             </div>
         `;
     } else if (type === 'ad_hoc') {
-        title = item ? 'Edit Kegiatan Ad Hoc' : 'Tambah Kegiatan Ad Hoc';
-        fields = `
+        return `
             <div class="space-y-4 text-slate-700 dark:text-slate-350">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Penugasan <span class="text-rose-500">*</span></label>
@@ -772,8 +758,7 @@ function openModal(type, item = null) {
         `;
     } else if (type === 'protokoler' || type === 'mc') {
         const isProto = type === 'protokoler';
-        title = item ? `Edit Agenda ${isProto ? 'Protokol' : 'MC'}` : `Tambah Agenda ${isProto ? 'Protokol' : 'MC'}`;
-        fields = `
+        return `
             <div class="space-y-4 text-slate-700 dark:text-slate-350">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Agenda / Kegiatan <span class="text-rose-500">*</span></label>
@@ -841,8 +826,7 @@ function openModal(type, item = null) {
             </div>
         `;
     } else if (type === 'brs_rilis') {
-        title = item ? 'Edit Kegiatan BRS' : 'Tambah Kegiatan BRS';
-        fields = `
+        return `
             <div class="space-y-4 text-slate-700 dark:text-slate-350">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Judul Kegiatan BRS <span class="text-rose-500">*</span></label>
@@ -882,8 +866,7 @@ function openModal(type, item = null) {
             </div>
         `;
     } else if (type === 'hari_besar') {
-        title = item ? 'Edit Kalender Ucapan' : 'Tambah Kalender Ucapan';
-        fields = `
+        return `
             <div class="space-y-4 text-slate-700 dark:text-slate-350">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Peringatan Hari Besar <span class="text-rose-500">*</span></label>
@@ -918,9 +901,8 @@ function openModal(type, item = null) {
             </div>
         `;
     } else if (type === 'team') {
-        title = item ? 'Edit Anggota Tim' : 'Tambah Anggota Tim';
-        fields = `
-            <div class="space-y-4 text-slate-700 dark:text-slate-350">
+        return `
+            <div class="space-y-4 text-slate-700 dark:text-slate-355">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Lengkap <span class="text-rose-500">*</span></label>
                     <input type="text" id="nama" value="${item?.nama || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-755 border border-slate-205 rounded-lg text-xs font-medium" placeholder="Azhari" required>
@@ -949,8 +931,7 @@ function openModal(type, item = null) {
             </div>
         `;
     } else if (type === 'user_manager') {
-        title = item ? 'Ubah Akun Pengguna' : 'Tambah Akun Pengguna';
-        fields = `
+        return `
             <div class="space-y-4 text-slate-700 dark:text-slate-355">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Lengkap <span class="text-rose-500">*</span></label>
@@ -982,13 +963,42 @@ function openModal(type, item = null) {
             </div>
         `;
     }
+    return '';
+}
 
-    modal.innerHTML = `
-        <div class="modal-content p-6 shadow-2xl border border-slate-100 dark:border-slate-700">
-            <div class="flex justify-between items-center mb-5 border-b border-slate-100 dark:border-slate-700 pb-3">
-                <h3 class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">${title}</h3>
-                <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
-            </div>
+// Modal Form Operations
+function openModal(type, item = null) {
+    currentModalType = type;
+    currentEditItem = item;
+    isSubmitting = false;
+
+    // Remove existing modal if any
+    document.getElementById('dynamic-modal')?.remove();
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'dynamic-modal';
+
+    let title = '';
+    let bodyHTML = '';
+
+    if (item !== null) {
+        // Edit mode: show manual edit form directly
+        const titleMap = {
+            'content': 'Edit Rencana Konten',
+            'assignment': 'Edit Assignment Tugas',
+            'rekap_rutin': 'Edit Kegiatan Rutin',
+            'ad_hoc': 'Edit Kegiatan Ad Hoc',
+            'protokoler': 'Edit Agenda Protokol',
+            'mc': 'Edit Agenda MC',
+            'brs_rilis': 'Edit Kegiatan BRS',
+            'hari_besar': 'Edit Kalender Ucapan',
+            'team': 'Edit Anggota Tim',
+            'user_manager': 'Ubah Akun Pengguna'
+        };
+        title = titleMap[type] || 'Ubah Data';
+        const fields = getModalFieldsHTML(type, item);
+        bodyHTML = `
             <form onsubmit="saveData(event)">
                 ${fields}
                 <div class="flex gap-3 mt-8 pt-4 border-t border-slate-100 dark:border-slate-700">
@@ -1000,12 +1010,71 @@ function openModal(type, item = null) {
                     </button>
                 </div>
             </form>
+        `;
+    } else {
+        // Add mode: show choice dialog
+        const featureLabels = {
+            'content': 'Rencana Konten',
+            'assignment': 'Assignment Tugas',
+            'rekap_rutin': 'Kegiatan Rutin',
+            'ad_hoc': 'Kegiatan Ad Hoc',
+            'protokoler': 'Agenda Protokol',
+            'mc': 'Agenda MC',
+            'brs_rilis': 'Kegiatan BRS',
+            'hari_besar': 'Kalender Ucapan',
+            'team': 'Anggota Tim',
+            'user_manager': 'Akun Pengguna'
+        };
+        const label = featureLabels[type] || 'Data Baru';
+        title = `Tambah ${label}`;
+        bodyHTML = `
+            <div id="modal-method-container">
+                <div class="space-y-6 py-4">
+                    <p class="text-xs text-slate-500 dark:text-slate-400 text-center">Pilih cara bagaimana Anda ingin menambahkan data baru.</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- Manual Card -->
+                        <div onclick="renderManualForm('${type}')" class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 rounded-2xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+                            <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-500 group-hover:scale-110 transition-all mb-3.5 shadow-sm">
+                                <i class="fa-solid fa-pen-to-square text-xl"></i>
+                            </div>
+                            <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">Input Manual</h4>
+                            <p class="text-[10px] text-slate-400 text-center mt-1">Isi formulir data secara langsung.</p>
+                        </div>
+
+                        <!-- Excel Card -->
+                        <div onclick="renderExcelForm('${type}')" class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
+                            <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-all mb-3.5 shadow-sm">
+                                <i class="fa-solid fa-file-excel text-xl"></i>
+                            </div>
+                            <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">Impor Excel</h4>
+                            <p class="text-[10px] text-slate-400 text-center mt-1">Unggah berkas spreadsheet Excel.</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-center">
+                        <button onclick="downloadExcelTemplate('${type}')" type="button" class="w-full btn-secondary py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-download"></i> Unduh Template Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    modal.innerHTML = `
+        <div class="modal-content p-6 shadow-2xl border border-slate-100 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 dark:border-slate-700 pb-3">
+                <h3 class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">${title}</h3>
+                <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
+            </div>
+            ${bodyHTML}
         </div>
     `;
+
     document.body.appendChild(modal);
 
     // Enforce RBAC constraints for Tim Humas role on editing
-    if (currentUser && currentUser.role === 'tim') {
+    if (item !== null && currentUser && currentUser.role === 'tim') {
         const modalInputs = modal.querySelectorAll('input, select, textarea');
         modalInputs.forEach(input => {
             const id = input.id;
@@ -1016,6 +1085,199 @@ function openModal(type, item = null) {
         });
     }
 }
+
+window.getModalFieldsHTML = getModalFieldsHTML;
+
+window.renderManualForm = function(type) {
+    const container = document.getElementById('modal-method-container');
+    if (!container) return;
+
+    const fields = getModalFieldsHTML(type, null);
+    
+    container.innerHTML = `
+        <form onsubmit="saveData(event)">
+            ${fields}
+            <div class="flex gap-3 mt-8 pt-4 border-t border-slate-100 dark:border-slate-700">
+                <button type="submit" id="modal-submit-btn" class="btn-primary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-save"></i> Simpan Data
+                </button>
+                <button type="button" onclick="openModal('${type}', null)" class="btn-secondary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider">
+                    Kembali
+                </button>
+            </div>
+        </form>
+    `;
+
+    // Enforce Tim Humas restrictions if they click manual form
+    if (currentUser && currentUser.role === 'tim') {
+        const modalInputs = container.querySelectorAll('input, select, textarea');
+        modalInputs.forEach(input => {
+            const id = input.id;
+            if (id !== 'status' && id !== 'progres' && id !== 'progress') {
+                input.disabled = true;
+                input.classList.add('bg-slate-100', 'dark:bg-slate-800', 'cursor-not-allowed', 'opacity-70');
+            }
+        });
+    }
+};
+
+window.renderExcelForm = function(type) {
+    const container = document.getElementById('modal-method-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="space-y-6 py-4">
+            <div class="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30 text-center relative group">
+                <div class="w-14 h-14 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-500 mb-4 shadow-xs">
+                    <i class="fa-solid fa-file-arrow-up text-2xl"></i>
+                </div>
+                <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">Pilih Berkas Excel</h4>
+                <p class="text-[10px] text-slate-400 mt-1 mb-4">Mendukung berkas format .xlsx, .xls, atau .csv</p>
+                <input type="file" id="excel-file-input" onchange="handleExcelUpload(event, '${type}')" accept=".xlsx, .xls, .csv" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                <button type="button" class="btn-primary py-2 px-4 text-[10px] font-bold uppercase tracking-wider pointer-events-none">
+                    Pilih File
+                </button>
+            </div>
+            
+            <div class="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+                <button onclick="downloadExcelTemplate('${type}')" type="button" class="btn-secondary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-download"></i> Unduh Template
+                </button>
+                <button type="button" onclick="openModal('${type}', null)" class="btn-secondary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider">
+                    Kembali
+                </button>
+            </div>
+        </div>
+    `;
+};
+
+window.downloadExcelTemplate = function(type) {
+    const schemas = {
+        'content': ["judul", "konsep", "jenis", "postType", "progres", "jadwal", "status", "assignedTo"],
+        'rekap_rutin': ["tanggal", "hari", "rubrikasi", "kegiatan", "petugas", "status"],
+        'ad_hoc': ["tanggal", "hari", "kegiatan", "jumlah_bertugas", "petugas", "keterangan", "status"],
+        'protokoler': ["tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"],
+        'mc': ["tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"],
+        'brs_rilis': ["tanggal_rilis", "judul", "pic_poster_info", "pic_doc_ruang", "pic_doc_yt_zoom", "highlight"],
+        'hari_besar': ["tanggal", "hari_besar", "data_pendukung", "pembuat_konten", "status"],
+        'team': ["nama", "jabatan", "bidang", "tugas", "kontak"],
+        'user_manager': ["nama", "username", "role", "bidang"],
+        'assignment': ["tugas", "deskripsi", "prioritas", "status", "tanggal_penugasan", "deadline", "progres", "lampiran", "assigned_to"]
+    };
+
+    const headers = schemas[type];
+    if (!headers) return;
+
+    try {
+        if (typeof XLSX === 'undefined') {
+            showToast('Library parsing Excel sedang memuat. Coba lagi dalam 1 detik.', 'warning');
+            return;
+        }
+        const ws = XLSX.utils.aoa_to_sheet([headers]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template");
+        XLSX.writeFile(wb, `template_${type}.xlsx`);
+        showToast('Template Excel berhasil diunduh!');
+    } catch (e) {
+        console.error('Download error:', e);
+        showToast('Gagal mengunduh template.', 'error');
+    }
+};
+
+window.handleExcelUpload = function(event, type) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (typeof XLSX === 'undefined') {
+        showToast('Library parsing Excel belum terpasang/gagal dimuat.', 'error');
+        return;
+    }
+
+    showToast('Sedang memproses berkas Excel...', 'info');
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false, dateNF: 'yyyy-mm-dd' });
+
+            if (jsonData.length === 0) {
+                showToast('Berkas Excel kosong atau format kolom salah.', 'error');
+                return;
+            }
+
+            const sheetMapping = {
+                'content': 'content_planner',
+                'rekap_rutin': 'rekap_rutin',
+                'ad_hoc': 'ad_hoc_2026',
+                'protokoler': 'protokoler',
+                'mc': 'mc',
+                'brs_rilis': 'brs_rilis',
+                'hari_besar': 'hari_besar',
+                'team': 'team',
+                'user_manager': 'users',
+                'assignment': 'assignments'
+            };
+            const sheetName = sheetMapping[type];
+            const varName = SHEET_TO_VAR[sheetName] || type;
+
+            let successCount = 0;
+            const schemas = {
+                'content': ["judul", "konsep", "jenis", "postType", "progres", "jadwal", "status", "assignedTo"],
+                'rekap_rutin': ["tanggal", "hari", "rubrikasi", "kegiatan", "petugas", "status"],
+                'ad_hoc': ["tanggal", "hari", "kegiatan", "jumlah_bertugas", "petugas", "keterangan", "status"],
+                'protokoler': ["tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"],
+                'mc': ["tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"],
+                'brs_rilis': ["tanggal_rilis", "judul", "pic_poster_info", "pic_doc_ruang", "pic_doc_yt_zoom", "highlight"],
+                'hari_besar': ["tanggal", "hari_besar", "data_pendukung", "pembuat_konten", "status"],
+                'team': ["nama", "jabatan", "bidang", "tugas", "kontak"],
+                'user_manager': ["nama", "username", "role", "bidang"],
+                'assignment': ["tugas", "deskripsi", "prioritas", "status", "tanggal_penugasan", "deadline", "progres", "lampiran", "assigned_to"]
+            };
+            const fields = schemas[type];
+
+            for (let row of jsonData) {
+                const item = {};
+                fields.forEach(f => {
+                    item[f] = row[f] !== undefined ? row[f] : "";
+                });
+
+                if (type === 'ad_hoc' && item.jumlah_bertugas !== "") {
+                    item.jumlah_bertugas = Number(item.jumlah_bertugas);
+                }
+                if ((type === 'content' || type === 'assignment') && item.progres !== "") {
+                    item.progres = Number(item.progres);
+                }
+
+                // Generate ID
+                const maxId = db[varName].reduce((max, i) => Math.max(max, Number(i.id) || 0), 0);
+                item.id = maxId + 1;
+
+                if (type === 'user_manager') {
+                    item.password = 'password'; 
+                }
+
+                // Simpan local & server
+                await sendDataToServer('add', sheetName, item);
+                successCount++;
+            }
+
+            closeModal();
+            showToast(`Berhasil mengimpor ${successCount} data dari Excel!`);
+            router(currentState);
+
+        } catch (error) {
+            console.error('Import error:', error);
+            showToast('Gagal memproses file Excel. Pastikan format kolom sesuai template.', 'error');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+};
+
+
 
 function closeModal() {
     const modal = document.getElementById('dynamic-modal');
