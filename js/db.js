@@ -128,7 +128,7 @@ async function fetchDataFromSheets(silent = false) {
         });
 
         const now = new Date();
-        const dateStr = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        const dateStr = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' WIB';
 
         const lastSyncEl = document.getElementById('last-sync-date');
         if (lastSyncEl) lastSyncEl.textContent = dateStr;

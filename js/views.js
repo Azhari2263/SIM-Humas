@@ -166,7 +166,7 @@ function openPrintReportWindow(title, headers, rows) {
         </head>
         <body>
             <h1>${title}</h1>
-            <p>Dicetak otomatis dari SIM Humas BPS Kalbar - Tanggal: ${new Date().toLocaleString('id-ID')}</p>
+            <p>Dicetak otomatis dari SIM Humas BPS Kalbar - Tanggal: ${new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short', hour12: false })} WIB</p>
             <table>
                 <thead><tr>${headersHtml}</tr></thead>
                 <tbody>${rowsHtml}</tbody>

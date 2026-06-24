@@ -211,26 +211,38 @@ function formatTime(timeStr) {
     if (!timeStr) return '-';
     timeStr = String(timeStr).trim();
     
+    let hours = '';
+    let minutes = '';
+    
     // Check if it's an ISO datetime string (like 1899-12-30T01:22:48.000Z)
     if (timeStr.includes('T')) {
         try {
             const d = new Date(timeStr);
             if (!isNaN(d.getTime())) {
-                const hours = String(d.getHours()).padStart(2, '0');
-                const minutes = String(d.getMinutes()).padStart(2, '0');
-                return `${hours}:${minutes}`;
+                if (timeStr.startsWith('1899-12-30')) {
+                    hours = String(d.getUTCHours()).padStart(2, '0');
+                    minutes = String(d.getUTCMinutes()).padStart(2, '0');
+                } else {
+                    hours = String(d.getHours()).padStart(2, '0');
+                    minutes = String(d.getMinutes()).padStart(2, '0');
+                }
             }
         } catch (e) {
             // fallback
         }
     }
     
-    // Match standard HH:MM:SS or HH:MM
-    const match = timeStr.match(/^(\d{1,2}):(\d{1,2})/);
-    if (match) {
-        const hours = match[1].padStart(2, '0');
-        const minutes = match[2].padStart(2, '0');
-        return `${hours}:${minutes}`;
+    if (!hours || !minutes) {
+        // Match standard HH:MM:SS or HH:MM or HH.MM
+        const match = timeStr.match(/^(\d{1,2})[:.](\d{1,2})/);
+        if (match) {
+            hours = match[1].padStart(2, '0');
+            minutes = match[2].padStart(2, '0');
+        }
+    }
+    
+    if (hours && minutes) {
+        return `${hours}.${minutes} WIB`;
     }
     
     return timeStr;
@@ -238,9 +250,41 @@ function formatTime(timeStr) {
 
 function formatTimeInput(timeStr) {
     if (!timeStr) return '08:30';
-    const formatted = formatTime(timeStr);
-    if (formatted === '-') return '08:30';
-    return formatted;
+    timeStr = String(timeStr).trim();
+    
+    let hours = '';
+    let minutes = '';
+    
+    if (timeStr.includes('T')) {
+        try {
+            const d = new Date(timeStr);
+            if (!isNaN(d.getTime())) {
+                if (timeStr.startsWith('1899-12-30')) {
+                    hours = String(d.getUTCHours()).padStart(2, '0');
+                    minutes = String(d.getUTCMinutes()).padStart(2, '0');
+                } else {
+                    hours = String(d.getHours()).padStart(2, '0');
+                    minutes = String(d.getMinutes()).padStart(2, '0');
+                }
+            }
+        } catch (e) {
+            // fallback
+        }
+    }
+    
+    if (!hours || !minutes) {
+        const match = timeStr.match(/^(\d{1,2})[:.](\d{1,2})/);
+        if (match) {
+            hours = match[1].padStart(2, '0');
+            minutes = match[2].padStart(2, '0');
+        }
+    }
+    
+    if (hours && minutes) {
+        return `${hours}:${minutes}`;
+    }
+    
+    return '08:30';
 }
 
 // Expose helpers globally to avoid script loading order issues with views.js
