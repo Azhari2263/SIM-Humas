@@ -92,24 +92,6 @@ function loadLocalFallbacks() {
         saveLocalFallback('team');
     }
 
-    // Seed default users from spreadsheet if empty (to ensure fallback login works immediately)
-    if (db.users.length === 0) {
-        db.users = [
-            { id: 1, username: "Azhari", password: "azday22", nama: "Azhari", role: "tim", bidang: "TU Bawah" },
-            { id: 2, username: "Dara", password: "dara123", nama: "Dara Septika", role: "koordinator", bidang: "Produksi" },
-            { id: 3, username: "admin", password: "admin123", nama: "Admin Humas", role: "admin", bidang: "Humas & Protokol" }
-        ];
-        saveLocalFallback('users');
-    }
-
-    // Append test accounts dynamically if not already present
-    const testUsers = [
-        { id: 9901, username: "rian", password: "password", nama: "Rian", role: "tim", bidang: "Diseminasi Informasi" },
-        { id: 9902, username: "siska", password: "password", nama: "Siska", role: "tim", bidang: "Humas & Protokol" },
-        { id: 9903, username: "dian", password: "password", nama: "Dian", role: "tim", bidang: "Humas & Protokol" },
-        { id: 9904, username: "azhari_tim", password: "password", nama: "Azhari Test", role: "tim", bidang: "Humas & Protokol" }
-    ];
-
     testUsers.forEach(tu => {
         if (!db.users.some(u => u.username && u.username.toLowerCase() === tu.username)) {
             db.users.push(tu);
