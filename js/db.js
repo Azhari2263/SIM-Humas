@@ -285,12 +285,99 @@ async function processSyncQueue() {
 window.addEventListener('online', () => {
     console.log('[Sync] Network back online. Retrying sync queue...');
     processSyncQueue();
+    fetchDataFromSheets(true); // Segera refresh data saat koneksi kembali
 });
+
+// -------------------------------------------------------
+// REAL-TIME AUTO-POLLING (setiap 30 detik)
+// Memungkinkan perubahan data dari pengguna lain (misal Ketua Tim)
+// otomatis terlihat di browser pengguna lain (anggota tim)
+// tanpa harus klik tombol Sinkron secara manual.
+// -------------------------------------------------------
+let realtimePollingInterval = null;
+let lastFetchTimestamp = 0;
+const POLLING_INTERVAL_MS = 30000; // 30 detik
+const MIN_FETCH_GAP_MS = 10000;    // Minimal 10 detik antar fetch (anti-spam)
+
+function startRealtimePolling() {
+    if (realtimePollingInterval) return; // Sudah berjalan
+    console.log('[RealTime] Memulai auto-polling setiap 30 detik...');
+
+    realtimePollingInterval = setInterval(async () => {
+        // Skip jika tab sedang tidak aktif (hemat bandwidth)
+        if (document.hidden) {
+            console.log('[RealTime] Tab tidak aktif, polling ditunda.');
+            return;
+        }
+        // Anti-spam: jangan fetch jika baru saja fetch < 10 detik lalu
+        if (Date.now() - lastFetchTimestamp < MIN_FETCH_GAP_MS) {
+            return;
+        }
+        // Skip jika sedang ada proses loading/sync aktif
+        if (isLoading || isProcessingQueue) {
+            return;
+        }
+        console.log('[RealTime] Auto-polling data dari server...');
+        lastFetchTimestamp = Date.now();
+        await fetchDataFromSheets(true); // silent = true (tidak tampil toast/loading)
+        updateLiveIndicator(); // Update indikator live di UI
+    }, POLLING_INTERVAL_MS);
+}
+
+function stopRealtimePolling() {
+    if (realtimePollingInterval) {
+        clearInterval(realtimePollingInterval);
+        realtimePollingInterval = null;
+        console.log('[RealTime] Auto-polling dihentikan.');
+    }
+}
+
+// Update indikator "Live" di UI sidebar
+function updateLiveIndicator() {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' WIB';
+
+    const lastSyncEl = document.getElementById('last-sync-date');
+    if (lastSyncEl) lastSyncEl.textContent = dateStr;
+
+    const mobileSyncEl = document.getElementById('mobile-last-sync-date');
+    if (mobileSyncEl) mobileSyncEl.textContent = dateStr;
+
+    // Animasi pulse pada live-dot indicator
+    const dots = document.querySelectorAll('.live-dot');
+    dots.forEach(dot => {
+        dot.classList.add('live-dot-pulse');
+        setTimeout(() => dot.classList.remove('live-dot-pulse'), 800);
+    });
+}
+
+// Refresh segera saat user kembali ke tab ini (setelah buka tab lain)
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        console.log('[RealTime] Tab aktif kembali. Refresh data segera...');
+        if (Date.now() - lastFetchTimestamp > MIN_FETCH_GAP_MS) {
+            lastFetchTimestamp = Date.now();
+            fetchDataFromSheets(true).then(updateLiveIndicator);
+        }
+    }
+});
+
+// Expose fungsi untuk digunakan dari luar
+window.startRealtimePolling = startRealtimePolling;
+window.stopRealtimePolling = stopRealtimePolling;
 
 // Periodic retry and initialization
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(processSyncQueue, 3000); // Wait 3s after boot
     setInterval(processSyncQueue, 120000); // Retry every 2 minutes
+
+    // Mulai real-time polling setelah initial data load selesai
+    // Delay 5 detik agar initial fetch dari fetchDataFromSheets() selesai dulu
+    setTimeout(() => {
+        lastFetchTimestamp = Date.now(); // Catat waktu initial fetch
+        startRealtimePolling();
+        console.log('[RealTime] Auto-polling aktif. Data akan diperbarui otomatis setiap 30 detik.');
+    }, 5000);
 });
 
 async function syncData() {

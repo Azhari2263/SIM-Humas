@@ -196,7 +196,10 @@ function renderDashboard(container) {
 
     const getMonthFilter = (dStr) => {
         if (!dStr) return false;
-        const d = new Date(dStr);
+        // Gunakan parseIndonesianDate() untuk menghindari UTC timezone shift
+        // new Date('2026-06-24') = UTC midnight → bisa jadi tanggal 23 di timezone WIB
+        const d = parseIndonesianDate(dStr);
+        if (!d || isNaN(d.getTime())) return false;
         return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     };
 
@@ -266,6 +269,10 @@ function renderDashboard(container) {
     const protoData = memberTasks.map(m => m.pTasks + m.mTasks);
     const plannerData = memberTasks.map(m => m.cTasks + m.asTasks);
 
+    // Timezone-safe: bandingkan tanggal sebagai local date (bukan UTC)
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+
     const upcomingDeadlines = [...plannerSrc, ...db.tickets.filter(t => t.status === 'Approved').filter(isTaskForCurrentUser), ...assignmentSrc]
         .map(item => ({
             judul: item.judul || item.tugas,
@@ -273,10 +280,19 @@ function renderDashboard(container) {
             sumber: item.jadwal ? 'Konten' : (item.tugas ? 'Tugas' : 'Layanan'),
             pic: item.assignedTo || item.pic || item.assigned_to || '-'
         }))
-        .filter(item => item.tanggal && new Date(item.tanggal) >= new Date().setHours(0, 0, 0, 0))
-        .sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal))
+        .filter(item => {
+            if (!item.tanggal) return false;
+            const d = parseIndonesianDate(item.tanggal); // timezone-safe parse
+            return d && !isNaN(d.getTime()) && d >= todayMidnight;
+        })
+        .sort((a, b) => {
+            const da = parseIndonesianDate(a.tanggal);
+            const db2 = parseIndonesianDate(b.tanggal);
+            return (da || 0) - (db2 || 0);
+        })
         .slice(0, 4);
 
+    // Tugas Terlambat: tanggal/deadline sudah lewat hari ini, status belum selesai
     const overdueTasks = [...plannerSrc, ...rutinSrc, ...adHocSrc, ...assignmentSrc]
         .map(item => ({
             judul: item.judul || item.kegiatan || item.tugas,
@@ -284,7 +300,15 @@ function renderDashboard(container) {
             status: item.status,
             pic: item.assignedTo || item.petugas || item.assigned_to || '-'
         }))
-        .filter(item => item.tanggal && new Date(item.tanggal) < new Date().setHours(0, 0, 0, 0) && !['Selesai', 'Done', 'Posted'].includes(item.status))
+        .filter(item => {
+            if (!item.tanggal) return false;
+            const d = parseIndonesianDate(item.tanggal); // timezone-safe parse
+            if (!d || isNaN(d.getTime())) return false;
+            // Set ke akhir hari (23:59:59) — overdue jika hari sudah penuh terlewati
+            const endOfDay = new Date(d);
+            endOfDay.setHours(23, 59, 59, 999);
+            return endOfDay < todayMidnight && !['Selesai', 'Done', 'Posted'].includes(item.status);
+        })
         .slice(0, 4);
 
     const todayStr = formatDateInput(new Date());
@@ -1767,9 +1791,13 @@ function renderRekapKegiatan(container) {
     let totalSlaTerlambat = 0;
 
     allTasks.forEach(task => {
-        const deadlineDate = new Date(task.tanggal);
-        const today = new Date().setHours(0, 0, 0, 0);
-        const daysRemaining = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24));
+        // Gunakan parseIndonesianDate untuk menghindari UTC timezone shift
+        const deadlineDate = parseIndonesianDate(task.tanggal);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const daysRemaining = deadlineDate && !isNaN(deadlineDate.getTime())
+            ? Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24))
+            : 999; // Jika tanggal tidak valid, anggap aman
 
         if (task.progress === 100 || ['Selesai', 'Done', 'Posted'].includes(task.status)) {
             task.sla = 'Aman';
