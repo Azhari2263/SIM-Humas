@@ -5,7 +5,6 @@ function doGet() {
   const data = {
     contentPlanner: getSheetData(sheet, 'content_planner', ["id", "judul", "konsep", "jenis", "postType", "progres", "jadwal", "status", "assignedTo"]),
     brsSchedule: getSheetData(sheet, 'brs_schedule', ["id", "judul", "tanggal", "pic_poster", "pic_info", "pic_doc", "pic_high"]),
-    protocol: getSheetData(sheet, 'protocol', ["id", "kegiatan", "pimpinan", "level", "lokasi", "petugas", "tanggal"]),
     team: getSheetData(sheet, 'team', ["id", "nama", "jabatan", "bidang", "tugas", "kontak"]),
     tickets: getSheetData(sheet, 'tickets', ["id", "pengaju", "bidang", "jenis", "judul", "deadline", "detail", "status", "pic"]),
     assets: getSheetData(sheet, 'assets', ["id", "nama", "kategori", "ukuran", "pengunggah", "tanggal", "preview"]),
@@ -18,8 +17,7 @@ function doGet() {
     brsRilis: getSheetData(sheet, 'brs_rilis', ["id", "tanggal_rilis", "judul", "pic_poster_info", "pic_doc_ruang", "pic_doc_yt_zoom", "highlight"]),
     hariBesar: getSheetData(sheet, 'hari_besar', ["id", "tanggal", "hari_besar", "data_pendukung", "pembuat_konten", "status"]),
     rekapKegiatan: getSheetData(sheet, 'rekap_kegiatan', ["id", "deadline", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status"]),
-    notifications: getSheetData(sheet, 'notifications', ["id", "user_role", "title", "message", "timestamp", "is_read"]),
-    assignments: getSheetData(sheet, 'assignments', ["id", "tugas", "deskripsi", "prioritas", "status", "tanggal_penugasan", "deadline", "progres", "lampiran", "assigned_to"])
+    notifications: getSheetData(sheet, 'notifications', ["id", "user_role", "title", "message", "timestamp", "is_read"])
   };
   
   return ContentService.createTextOutput(JSON.stringify(data))
@@ -133,7 +131,6 @@ function getHeadersForSheet(name) {
   const schemas = {
     'content_planner': ["id", "judul", "konsep", "jenis", "postType", "progres", "jadwal", "status", "assignedTo"],
     'brs_schedule': ["id", "judul", "tanggal", "pic_poster", "pic_info", "pic_doc", "pic_high"],
-    'protocol': ["id", "kegiatan", "pimpinan", "level", "lokasi", "petugas", "tanggal"],
     'team': ["id", "nama", "jabatan", "bidang", "tugas", "kontak"],
     'tickets': ["id", "pengaju", "bidang", "jenis", "judul", "deadline", "detail", "status", "pic"],
     'assets': ["id", "nama", "kategori", "ukuran", "pengunggah", "tanggal", "preview"],
@@ -146,8 +143,7 @@ function getHeadersForSheet(name) {
     'brs_rilis': ["id", "tanggal_rilis", "judul", "pic_poster_info", "pic_doc_ruang", "pic_doc_yt_zoom", "highlight"],
     'hari_besar': ["id", "tanggal", "hari_besar", "data_pendukung", "pembuat_konten", "status"],
     'rekap_kegiatan': ["id", "deadline", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status"],
-    'notifications': ["id", "user_role", "title", "message", "timestamp", "is_read"],
-    'assignments': ["id", "tugas", "deskripsi", "prioritas", "status", "tanggal_penugasan", "deadline", "progres", "lampiran", "assigned_to"]
+    'notifications': ["id", "user_role", "title", "message", "timestamp", "is_read"]
   };
   return schemas[name] || null;
 }
