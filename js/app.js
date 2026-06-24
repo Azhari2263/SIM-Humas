@@ -7,6 +7,28 @@ var currentModalType = null;
 var isSubmitting = false;
 var activeSearchQuery = '';
 
+// Global Activity Logger
+function logActivity(action, details) {
+    const user = currentUser ? (currentUser.nama || currentUser.name || currentUser.username) : 'Sistem';
+    
+    if (!db.auditTrail) {
+        db.auditTrail = [];
+    }
+
+    const logItem = {
+        id: db.auditTrail.length + 1,
+        user: user,
+        action: action,
+        details: details,
+        timestamp: new Date().toISOString()
+    };
+    db.auditTrail.push(logItem);
+    saveLocalFallback('auditTrail');
+    console.log(`[Audit Log] ${user} - ${action}: ${details}`);
+}
+window.logActivity = logActivity;
+
+
 // UI Helper: Toast Notification
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
@@ -322,6 +344,7 @@ function addNotification(title, message, target = 'all') {
     const newNotif = {
         id: Date.now(), // unique ID
         user_target: target, // username spesifik, role, atau 'all'
+        user_role: target,   // maps to Google Sheets header
         title: title,
         message: message,
         timestamp: timestamp,
@@ -1593,8 +1616,8 @@ function showDetail(type, item) {
 function router(page) {
     const allowedPages = {
         admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'settings', 'assignment'],
-        kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'assignment'],
-        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'assignment'],
+        kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar'],
+        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar'],
         tim: ['dashboard', 'calendar', 'assignment', 'rekap_kegiatan', 'monitoring'],
         pemohon: ['dashboard', 'tickets']
     };
