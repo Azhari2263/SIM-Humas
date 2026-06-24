@@ -802,6 +802,27 @@ function getModalFieldsHTML(type, item) {
         `;
     } else if (type === 'protokoler' || type === 'mc') {
         const isProto = type === 'protokoler';
+        const timeVal = item?.jam_mulai || '08.30';
+        let currentHour = '08';
+        let currentMinute = '30';
+        const timeMatch = String(timeVal).match(/^(\d{1,2})[:.](\d{1,2})/);
+        if (timeMatch) {
+            currentHour = timeMatch[1].padStart(2, '0');
+            currentMinute = timeMatch[2].padStart(2, '0');
+        }
+
+        let hourOptions = '';
+        for (let h = 0; h < 24; h++) {
+            const hStr = String(h).padStart(2, '0');
+            hourOptions += `<option value="${hStr}" ${currentHour === hStr ? 'selected' : ''}>${hStr}</option>`;
+        }
+
+        let minuteOptions = '';
+        for (let m = 0; m < 60; m++) {
+            const mStr = String(m).padStart(2, '0');
+            minuteOptions += `<option value="${mStr}" ${currentMinute === mStr ? 'selected' : ''}>${mStr}</option>`;
+        }
+
         return `
             <div class="space-y-4 text-slate-700 dark:text-slate-350">
                 <div>
@@ -825,7 +846,16 @@ function getModalFieldsHTML(type, item) {
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jam Mulai <span class="text-rose-500">*</span></label>
-                        <input type="text" id="jam_mulai" value="${formatTimeInput(item?.jam_mulai)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold" placeholder="Contoh: 08.30 atau 14.15" pattern="^(0[0-9]|1[0-9]|2[0-3])([:.])[0-5][0-9]$" title="Harap masukkan format waktu 24 jam yang valid, contoh: 08.30 atau 14.15" required>
+                        <div class="flex items-center gap-1.5">
+                            <select id="jam_mulai_hour" class="flex-1 px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold" required>
+                                ${hourOptions}
+                            </select>
+                            <span class="text-xs font-bold text-slate-400">:</span>
+                            <select id="jam_mulai_minute" class="flex-1 px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold" required>
+                                ${minuteOptions}
+                            </select>
+                            <span class="text-xs font-bold text-slate-400 ml-1">WIB</span>
+                        </div>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
@@ -1527,7 +1557,9 @@ async function saveData(event) {
         item.tanggal = document.getElementById('tanggal').value;
         item.bulan = document.getElementById('bulan').value;
         item.lokasi = document.getElementById('lokasi').value;
-        item.jam_mulai = document.getElementById('jam_mulai').value;
+        const hour = document.getElementById('jam_mulai_hour')?.value || '08';
+        const minute = document.getElementById('jam_mulai_minute')?.value || '30';
+        item.jam_mulai = `${hour}.${minute}`;
         item.jenis = document.getElementById('jenis').value;
         item.level = document.getElementById('level').value;
         item.petugas = document.getElementById('petugas').value;
