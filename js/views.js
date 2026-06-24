@@ -434,22 +434,22 @@ function renderDashboard(container) {
             </div>
         </div>
 
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-12 h-12 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center justify-center text-indigo-650 dark:text-indigo-400 shrink-0"><i class="fa-solid fa-calendar-check text-xl"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Kegiatan Baru</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${totalKegiatanBulanIni}</p></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-3 sm:gap-4">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center justify-center text-indigo-650 dark:text-indigo-400 shrink-0"><i class="fa-solid fa-calendar-check text-lg sm:text-xl"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Kegiatan Baru</p><p class="text-xl sm:text-2xl font-black text-slate-800 dark:text-white mt-0.5 stat-number">${totalKegiatanBulanIni}</p></div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-12 h-12 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded-xl flex items-center justify-center text-emerald-650 dark:text-emerald-400 shrink-0"><i class="fa-solid fa-circle-check text-xl"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Selesai</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${selesaiCount}</p></div>
+            <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-3 sm:gap-4">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded-xl flex items-center justify-center text-emerald-650 dark:text-emerald-400 shrink-0"><i class="fa-solid fa-circle-check text-lg sm:text-xl"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Selesai</p><p class="text-xl sm:text-2xl font-black text-slate-800 dark:text-white mt-0.5 stat-number">${selesaiCount}</p></div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-12 h-12 bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-xl flex items-center justify-center text-blue-650 dark:text-blue-400 shrink-0"><i class="fa-solid fa-spinner fa-spin text-xl"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Aktif Ditugaskan</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${progressCount}</p></div>
+            <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-3 sm:gap-4">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-xl flex items-center justify-center text-blue-650 dark:text-blue-400 shrink-0"><i class="fa-solid fa-spinner fa-spin text-lg sm:text-xl"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Aktif Ditugaskan</p><p class="text-xl sm:text-2xl font-black text-slate-800 dark:text-white mt-0.5 stat-number">${progressCount}</p></div>
             </div>
-            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                <div class="w-12 h-12 bg-violet-50 dark:bg-violet-950 border border-violet-100 dark:border-violet-900 rounded-xl flex items-center justify-center text-violet-650 dark:text-violet-400 shrink-0"><i class="fa-solid fa-users text-xl"></i></div>
-                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pegawai Aktif</p><p class="text-2xl font-black text-slate-800 dark:text-white mt-0.5">${totalPegawaiAktif}</p></div>
+            <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-3 sm:gap-4">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-violet-50 dark:bg-violet-950 border border-violet-100 dark:border-violet-900 rounded-xl flex items-center justify-center text-violet-650 dark:text-violet-400 shrink-0"><i class="fa-solid fa-users text-lg sm:text-xl"></i></div>
+                <div><p class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pegawai Aktif</p><p class="text-xl sm:text-2xl font-black text-slate-800 dark:text-white mt-0.5 stat-number">${totalPegawaiAktif}</p></div>
             </div>
         </div>
 
@@ -480,38 +480,38 @@ function renderDashboard(container) {
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-gradient-to-br from-indigo-500/10 to-indigo-650/10 border border-indigo-150 dark:border-indigo-950 p-5 rounded-2xl">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div class="bg-gradient-to-br from-indigo-500/10 to-indigo-650/10 border border-indigo-150 dark:border-indigo-950 p-4 sm:p-5 rounded-2xl">
                 <div class="flex justify-between items-start">
-                    <h4 class="text-[10px] font-black text-indigo-750 dark:text-indigo-400 uppercase tracking-widest">Master of Ceremony</h4>
-                    <span class="px-2 py-0.5 bg-indigo-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalMc} Tugas</span>
+                    <h4 class="text-[9px] sm:text-[10px] font-black text-indigo-750 dark:text-indigo-400 uppercase tracking-widest">MC</h4>
+                    <span class="px-2 py-0.5 bg-indigo-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalMc}</span>
                 </div>
                 <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalMc} <span class="text-xs font-semibold text-slate-455">agenda</span></p>
             </div>
-            <div class="bg-gradient-to-br from-violet-500/10 to-violet-650/10 border border-violet-150 dark:border-violet-950 p-5 rounded-2xl">
+            <div class="bg-gradient-to-br from-violet-500/10 to-violet-650/10 border border-violet-150 dark:border-violet-950 p-4 sm:p-5 rounded-2xl">
                 <div class="flex justify-between items-start">
-                    <h4 class="text-[10px] font-black text-violet-750 dark:text-violet-400 uppercase tracking-widest">Keprotokolan</h4>
-                    <span class="px-2 py-0.5 bg-violet-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalProto} Tugas</span>
+                    <h4 class="text-[9px] sm:text-[10px] font-black text-violet-750 dark:text-violet-400 uppercase tracking-widest">Protokol</h4>
+                    <span class="px-2 py-0.5 bg-violet-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalProto}</span>
                 </div>
                 <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalProto} <span class="text-xs font-semibold text-slate-455">agenda</span></p>
             </div>
-            <div class="bg-gradient-to-br from-emerald-500/10 to-emerald-650/10 border border-emerald-150 dark:border-emerald-950 p-5 rounded-2xl">
+            <div class="bg-gradient-to-br from-emerald-500/10 to-emerald-650/10 border border-emerald-150 dark:border-emerald-950 p-4 sm:p-5 rounded-2xl">
                 <div class="flex justify-between items-start">
-                    <h4 class="text-[10px] font-black text-emerald-750 dark:text-emerald-400 uppercase tracking-widest">Rilis BRS</h4>
-                    <span class="px-2 py-0.5 bg-emerald-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalBrs} Dokumen</span>
+                    <h4 class="text-[9px] sm:text-[10px] font-black text-emerald-750 dark:text-emerald-400 uppercase tracking-widest">Rilis BRS</h4>
+                    <span class="px-2 py-0.5 bg-emerald-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalBrs}</span>
                 </div>
                 <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalBrs} <span class="text-xs font-semibold text-slate-455">dirilis</span></p>
             </div>
-            <div class="bg-gradient-to-br from-rose-500/10 to-rose-650/10 border border-rose-150 dark:border-rose-950 p-5 rounded-2xl">
+            <div class="bg-gradient-to-br from-rose-500/10 to-rose-650/10 border border-rose-150 dark:border-rose-950 p-4 sm:p-5 rounded-2xl">
                 <div class="flex justify-between items-start">
-                    <h4 class="text-[10px] font-black text-rose-750 dark:text-rose-455 uppercase tracking-widest">Hari Besar</h4>
-                    <span class="px-2 py-0.5 bg-rose-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalHariBesar} Konten</span>
+                    <h4 class="text-[9px] sm:text-[10px] font-black text-rose-750 dark:text-rose-455 uppercase tracking-widest">Hari Besar</h4>
+                    <span class="px-2 py-0.5 bg-rose-500 text-white rounded text-[8px] font-black uppercase tracking-wider">${totalHariBesar}</span>
                 </div>
                 <p class="text-xl font-extrabold text-slate-800 dark:text-white mt-3">${totalHariBesar} <span class="text-xs font-semibold text-slate-455">ucapan</span></p>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 mb-8">
 
             <!-- Card 1: Agenda Hari Ini -->
             <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col">
@@ -810,7 +810,7 @@ function renderPlanner(container) {
             ` : ''}
         </div>
 
-        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-4 shadow-xs">
+        <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 shadow-xs">
             <div class="relative">
                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
                 <input type="text" id="planner-search-input" oninput="handlePlannerSearch(this.value)" value="${plannerSearch}" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-xs font-semibold focus:bg-white focus:outline-none placeholder-slate-450 dark:text-white text-slate-750 transition-all" placeholder="Cari judul atau konsep...">
@@ -840,7 +840,8 @@ function renderPlanner(container) {
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
-            <div class="overflow-x-auto">
+            <!-- DESKTOP TABLE VIEW -->
+            <div class="desktop-table-view overflow-x-auto hidden md:block">
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 select-none">
@@ -849,7 +850,7 @@ function renderPlanner(container) {
                                 Judul Konten <span id="sort-icon-judul" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
                             </th>
                             <th class="py-3.5 px-4">Konsep / Visual</th>
-                            <th class="py-3.5 px-4 w-32">Jenis & Tipe</th>
+                            <th class="py-3.5 px-4 w-32">Jenis &amp; Tipe</th>
                             <th onclick="handlePlannerSort('progres')" class="py-3.5 px-4 w-32 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 text-center">
                                 Progres <span id="sort-icon-progres" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
                             </th>
@@ -869,6 +870,10 @@ function renderPlanner(container) {
                         <!-- Table rows populated dynamically -->
                     </tbody>
                 </table>
+            </div>
+            <!-- MOBILE CARD VIEW -->
+            <div class="mobile-table-view md:hidden p-4 space-y-4" id="planner-mobile-body">
+                <!-- Mobile cards populated dynamically -->
             </div>
         </div>
     `;
@@ -981,18 +986,26 @@ window.drawPlannerBoard = function() {
         'Video': '<span class="inline-flex items-center gap-1 text-violet-500 font-medium"><i class="fa-solid fa-video"></i> Video</span>'
     };
 
+    const emptyHtml = `
+        <tr><td colspan="${isKepala ? 8 : 9}" class="py-0">
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="fa-solid fa-list-check"></i></div>
+                <p class="empty-state-title">Data Rencana Konten Kosong</p>
+                <p class="empty-state-desc">Coba ubah kata kunci pencarian atau filter yang aktif.</p>
+            </div>
+        </td></tr>`;
+
+    const emptyMobileHtml = `
+        <div class="empty-state">
+            <div class="empty-state-icon"><i class="fa-solid fa-list-check"></i></div>
+            <p class="empty-state-title">Data Rencana Konten Kosong</p>
+            <p class="empty-state-desc">Coba ubah kata kunci atau filter.</p>
+        </div>`;
+
     if (filtered.length === 0) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="${isKepala ? 8 : 9}" class="py-12 text-center text-slate-400 dark:text-slate-500">
-                    <div class="flex flex-col items-center justify-center">
-                        <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-350 dark:text-slate-600"></i>
-                        <p class="text-xs font-bold uppercase tracking-wider">Data Rencana Konten Kosong</p>
-                        <p class="text-[10px] mt-0.5">Cobalah mengubah kata kunci pencarian atau filter</p>
-                    </div>
-                </td>
-            </tr>
-        `;
+        tableBody.innerHTML = emptyHtml;
+        const mobileBody = document.getElementById('planner-mobile-body');
+        if (mobileBody) mobileBody.innerHTML = emptyMobileHtml;
         return;
     }
 

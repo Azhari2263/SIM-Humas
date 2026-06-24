@@ -2183,6 +2183,18 @@ function showDetail(type, item) {
     document.body.appendChild(modal);
 }
 
+// =====================================================
+// DEBOUNCE UTILITY
+// =====================================================
+function debounce(fn, delay = 300) {
+    let timer;
+    return function(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+window.debounce = debounce;
+
 // Navigation & Routing System
 function router(page) {
     const allowedPages = {
@@ -2225,6 +2237,10 @@ function router(page) {
 
     const contentDiv = document.getElementById('app-content');
     if (!contentDiv) return;
+
+    // Save scroll position when re-rendering the same page (after CRUD operations)
+    const isSamePage = (page === currentState);
+    const savedScroll = isSamePage ? contentDiv.scrollTop : 0;
 
     // Clean up charts before switching views
     if (window.chartInstance) {
@@ -2278,6 +2294,13 @@ function router(page) {
         case 'calendar': renderIntegratedCalendar(contentDiv); break;
         case 'settings': renderSettingsPage(contentDiv); break;
         case 'assignment': renderAssignmentPage(contentDiv); break;
+    }
+
+    // Restore scroll position if re-rendering same page (after save/delete)
+    if (isSamePage && savedScroll > 0) {
+        requestAnimationFrame(() => {
+            contentDiv.scrollTop = savedScroll;
+        });
     }
 }
 
