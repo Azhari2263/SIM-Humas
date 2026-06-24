@@ -70,58 +70,6 @@ function loadLocalFallbacks() {
             db[tb] = [];
         }
     });
-
-    // Clean up old seeded users from cache if present to reload actual sheet users
-    const hasOldCache = db.users && (
-        db.users.some(u => u.username === 'tim' || u.username === 'rian' || u.username === 'koordinator') ||
-        !db.users.some(u => u.username && u.username.toLowerCase() === 'azhari' && u.password === 'azday22')
-    );
-    if (hasOldCache) {
-        db.users = [];
-        localStorage.removeItem('sim_humas_db_users');
-    }
-
-    // Seed default team data if empty
-    if (db.team.length === 0) {
-        db.team = [
-            { id: 1, nama: "Azhari", jabatan: "Pranata Humas Ahli Muda", bidang: "Humas & Protokol", tugas: "Koordinator Kehumasan", kontak: "08125432109" },
-            { id: 2, nama: "Rian", jabatan: "Pranata Komputer", bidang: "Diseminasi Informasi", tugas: "Pembuat Konten & Dokumentasi", kontak: "08125432110" },
-            { id: 3, nama: "Siska", jabatan: "Staf Humas", bidang: "Humas & Protokol", tugas: "Petugas Protokoler & MC", kontak: "08125432111" },
-            { id: 4, nama: "Dian", jabatan: "Staf Humas", bidang: "Humas & Protokol", tugas: "MC & Media Monitoring", kontak: "08125432112" }
-        ];
-        saveLocalFallback('team');
-    }
-
-    testUsers.forEach(tu => {
-        if (!db.users.some(u => u.username && u.username.toLowerCase() === tu.username)) {
-            db.users.push(tu);
-        }
-    });
-
-    // Seed default master data if empty
-    if (db.masterData.length === 0) {
-        db.masterData = [
-            { id: 1, kategori: "Bidang", nama: "Humas & Protokol" },
-            { id: 2, kategori: "Bidang", nama: "Diseminasi Informasi" },
-            { id: 3, kategori: "Bidang", nama: "Seksi Sosial" },
-            { id: 4, kategori: "Bidang", nama: "Seksi Distribusi" },
-            { id: 5, kategori: "Rubrikasi", nama: "Rilis Berita Utama" },
-            { id: 6, kategori: "Rubrikasi", nama: "Sosialisasi Sensus" },
-            { id: 7, kategori: "Rubrikasi", nama: "Infografis Rutin" },
-            { id: 8, kategori: "Rubrikasi", nama: "Publikasi Video Dokumentasi" }
-        ];
-        saveLocalFallback('masterData');
-    }
-
-    // Seed default assignments if empty
-    if (db.assignments.length === 0) {
-        db.assignments = [
-            { id: 1, tugas: "Membuat Infografis Statistik Sosial", deskripsi: "Infografis infografis statistik sosial bulan Juni 2026 untuk Instagram BPS Kalbar.", prioritas: "Tinggi", status: "Sedang Dikerjakan", tanggal_penugasan: "2026-06-20", deadline: "2026-06-25", progres: 60, lampiran: "https://drive.google.com/drive/folders/sample1", assigned_to: "Rian" },
-            { id: 2, tugas: "Dokumentasi Liputan BRS", deskripsi: "Mengambil dokumentasi foto dan video serta press release BRS rilis inflasi Kalbar.", prioritas: "Sedang", status: "Belum Mulai", tanggal_penugasan: "2026-06-22", deadline: "2026-06-28", progres: 0, lampiran: "", assigned_to: "Siska" },
-            { id: 3, tugas: "Master of Ceremony Acara Hari Besar", deskripsi: "Menyusun cue card dan memandu jalannya acara Hari Besar BPS Provinsi Kalimantan Barat.", prioritas: "Tinggi", status: "Selesai", tanggal_penugasan: "2026-06-15", deadline: "2026-06-23", progres: 100, lampiran: "https://drive.google.com/drive/folders/sample2", assigned_to: "Dian" }
-        ];
-        saveLocalFallback('assignments');
-    }
 }
 
 function saveLocalFallback(tb) {

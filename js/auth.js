@@ -6,6 +6,10 @@ function checkAuth() {
         document.getElementById('app-layout').classList.add('hidden');
         document.getElementById('login-layout').classList.remove('hidden');
         renderLoginScreen();
+        // Fetch database (including users) in the background so that they can log in
+        if (typeof fetchDataFromSheets === 'function') {
+            fetchDataFromSheets(true);
+        }
     } else {
         document.getElementById('login-layout').classList.add('hidden');
         document.getElementById('app-layout').classList.remove('hidden');

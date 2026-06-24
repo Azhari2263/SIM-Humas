@@ -97,22 +97,6 @@ function getSheetData(sheet, sheetName, defaultHeaders) {
   let rows = ws.getDataRange().getValues();
   let headers = rows[0];
   
-  if (rows.length <= 1) {
-    // Auto-seed data dummy jika lembar assignments masih kosong
-    if (sheetName === 'assignments') {
-      const dummyData = [
-        [1, "Membuat Infografis Statistik Sosial", "Infografis infografis statistik sosial bulan Juni 2026 untuk Instagram BPS Kalbar.", "Tinggi", "Sedang Dikerjakan", "2026-06-20", "2026-06-25", 60, "https://drive.google.com/drive/folders/sample1", "Rian"],
-        [2, "Dokumentasi Liputan BRS", "Mengambil dokumentasi foto dan video serta press release BRS rilis inflasi Kalbar.", "Sedang", "Belum Mulai", "2026-06-22", "2026-06-28", 0, "", "Siska"],
-        [3, "Master of Ceremony Acara Hari Besar", "Menyusun cue card dan memandu jalannya acara Hari Besar BPS Provinsi Kalimantan Barat.", "Tinggi", "Selesai", "2026-06-15", "2026-06-23", 100, "https://drive.google.com/drive/folders/sample2", "Dian"]
-      ];
-      dummyData.forEach(row => ws.appendRow(row));
-      rows = ws.getDataRange().getValues(); // Baca ulang baris setelah ditambahkan data dummy
-      headers = rows[0];
-    } else {
-      return []; // Hanya baris header
-    }
-  }
-  
   return rows.slice(1).map(row => {
     let obj = {};
     headers.forEach((header, idx) => {
