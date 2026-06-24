@@ -130,56 +130,160 @@ function showConfirmModal(message, onConfirm, options = {}) {
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 }
 
-// UI Helper: Date Formatting & Parsing
+// // ===================================================================
+// TIMEZONE-SAFE DATE/TIME HELPERS (WIB = UTC+7)
+// Semua fungsi ini aman dari UTC-shift yang menyebabkan tanggal geser.
+// ===================================================================
+
+/**
+ * Mendapatkan waktu "sekarang" dalam konteks WIB.
+ * Selalu gunakan ini sebagai pengganti `new Date()` untuk perbandingan waktu.
+ */
+function getNowWIB() {
+    return new Date(); // Browser sudah pakai local time (WIB jika OS diset WIB)
+}
+
+/**
+ * Mengekstrak komponen jam & menit dari string waktu berbagai format:
+ * - "HH:MM", "HH.MM", "HH:MM:SS", ISO datetime "1899-12-30T..."
+ * @returns {Object|null} { hours, minutes } atau null jika tidak valid
+ */
+function extractTimeComponents(timeStr) {
+    if (!timeStr) return null;
+    timeStr = String(timeStr).trim();
+
+    // Format ISO datetime dari Google Sheets (1899-12-30T01:22:48.000Z = waktu Excel)
+    if (timeStr.includes('T')) {
+        try {
+            const d = new Date(timeStr);
+            if (!isNaN(d.getTime())) {
+                if (timeStr.startsWith('1899-12-30')) {
+                    // Waktu Excel-style: gunakan UTC hours
+                    return { hours: d.getUTCHours(), minutes: d.getUTCMinutes() };
+                } else {
+                    // ISO datetime biasa: gunakan local hours
+                    return { hours: d.getHours(), minutes: d.getMinutes() };
+                }
+            }
+        } catch (e) { /* fallback */ }
+    }
+
+    // Format HH:MM atau HH.MM atau HH:MM:SS
+    const match = timeStr.match(/^(\d{1,2})[:.:](\d{1,2})/);
+    if (match) {
+        return { hours: parseInt(match[1], 10), minutes: parseInt(match[2], 10) };
+    }
+
+    return null;
+}
+
+/**
+ * Parse string tanggal/datetime menjadi Date object dalam timezone lokal (WIB).
+ *
+ * PENTING: Urutan deteksi:
+ * 1. Full ISO datetime (YYYY-MM-DDTHH:MM...) → parse UTC, kemudian adjust ke WIB
+ * 2. YYYY-MM-DD atau YYYY/MM/DD → local midnight (tidak kena UTC shift)
+ * 3. DD/MM/YYYY atau DD-MM-YYYY → local midnight
+ * 4. Nama bulan Indonesia (e.g. "24 Juni 2026") → local midnight
+ */
 function parseIndonesianDate(str) {
     if (!str) return null;
     if (str instanceof Date) return str;
     str = String(str).trim();
 
-    // 1. Try YYYY-MM-DD or YYYY/MM/DD (Local time zone, avoiding UTC shifts)
-    const matchIso = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-    if (matchIso) {
-        const year = parseInt(matchIso[1], 10);
-        const month = parseInt(matchIso[2], 10) - 1;
-        const day = parseInt(matchIso[3], 10);
-        return new Date(year, month, day);
+    // 1. Full ISO datetime dengan komponen waktu (YYYY-MM-DDTHH:MM:SS...)
+    //    HARUS dicek SEBELUM regex tanggal-saja agar komponen jam tidak dibuang
+    const matchIsoFull = str.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (matchIsoFull) {
+        // Parse sebagai UTC (sesuai standar ISO 8601) lalu konversi ke local time
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) return d;
     }
 
-    // 2. Try DD/MM/YYYY or DD-MM-YYYY (Local time zone)
-    const matchDmy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-    if (matchDmy) {
-        const day = parseInt(matchDmy[1], 10);
-        const month = parseInt(matchDmy[2], 10) - 1;
-        const year = parseInt(matchDmy[3], 10);
-        return new Date(year, month, day);
+    // 2. YYYY-MM-DD atau YYYY/MM/DD (tanggal saja → buat sebagai local midnight)
+    const matchIso = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (matchIso) {
+        const year  = parseInt(matchIso[1], 10);
+        const month = parseInt(matchIso[2], 10) - 1;
+        const day   = parseInt(matchIso[3], 10);
+        return new Date(year, month, day, 0, 0, 0, 0); // local midnight
     }
-    
-    // 3. Try standard Date parsing (for ISO strings with hours/timezone)
-    let d = new Date(str);
-    if (!isNaN(d.getTime())) return d;
-    
-    // 4. Try DD Month YYYY (e.g. 23 Juni 2026)
+
+    // 3. DD/MM/YYYY atau DD-MM-YYYY (tanggal saja → local midnight)
+    const matchDmy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (matchDmy) {
+        const day   = parseInt(matchDmy[1], 10);
+        const month = parseInt(matchDmy[2], 10) - 1;
+        const year  = parseInt(matchDmy[3], 10);
+        return new Date(year, month, day, 0, 0, 0, 0); // local midnight
+    }
+
+    // 4. Nama bulan Indonesia (e.g. "24 Juni 2026")
     const indMonthNames = {
         'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5,
         'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11,
-        'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'mei': 4, 'jun': 5,
+        'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'jun': 5,
         'jul': 6, 'agu': 7, 'sep': 8, 'okt': 9, 'nov': 10, 'des': 11
     };
-    
     const parts = str.toLowerCase().split(/\s+/);
     if (parts.length === 3) {
-        const day = parseInt(parts[0], 10);
+        const day      = parseInt(parts[0], 10);
         const monthStr = parts[1];
-        const year = parseInt(parts[2], 10);
-        
+        const year     = parseInt(parts[2], 10);
         if (!isNaN(day) && !isNaN(year) && indMonthNames[monthStr] !== undefined) {
-            return new Date(year, indMonthNames[monthStr], day);
+            return new Date(year, indMonthNames[monthStr], day, 0, 0, 0, 0);
         }
     }
-    
+
+    // 5. Fallback: biarkan browser parse (terakhir, bisa kena UTC shift)
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) return d;
+
     return null;
 }
 
+/**
+ * Menggabungkan string tanggal + string waktu menjadi satu Date object WIB.
+ * Digunakan untuk membuat datetime deadline yang akurat untuk perbandingan overdue.
+ *
+ * @param {string} dateStr  - String tanggal dalam format apapun yang didukung parseIndonesianDate
+ * @param {string} timeStr  - String waktu (HH:MM, HH.MM, ISO, dsb.) — opsional
+ * @param {boolean} endOfDay - Jika true dan tidak ada timeStr, gunakan 23:59:59 (akhir hari)
+ * @returns {Date|null}
+ */
+function parseDateTimeWIB(dateStr, timeStr = null, endOfDay = false) {
+    if (!dateStr) return null;
+
+    const datePart = parseIndonesianDate(dateStr);
+    if (!datePart || isNaN(datePart.getTime())) return null;
+
+    // Buat base date dari tanggal (local midnight)
+    const result = new Date(
+        datePart.getFullYear(),
+        datePart.getMonth(),
+        datePart.getDate(),
+        0, 0, 0, 0
+    );
+
+    if (timeStr) {
+        const tc = extractTimeComponents(timeStr);
+        if (tc) {
+            result.setHours(tc.hours, tc.minutes, 0, 0);
+            return result;
+        }
+    }
+
+    // Tidak ada waktu: gunakan akhir hari atau midnight
+    if (endOfDay) {
+        result.setHours(23, 59, 59, 999);
+    }
+    return result;
+}
+
+/**
+ * Format tanggal untuk display (e.g. "24 Juni 2026").
+ * Selalu menggunakan parseIndonesianDate agar timezone-safe.
+ */
 function formatDate(dateString) {
     if (!dateString) return '-';
     try {
@@ -192,19 +296,24 @@ function formatDate(dateString) {
     }
 }
 
+/**
+ * Format tanggal untuk input[type=date] (YYYY-MM-DD).
+ * Selalu timezone-safe.
+ */
 function formatDateInput(dateString) {
     if (!dateString) return '';
     try {
         let d = parseIndonesianDate(dateString);
         if (!d || isNaN(d.getTime())) return '';
-        const year = d.getFullYear();
+        const year  = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
+        const day   = String(d.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     } catch (e) {
         return '';
     }
 }
+
 
 // Time Formatting Helpers
 function formatTime(timeStr) {
@@ -289,10 +398,13 @@ function formatTimeInput(timeStr) {
 
 // Expose helpers globally to avoid script loading order issues with views.js
 window.parseIndonesianDate = parseIndonesianDate;
-window.formatDate = formatDate;
-window.formatDateInput = formatDateInput;
-window.formatTime = formatTime;
-window.formatTimeInput = formatTimeInput;
+window.parseDateTimeWIB    = parseDateTimeWIB;
+window.extractTimeComponents = extractTimeComponents;
+window.getNowWIB           = getNowWIB;
+window.formatDate          = formatDate;
+window.formatDateInput     = formatDateInput;
+window.formatTime          = formatTime;
+window.formatTimeInput     = formatTimeInput;
 
 
 // Helpers for opening modals and viewing details via ID

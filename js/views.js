@@ -269,49 +269,147 @@ function renderDashboard(container) {
     const protoData = memberTasks.map(m => m.pTasks + m.mTasks);
     const plannerData = memberTasks.map(m => m.cTasks + m.asTasks);
 
-    // Timezone-safe: bandingkan tanggal sebagai local date (bukan UTC)
-    const todayMidnight = new Date();
-    todayMidnight.setHours(0, 0, 0, 0);
+    // === REFERENSI WAKTU (WIB) ===
+    const nowWIB = getNowWIB(); // waktu sekarang
+    const todayMidnight = new Date(nowWIB);
+    todayMidnight.setHours(0, 0, 0, 0);  // awal hari ini
+    const tomorrowMidnight = new Date(todayMidnight);
+    tomorrowMidnight.setDate(tomorrowMidnight.getDate() + 1); // awal besok
+    const h3EndMidnight = new Date(todayMidnight);
+    h3EndMidnight.setDate(h3EndMidnight.getDate() + 4); // awal H+4 (batas atas H+3)
 
-    const upcomingDeadlines = [...plannerSrc, ...db.tickets.filter(t => t.status === 'Approved').filter(isTaskForCurrentUser), ...assignmentSrc]
-        .map(item => ({
-            judul: item.judul || item.tugas,
-            tanggal: item.jadwal || item.deadline,
-            sumber: item.jadwal ? 'Konten' : (item.tugas ? 'Tugas' : 'Layanan'),
-            pic: item.assignedTo || item.pic || item.assigned_to || '-'
-        }))
-        .filter(item => {
-            if (!item.tanggal) return false;
-            const d = parseIndonesianDate(item.tanggal); // timezone-safe parse
-            return d && !isNaN(d.getTime()) && d >= todayMidnight;
-        })
-        .sort((a, b) => {
-            const da = parseIndonesianDate(a.tanggal);
-            const db2 = parseIndonesianDate(b.tanggal);
-            return (da || 0) - (db2 || 0);
-        })
-        .slice(0, 4);
+    const todayStr = formatDateInput(nowWIB);
 
-    // Tugas Terlambat: tanggal/deadline sudah lewat hari ini, status belum selesai
-    const overdueTasks = [...plannerSrc, ...rutinSrc, ...adHocSrc, ...assignmentSrc]
-        .map(item => ({
-            judul: item.judul || item.kegiatan || item.tugas,
-            tanggal: item.jadwal || item.tanggal || item.deadline,
+    // === TUGAS TERLAMBAT (OVERDUE) ===
+    // Overdue = deadline datetime SUDAH terlewati dari SEKARANG (bukan hanya hari)
+    // Untuk item tanpa jam → deadline = akhir hari (23:59:59)
+    // Untuk protokoler/MC → gunakan jam_selesai jika ada
+    const overdueStatuses = ['Selesai', 'Done', 'Posted'];
+    const overdueTasks = [
+        // Assignment: deadline adalah tanggal saja → overdue jika hari sudah terlewati penuh
+        ...assignmentSrc.map(item => ({
+            judul: item.tugas,
+            tanggal: item.deadline,
+            waktu: null, // tidak ada jam untuk assignment
             status: item.status,
-            pic: item.assignedTo || item.petugas || item.assigned_to || '-'
+            pic: item.assigned_to || '-',
+            sumber: 'Tugas'
+        })),
+        // Content Planner: jadwal adalah tanggal posting
+        ...plannerSrc.map(item => ({
+            judul: item.judul,
+            tanggal: item.jadwal,
+            waktu: null,
+            status: item.status,
+            pic: item.assignedTo || '-',
+            sumber: 'Konten'
+        })),
+        // Rekap Rutin: tanggal kegiatan
+        ...rutinSrc.map(item => ({
+            judul: item.kegiatan,
+            tanggal: item.tanggal,
+            waktu: null,
+            status: item.status,
+            pic: item.petugas || '-',
+            sumber: 'Rutin'
+        })),
+        // Ad Hoc: tanggal penugasan
+        ...adHocSrc.map(item => ({
+            judul: item.kegiatan,
+            tanggal: item.tanggal,
+            waktu: null,
+            status: item.status,
+            pic: item.petugas || '-',
+            sumber: 'Ad Hoc'
+        })),
+        // Protokoler: gunakan jam_selesai untuk datetime penuh
+        ...protoSrc.map(item => ({
+            judul: item.kegiatan,
+            tanggal: item.tanggal,
+            waktu: item.jam_selesai || item.jam_mulai || null,
+            status: item.status,
+            pic: item.petugas || '-',
+            sumber: 'Protokoler'
+        })),
+        // MC: gunakan jam_selesai untuk datetime penuh
+        ...mcSrc.map(item => ({
+            judul: item.kegiatan,
+            tanggal: item.tanggal,
+            waktu: item.jam_selesai || item.jam_mulai || null,
+            status: item.status,
+            pic: item.petugas || '-',
+            sumber: 'MC'
         }))
-        .filter(item => {
-            if (!item.tanggal) return false;
-            const d = parseIndonesianDate(item.tanggal); // timezone-safe parse
-            if (!d || isNaN(d.getTime())) return false;
-            // Set ke akhir hari (23:59:59) — overdue jika hari sudah penuh terlewati
-            const endOfDay = new Date(d);
-            endOfDay.setHours(23, 59, 59, 999);
-            return endOfDay < todayMidnight && !['Selesai', 'Done', 'Posted'].includes(item.status);
-        })
-        .slice(0, 4);
+    ]
+    .filter(item => {
+        if (!item.tanggal || overdueStatuses.includes(item.status)) return false;
+        // Bangun datetime deadline lengkap (tanggal + jam jika ada, else akhir hari)
+        const deadlineDT = parseDateTimeWIB(item.tanggal, item.waktu, true);
+        if (!deadlineDT || isNaN(deadlineDT.getTime())) return false;
+        // OVERDUE jika deadline datetime SUDAH LEBIH KECIL dari waktu sekarang
+        return deadlineDT < nowWIB;
+    })
+    .sort((a, b) => {
+        const da = parseDateTimeWIB(a.tanggal, a.waktu, true);
+        const db2 = parseDateTimeWIB(b.tanggal, b.waktu, true);
+        return (da || 0) - (db2 || 0); // urutkan dari paling lama terlambat
+    })
+    .slice(0, 5);
 
-    const todayStr = formatDateInput(new Date());
+    // === BATAS WAKTU TERDEKAT (H+1 s/d H+3) ===
+    // Hanya tampilkan H+1, H+2, H+3. Exclude overdue & hari ini.
+    const upcomingDeadlines = [
+        ...plannerSrc.map(item => ({
+            judul: item.judul,
+            tanggal: item.jadwal,
+            waktu: null,
+            sumber: 'Konten',
+            pic: item.assignedTo || '-'
+        })),
+        ...db.tickets.filter(t => t.status === 'Approved').filter(isTaskForCurrentUser).map(item => ({
+            judul: item.judul,
+            tanggal: item.deadline,
+            waktu: null,
+            sumber: 'Layanan',
+            pic: item.pic || item.pemohon || '-'
+        })),
+        ...assignmentSrc.map(item => ({
+            judul: item.tugas,
+            tanggal: item.deadline,
+            waktu: null,
+            sumber: 'Tugas',
+            pic: item.assigned_to || '-'
+        }))
+    ]
+    .filter(item => {
+        if (!item.tanggal) return false;
+        const deadlineDT = parseDateTimeWIB(item.tanggal, item.waktu, true);
+        if (!deadlineDT || isNaN(deadlineDT.getTime())) return false;
+        // Hanya H+1 s/d H+3: lebih besar dari sekarang DAN sebelum H+4 midnight
+        return deadlineDT >= tomorrowMidnight && deadlineDT < h3EndMidnight;
+    })
+    .sort((a, b) => {
+        const da = parseDateTimeWIB(a.tanggal, a.waktu, true);
+        const db2 = parseDateTimeWIB(b.tanggal, b.waktu, true);
+        return (da || 0) - (db2 || 0);
+    })
+    .slice(0, 6);
+
+    // === PUBLISH HARI INI ===
+    // Item dari Content Planner, Hari Besar, dan Layanan Humas yang jadwalnya hari ini
+    const publishHariIni = [
+        ...plannerSrc
+            .filter(i => i.jadwal && formatDateInput(i.jadwal) === todayStr)
+            .map(i => ({ judul: i.judul, tipe: 'Content Planner', pic: i.assignedTo || '-', status: i.status })),
+        ...hbSrc
+            .filter(i => i.tanggal && formatDateInput(i.tanggal) === todayStr)
+            .map(i => ({ judul: i.judul || i.kegiatan, tipe: 'Hari Besar', pic: i.petugas || 'Tim Humas', status: i.status })),
+        ...db.tickets
+            .filter(t => t.status === 'Approved')
+            .filter(isTaskForCurrentUser)
+            .filter(i => i.deadline && formatDateInput(i.deadline) === todayStr)
+            .map(i => ({ judul: i.judul, tipe: 'Layanan Humas', pic: i.pic || i.pemohon || '-', status: i.status }))
+    ];
     const todayActivities = [
         ...rutinSrc.filter(i => i.tanggal && formatDateInput(i.tanggal).includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Rutin', jam: 'Rutin', pic: i.petugas })),
         ...adHocSrc.filter(i => i.tanggal && formatDateInput(i.tanggal).includes(todayStr)).map(i => ({ judul: i.kegiatan, tipe: 'Ad Hoc', jam: 'Ad Hoc', pic: i.petugas })),
@@ -413,21 +511,25 @@ function renderDashboard(container) {
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
-                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-solid fa-bell-concierge text-indigo-500"></i> Agenda Hari Ini</h3>
-                <div class="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+
+            <!-- Card 1: Agenda Hari Ini -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-3 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5">
+                    <i class="fa-solid fa-bell-concierge text-indigo-500"></i> Agenda Hari Ini
+                </h3>
+                <div class="space-y-2 flex-1 overflow-y-auto max-h-[230px] pr-1">
                     ${todayActivities.length > 0 ? todayActivities.map(act => `
-                        <div class="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl">
+                        <div class="p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl">
                             <div class="flex justify-between items-center text-[8px] font-extrabold uppercase tracking-widest text-slate-400">
                                 <span>${act.tipe}</span>
                                 <span class="text-indigo-650 dark:text-indigo-400">${act.jam}</span>
                             </div>
-                            <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 mt-1 line-clamp-1">${act.judul}</h4>
-                            <p class="text-[9px] text-slate-500 mt-1 font-semibold">Petugas: ${act.pic || '-'}</p>
+                            <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 mt-0.5 line-clamp-1">${act.judul}</h4>
+                            <p class="text-[9px] text-slate-500 mt-0.5 font-semibold">Petugas: ${act.pic || '-'}</p>
                         </div>
                     `).join('') : `
-                        <div class="text-center py-12 text-slate-400">
+                        <div class="text-center py-10 text-slate-400">
                             <i class="fa-solid fa-mug-hot text-2xl mb-1 text-slate-350"></i>
                             <p class="text-[10px] font-bold">Tidak ada agenda hari ini.</p>
                         </div>
@@ -435,46 +537,89 @@ function renderDashboard(container) {
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
-                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-regular fa-clock text-amber-500"></i> Batas Waktu Terdekat</h3>
-                <div class="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
-                    ${upcomingDeadlines.length > 0 ? upcomingDeadlines.map(dl => `
-                        <div class="p-3 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-200/50 dark:border-amber-900/55 rounded-xl flex items-center justify-between">
-                            <div>
-                                <span class="text-[8px] font-extrabold uppercase tracking-widest text-amber-600">${dl.sumber}</span>
-                                <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 mt-0.5 line-clamp-1">${dl.judul}</h4>
-                                <p class="text-[9px] text-slate-500 mt-0.5">PIC: ${dl.pic}</p>
+            <!-- Card 2: Publish Hari Ini -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-3 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5">
+                    <i class="fa-solid fa-paper-plane text-sky-500"></i> Publish Hari Ini
+                    ${publishHariIni.length > 0 ? `<span class="ml-auto text-[9px] font-black bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 px-2 py-0.5 rounded-full">${publishHariIni.length} item</span>` : ''}
+                </h3>
+                <div class="space-y-2 flex-1 overflow-y-auto max-h-[230px] pr-1">
+                    ${publishHariIni.length > 0 ? publishHariIni.map(p => `
+                        <div class="p-2.5 bg-sky-50/60 dark:bg-sky-900/20 border border-sky-200/60 dark:border-sky-800/40 rounded-xl">
+                            <span class="text-[8px] font-extrabold uppercase tracking-widest text-sky-600 dark:text-sky-400">${p.tipe}</span>
+                            <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 mt-0.5 line-clamp-2">${p.judul}</h4>
+                            <div class="flex items-center justify-between mt-1">
+                                <p class="text-[9px] text-slate-500 font-semibold">PIC: ${p.pic}</p>
+                                <span class="text-[8px] font-black px-1.5 py-0.5 rounded ${
+                                    p.status === 'Done' || p.status === 'Posted' || p.status === 'Selesai'
+                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                                }">${p.status || '-'}</span>
                             </div>
-                            <span class="text-[9px] font-bold text-amber-700 dark:text-amber-300 uppercase whitespace-nowrap bg-amber-100 dark:bg-amber-950 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">${formatDate(dl.tanggal)}</span>
                         </div>
                     `).join('') : `
-                        <div class="text-center py-12 text-slate-400">
-                            <i class="fa-solid fa-folder-open text-2xl mb-1 text-slate-350"></i>
-                            <p class="text-[10px] font-bold">Tidak ada tugas terdekat.</p>
+                        <div class="text-center py-10 text-slate-400">
+                            <i class="fa-solid fa-calendar-check text-2xl mb-1 text-slate-300"></i>
+                            <p class="text-[10px] font-bold">Tidak ada jadwal publish hari ini.</p>
                         </div>
                     `}
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between">
-                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation text-rose-500"></i> Tugas Terlambat (Overdue)</h3>
-                <div class="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
-                    ${overdueTasks.length > 0 ? overdueTasks.map(ov => `
-                        <div class="p-3 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-200/50 dark:border-rose-900/55 rounded-xl flex items-center justify-between">
-                            <div>
-                                <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-1">${ov.judul}</h4>
-                                <p class="text-[9px] text-slate-500 mt-1 font-semibold">PIC: ${ov.pic} • Status: <span class="text-rose-600 font-bold">${ov.status || 'Ditugaskan'}</span></p>
+            <!-- Card 3: Batas Waktu Terdekat (H+1 s/d H+3) -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-3 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5">
+                    <i class="fa-regular fa-clock text-amber-500"></i> Batas Waktu Terdekat
+                    <span class="ml-auto text-[8px] font-black bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">H+1 s/d H+3</span>
+                </h3>
+                <div class="space-y-2 flex-1 overflow-y-auto max-h-[230px] pr-1">
+                    ${upcomingDeadlines.length > 0 ? upcomingDeadlines.map(dl => {
+                        const dlDate = parseDateTimeWIB(dl.tanggal, null, true);
+                        const diffDays = dlDate ? Math.ceil((dlDate - todayMidnight) / (1000*60*60*24)) : 0;
+                        const dayLabel = diffDays === 1 ? 'Besok' : diffDays === 2 ? 'Lusa' : `H+${diffDays}`;
+                        return `
+                        <div class="p-2.5 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-200/50 dark:border-amber-900/55 rounded-xl">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[8px] font-extrabold uppercase tracking-widest text-amber-600">${dl.sumber}</span>
+                                <span class="text-[8px] font-black text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">${dayLabel}</span>
                             </div>
-                            <span class="text-[9px] font-bold text-rose-700 dark:text-rose-350 uppercase whitespace-nowrap bg-rose-100 dark:bg-rose-950 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800">${formatDate(ov.tanggal)}</span>
+                            <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 mt-0.5 line-clamp-1">${dl.judul}</h4>
+                            <p class="text-[9px] text-slate-500 mt-0.5">PIC: ${dl.pic} &nbsp;•&nbsp; ${formatDate(dl.tanggal)}</p>
                         </div>
-                    `).join('') : `
-                        <div class="text-center py-12 text-slate-400">
-                            <i class="fa-solid fa-circle-check text-2xl mb-1 text-emerald-500"></i>
-                            <p class="text-[10px] font-bold text-emerald-655">Semua tugas tepat waktu.</p>
+                    `}).join('') : `
+                        <div class="text-center py-10 text-slate-400">
+                            <i class="fa-solid fa-folder-open text-2xl mb-1 text-slate-350"></i>
+                            <p class="text-[10px] font-bold">Tidak ada batas waktu 3 hari ke depan.</p>
                         </div>
                     `}
                 </div>
             </div>
+
+            <!-- Card 4: Tugas Terlambat (Overdue - datetime penuh) -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-3 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-1.5">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-500"></i> Tugas Terlambat
+                    ${overdueTasks.length > 0 ? `<span class="ml-auto text-[9px] font-black bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded-full">${overdueTasks.length}</span>` : ''}
+                </h3>
+                <div class="space-y-2 flex-1 overflow-y-auto max-h-[230px] pr-1">
+                    ${overdueTasks.length > 0 ? overdueTasks.map(ov => `
+                        <div class="p-2.5 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-200/50 dark:border-rose-900/55 rounded-xl">
+                            <div class="flex items-center justify-between gap-1">
+                                <span class="text-[8px] font-extrabold uppercase tracking-widest text-rose-500">${ov.sumber || ''}</span>
+                                <span class="text-[8px] font-black text-rose-700 dark:text-rose-350 bg-rose-100 dark:bg-rose-950 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-800 whitespace-nowrap">${formatDate(ov.tanggal)}</span>
+                            </div>
+                            <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-1 mt-0.5">${ov.judul}</h4>
+                            <p class="text-[9px] text-slate-500 mt-0.5 font-semibold">PIC: ${ov.pic} &nbsp;•&nbsp; <span class="text-rose-600 font-bold">${ov.status || 'Ditugaskan'}</span></p>
+                        </div>
+                    `).join('') : `
+                        <div class="text-center py-10 text-slate-400">
+                            <i class="fa-solid fa-circle-check text-2xl mb-1 text-emerald-500"></i>
+                            <p class="text-[10px] font-bold text-emerald-600">Semua tugas tepat waktu!</p>
+                        </div>
+                    `}
+                </div>
+            </div>
+
         </div>
     `;
 
