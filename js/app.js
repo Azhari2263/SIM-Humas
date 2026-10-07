@@ -419,7 +419,10 @@ function getItemByTypeAndId(type, id) {
         'hari_besar': 'hari_besar',
         'team': 'team',
         'user_manager': 'users',
-        'assignment': 'assignments'
+        'assignment': 'assignments',
+        'tickets': 'tickets',
+        'monitoring': 'monitoring',
+        'repository': 'repository'
     };
     const sheetName = sheetMapping[type] || type;
     const varName = SHEET_TO_VAR[sheetName] || type;
@@ -704,53 +707,194 @@ function handleGlobalSearch(query) {
 }
 
 // Modal Form Operations
+// Handler multi-select Media Post pada Content Planner
+window.toggleMediaPostOption = function(mediaId) {
+    const input = document.getElementById('media_post');
+    if (!input) return;
+    let list = input.value ? input.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const idx = list.indexOf(mediaId);
+    if (idx > -1) {
+        if (list.length > 1) {
+            list.splice(idx, 1);
+        } else {
+            if (typeof showToast === 'function') showToast('Pilih minimal 1 media post', 'info');
+            return;
+        }
+    } else {
+        list.push(mediaId);
+    }
+    input.value = list.join(', ');
+    updateMediaPostUI(list);
+};
+
+window.setAllMediaOptions = function(mode) {
+    const input = document.getElementById('media_post');
+    if (!input) return;
+    let list = [];
+    if (mode === 'all') {
+        list = ['Instagram', 'TikTok', 'YouTube', 'Website', 'Facebook', 'Twitter / X', 'WhatsApp Channel'];
+    } else if (mode === 'popular') {
+        list = ['Instagram', 'TikTok', 'YouTube'];
+    } else {
+        list = ['Instagram'];
+    }
+    input.value = list.join(', ');
+    updateMediaPostUI(list);
+};
+
+function updateMediaPostUI(list) {
+    document.querySelectorAll('#media-post-pill-group .media-post-pill').forEach(btn => {
+        const id = btn.getAttribute('data-media-id');
+        const isSel = list.includes(id);
+        const check = btn.querySelector('.pill-check');
+        const checkbox = btn.querySelector('.pill-checkbox');
+        if (checkbox) checkbox.checked = isSel;
+        if (isSel) {
+            btn.className = 'media-post-pill flex items-center justify-between px-3 py-2 rounded-xl border text-xs font-bold transition-all select-none cursor-pointer bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500 shadow-xs';
+            if (check) check.classList.remove('hidden');
+        } else {
+            btn.className = 'media-post-pill flex items-center justify-between px-3 py-2 rounded-xl border text-xs font-bold transition-all select-none cursor-pointer bg-white dark:bg-slate-750 border-slate-205 dark:border-slate-700 text-slate-655 dark:text-slate-300 hover:border-slate-300';
+            if (check) check.classList.add('hidden');
+        }
+    });
+
+    const summaryEl = document.getElementById('media-post-summary');
+    if (summaryEl) {
+        summaryEl.innerHTML = `<span class="inline-flex items-center gap-1 font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-0.5 rounded-full text-[11px]"><i class="fa-solid fa-circle-check"></i> ${list.length} Media Dipilih: ${list.join(', ')}</span>`;
+    }
+}
+
+// Handler otomatis progres Content Planner berdasarkan status
+window.handleContentStatusChange = function(status) {
+    const progresInput = document.getElementById('progres');
+    if (!progresInput) return;
+    if (status === 'Posted') {
+        progresInput.value = 100;
+    } else if (status === 'Done') {
+        progresInput.value = 90;
+    }
+};
+
 // Helper to generate input fields HTML for each feature type
 function getModalFieldsHTML(type, item) {
     if (type === 'content') {
+        let initialProgres = item?.progres !== undefined ? Number(item.progres) : 0;
+        if (item?.status === 'Posted') {
+            initialProgres = 100;
+        } else if (item?.status === 'Done' && (!initialProgres || initialProgres === 0)) {
+            initialProgres = 90;
+        }
+
+        const currentJenis = item?.jenis_konten || item?.postType || item?.jenis || 'Carousel';
+        const rawMedia = item?.media_post || item?.media || 'Instagram';
+        const selectedMedia = rawMedia.split(',').map(s => s.trim()).filter(Boolean);
+        const currentJam = item?.jam_posting || '09:00';
+        const currentPic = item?.assignTo || item?.['assign To'] || item?.assignedTo || item?.pic || '';
+
+        const mediaOptions = [
+            { id: 'Instagram', label: 'Instagram', icon: 'fa-brands fa-instagram text-pink-500' },
+            { id: 'TikTok', label: 'TikTok', icon: 'fa-brands fa-tiktok text-slate-800 dark:text-white' },
+            { id: 'YouTube', label: 'YouTube', icon: 'fa-brands fa-youtube text-red-500' },
+            { id: 'Website', label: 'Website BPS', icon: 'fa-solid fa-globe text-blue-500' },
+            { id: 'Facebook', label: 'Facebook', icon: 'fa-brands fa-facebook text-blue-600' },
+            { id: 'Twitter / X', label: 'X / Twitter', icon: 'fa-brands fa-x-twitter text-slate-800 dark:text-white' },
+            { id: 'WhatsApp Channel', label: 'WhatsApp', icon: 'fa-brands fa-whatsapp text-emerald-500' }
+        ];
+
+        // Daftar PIC yang unik dan valid
+        const memberList = [];
+        const seenNames = new Set();
+        (db.team && db.team.length > 0 ? db.team : db.users).forEach(m => {
+            if (m && m.nama && !seenNames.has(m.nama)) {
+                seenNames.add(m.nama);
+                memberList.push(m.nama);
+            }
+        });
+        if (currentPic && !seenNames.has(currentPic)) {
+            memberList.push(currentPic);
+        }
+
         return `
             <div class="space-y-4 text-slate-700 dark:text-slate-300">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Judul Konten <span class="text-rose-500">*</span></label>
-                    <input type="text" id="judul" value="${item?.judul || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-medium text-slate-800 dark:text-white" placeholder="Contoh: Rilis Data Kemiskinan Kalbar" required>
+                    <input type="text" id="judul" value="${item?.judul || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-medium text-slate-800 dark:text-white" placeholder="Contoh: Rilis Data Inflasi Kalbar" required>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Deskripsi Konsep <span class="text-rose-500">*</span></label>
-                    <textarea id="konsep" rows="2.5" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="Deskripsikan ide visual..." required>${item?.konsep || ''}</textarea>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jenis Konten (Video/Carousel) <span class="text-rose-500">*</span></label>
+                    <select id="jenis_konten" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
+                        <option ${currentJenis === 'Video' ? 'selected' : ''} value="Video">Video</option>
+                        <option ${currentJenis === 'Carousel' ? 'selected' : ''} value="Carousel">Carousel</option>
+                        <option ${currentJenis === 'Reels' ? 'selected' : ''} value="Reels">Reels</option>
+                        <option ${currentJenis === 'Single Image' ? 'selected' : ''} value="Single Image">Single Image</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Media Post <span class="text-rose-500">*</span> 
+                            <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold ml-1">(Bisa pilih lebih dari 1 media)</span>
+                        </label>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="setAllMediaOptions('all')" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 underline">Pilih Semua</button>
+                            <span class="text-slate-300">|</span>
+                            <button type="button" onclick="setAllMediaOptions('popular')" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 underline">IG+TikTok+YT</button>
+                            <span class="text-slate-300">|</span>
+                            <button type="button" onclick="setAllMediaOptions('ig')" class="text-[10px] font-bold text-slate-500 hover:text-slate-700 underline">Hanya IG</button>
+                        </div>
+                    </div>
+                    <div id="media-post-pill-group" class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                        ${mediaOptions.map(opt => {
+                            const isChecked = selectedMedia.includes(opt.id) || (selectedMedia.length === 0 && opt.id === 'Instagram');
+                            return `
+                                <button type="button" 
+                                        onclick="toggleMediaPostOption('${opt.id}')"
+                                        data-media-id="${opt.id}"
+                                        class="media-post-pill flex items-center justify-between px-3 py-2 rounded-xl border text-xs font-bold transition-all select-none cursor-pointer ${
+                                            isChecked
+                                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500 shadow-xs'
+                                            : 'bg-white dark:bg-slate-750 border-slate-205 dark:border-slate-700 text-slate-655 dark:text-slate-300 hover:border-slate-300'
+                                        }">
+                                    <span class="inline-flex items-center gap-1.5 truncate">
+                                        <input type="checkbox" class="pill-checkbox rounded text-indigo-600 pointer-events-none" ${isChecked ? 'checked' : ''} tabindex="-1">
+                                        <i class="${opt.icon}"></i>
+                                        <span class="truncate">${opt.label}</span>
+                                    </span>
+                                    <i class="fa-solid fa-circle-check pill-check text-indigo-600 dark:text-indigo-400 text-xs shrink-0 ${isChecked ? '' : 'hidden'}"></i>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                    <div id="media-post-summary" class="mt-2">
+                        <span class="inline-flex items-center gap-1 font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-0.5 rounded-full text-[11px]">
+                            <i class="fa-solid fa-circle-check"></i> ${selectedMedia.length > 0 ? selectedMedia.length : 1} Media Dipilih: ${selectedMedia.length > 0 ? selectedMedia.join(', ') : 'Instagram'}
+                        </span>
+                    </div>
+                    <input type="hidden" id="media_post" value="${selectedMedia.length > 0 ? selectedMedia.join(', ') : 'Instagram'}" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">PIC / Assign To (Kolom I) <span class="text-rose-500">*</span></label>
+                    <div class="relative">
+                        <input type="text" id="assignedTo" list="pic-options-planner" value="${currentPic}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold text-slate-800 dark:text-white" placeholder="Ketik atau pilih nama PIC..." required autocomplete="off">
+                        <datalist id="pic-options-planner">
+                            ${memberList.map(name => `<option value="${name}">${name}</option>`).join('')}
+                        </datalist>
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jenis</label>
-                        <select id="jenis" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option ${item?.jenis === 'Soft Selling' ? 'selected' : ''}>Soft Selling</option>
-                            <option ${item?.jenis === 'Hard Selling' ? 'selected' : ''}>Hard Selling</option>
-                            <option ${item?.jenis === 'Trend' ? 'selected' : ''}>Trend</option>
-                            <option ${item?.jenis === 'Informasi' ? 'selected' : ''}>Informasi</option>
-                        </select>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Posting <span class="text-rose-500">*</span></label>
+                        <input type="date" id="jadwal" value="${formatDateInput(item?.jadwal || item?.tanggal_posting)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs text-slate-800 dark:text-white font-semibold" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Post Type</label>
-                        <select id="postType" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option ${item?.postType === 'Carousel' ? 'selected' : ''}>Carousel</option>
-                            <option ${item?.postType === 'Reels' ? 'selected' : ''}>Reels</option>
-                            <option ${item?.postType === 'Single Image' ? 'selected' : ''}>Single Image</option>
-                            <option ${item?.postType === 'Video' ? 'selected' : ''}>Video</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Progres (%)</label>
-                        <input type="number" id="progres" value="${item?.progres || 0}" min="0" max="100" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jadwal Post <span class="text-rose-500">*</span></label>
-                        <input type="date" id="jadwal" value="${formatDateInput(item?.jadwal)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs text-slate-800 dark:text-white" required>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jam Posting <span class="text-rose-500">*</span></label>
+                        <input type="time" id="jam_posting" value="${currentJam}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs text-slate-800 dark:text-white font-semibold" required>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status</label>
-                        <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
+                        <select id="status" onchange="handleContentStatusChange(this.value)" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
                             <option ${item?.status === 'Draft' ? 'selected' : ''}>Draft</option>
                             <option ${item?.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
                             <option ${item?.status === 'Done' ? 'selected' : ''}>Done</option>
@@ -758,12 +902,17 @@ function getModalFieldsHTML(type, item) {
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Ditugaskan ke (PIC)</label>
-                        <select id="assignedTo" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option value="">Pilih Anggota...</option>
-                            ${db.team.map(m => `<option ${item?.assignedTo === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
-                        </select>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Progres (%)</label>
+                        <input type="number" id="progres" value="${initialProgres}" min="0" max="100" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold">
                     </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan Desain / Cloud Storage (Google Drive)</label>
+                    <input type="url" id="tautan_cloud" value="${item?.tautan_cloud || item?.link_cloud || item?.cloud_storage || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-mono text-indigo-600 dark:text-indigo-400" placeholder="https://drive.google.com/drive/folders/...">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Deskripsi Konsep / Catatan</label>
+                    <textarea id="konsep" rows="2" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="Deskripsikan ide visual/brief (opsional)...">${item?.konsep || ''}</textarea>
                 </div>
             </div>
         `;
@@ -827,13 +976,33 @@ function getModalFieldsHTML(type, item) {
             </div>
         `;
     } else if (type === 'rekap_rutin') {
+        const currentRubrik = item?.rubrikasi || 'Publikasi & Medsos';
+        const rubrikOptions = [
+            'Publikasi & Medsos',
+            'Liputan & Dokumentasi',
+            'Protokoler Pimpinan',
+            'Pelayanan Informasi Publik',
+            'Rilis Data Statistik (BRS)',
+            'Media Monitoring',
+            'Desain Grafis / Infografis',
+            'Lainnya'
+        ];
+        const memberList = [];
+        const seen = new Set();
+        (db.team && db.team.length > 0 ? db.team : db.users).forEach(m => {
+            if (m.nama && !seen.has(m.nama)) {
+                seen.add(m.nama);
+                memberList.push(m.nama);
+            }
+        });
+
         return `
-            <div class="space-y-4 text-slate-700 dark:text-slate-350">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Kegiatan <span class="text-rose-500">*</span></label>
-                    <input type="date" id="tanggal" value="${formatDateInput(item?.tanggal)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
-                </div>
+            <div class="space-y-4 text-slate-700 dark:text-slate-300">
                 <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Kegiatan <span class="text-rose-500">*</span></label>
+                        <input type="date" id="tanggal" value="${formatDateInput(item?.tanggal)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
+                    </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Hari</label>
                         <select id="hari" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
@@ -841,44 +1010,87 @@ function getModalFieldsHTML(type, item) {
                             ${['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map(h => `<option ${item?.hari === h ? 'selected' : ''} value="${h}">${h}</option>`).join('')}
                         </select>
                     </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Rubrikasi</label>
-                        <select id="rubrikasi" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option value="">Pilih Rubrik...</option>
-                            ${db.masterData.filter(m => m.kategori === 'Bidang').length > 0 ? db.masterData.filter(m => m.kategori === 'Rubrikasi').map(m => `<option ${item?.rubrikasi === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('') : '<option value="Rilis Berita Utama">Rilis Berita Utama</option>'}
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Rubrikasi Kehumasan <span class="text-rose-500">*</span></label>
+                        <select id="rubrikasi" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
+                            ${rubrikOptions.map(r => `<option ${currentRubrik === r ? 'selected' : ''} value="${r}">${r}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Sifat Kegiatan</label>
+                        <select id="sifat_kegiatan" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
+                            <option value="Rutin" ${item?.sifat_kegiatan === 'Rutin' || !item ? 'selected' : ''}>Rutin</option>
+                            <option value="Ad Hoc" ${item?.sifat_kegiatan === 'Ad Hoc' ? 'selected' : ''}>Ad Hoc</option>
                         </select>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Kegiatan Kehumasan <span class="text-rose-500">*</span></label>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama / Judul Kegiatan <span class="text-rose-500">*</span></label>
                     <input type="text" id="kegiatan" value="${item?.kegiatan || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-medium" placeholder="Contoh: Publikasi Fliers Inflasi Bulanan" required>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Petugas Ditugaskan</label>
-                        <select id="petugas" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option value="">Pilih Anggota...</option>
-                            ${db.team.map(m => `<option ${item?.petugas === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
-                        </select>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Petugas PIC</label>
+                        <input type="text" id="petugas" list="pic-list-rutin" value="${item?.petugas || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold" placeholder="Ketik atau pilih PIC...">
+                        <datalist id="pic-list-rutin">
+                            ${memberList.map(n => `<option value="${n}"></option>`).join('')}
+                        </datalist>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status Pekerjaan</label>
-                        <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option ${item?.status === 'Ditugaskan' ? 'selected' : ''}>Ditugaskan</option>
-                            <option ${item?.status === 'Selesai' ? 'selected' : ''}>Selesai</option>
+                        <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
+                            <option ${item?.status === 'Draft' ? 'selected' : ''} value="Draft">Draft</option>
+                            <option ${item?.status === 'Sedang Dikerjakan' ? 'selected' : ''} value="Sedang Dikerjakan">Sedang Dikerjakan</option>
+                            <option ${item?.status === 'Ditugaskan' ? 'selected' : ''} value="Ditugaskan">Ditugaskan</option>
+                            <option ${item?.status === 'Selesai' ? 'selected' : ''} value="Selesai">Selesai</option>
                         </select>
                     </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan Dokumentasi (Drive/Foto)</label>
+                        <input type="url" id="tautan_dokumentasi" value="${item?.tautan_dokumentasi || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-mono" placeholder="https://drive.google.com/...">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan Konten / Publikasi</label>
+                        <input type="url" id="tautan_konten" value="${item?.tautan_konten || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-mono" placeholder="https://instagram.com/p/...">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Keterangan / Catatan</label>
+                    <textarea id="keterangan" rows="2" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="Catatan tambahan...">${item?.keterangan || ''}</textarea>
+                </div>
+                <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold">
+                        <input type="checkbox" id="hubungkan_content_planner" ${item?.hubungkan_content_planner ? 'checked' : ''} class="rounded text-indigo-600">
+                        <span>Hubungkan ke Content Planner</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold">
+                        <input type="checkbox" id="hubungkan_kalender" ${item?.hubungkan_kalender !== false ? 'checked' : ''} class="rounded text-indigo-600">
+                        <span>Tampilkan di Kalender Kegiatan</span>
+                    </label>
                 </div>
             </div>
         `;
     } else if (type === 'ad_hoc') {
+        const memberList = [];
+        const seen = new Set();
+        (db.team && db.team.length > 0 ? db.team : db.users).forEach(m => {
+            if (m.nama && !seen.has(m.nama)) {
+                seen.add(m.nama);
+                memberList.push(m.nama);
+            }
+        });
+
         return `
             <div class="space-y-4 text-slate-700 dark:text-slate-350">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Penugasan <span class="text-rose-500">*</span></label>
-                    <input type="date" id="tanggal" value="${formatDateInput(item?.tanggal)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
-                </div>
                 <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Penugasan <span class="text-rose-500">*</span></label>
+                        <input type="date" id="tanggal" value="${formatDateInput(item?.tanggal)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
+                    </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Hari</label>
                         <select id="hari" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
@@ -886,29 +1098,52 @@ function getModalFieldsHTML(type, item) {
                             ${['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map(h => `<option ${item?.hari === h ? 'selected' : ''} value="${h}">${h}</option>`).join('')}
                         </select>
                     </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Agenda / Kegiatan Ad Hoc <span class="text-rose-500">*</span></label>
+                    <input type="text" id="kegiatan" value="${item?.kegiatan || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-medium" placeholder="Contoh: Rapat Koordinasi Wilayah Humas BPS" required>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Petugas PIC <span class="text-rose-500">*</span></label>
+                        <input type="text" id="petugas" list="pic-list-adhoc" value="${item?.petugas || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold" placeholder="Ketik atau pilih PIC..." required>
+                        <datalist id="pic-list-adhoc">
+                            ${memberList.map(n => `<option value="${n}"></option>`).join('')}
+                        </datalist>
+                    </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jumlah Petugas</label>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jml Bertugas</label>
                         <input type="number" id="jumlah_bertugas" value="${item?.jumlah_bertugas || 1}" min="1" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Agenda / Kegiatan <span class="text-rose-500">*</span></label>
-                    <input type="text" id="kegiatan" value="${item?.kegiatan || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-medium" placeholder="Contoh: Rapat Koordinasi Wilayah Humas BPS" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Petugas (Pisahkan dengan koma untuk multi-person) <span class="text-rose-500">*</span></label>
-                    <input type="text" id="petugas" value="${item?.petugas || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold" placeholder="Contoh: Rian, Siska, Dian" required>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status Progress</label>
+                        <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
+                            <option ${item?.status === 'Draft' ? 'selected' : ''} value="Draft">Draft</option>
+                            <option ${item?.status === 'Sedang Dikerjakan' ? 'selected' : ''} value="Sedang Dikerjakan">Sedang Dikerjakan</option>
+                            <option ${item?.status === 'Ditugaskan' ? 'selected' : ''} value="Ditugaskan">Ditugaskan</option>
+                            <option ${item?.status === 'Selesai' ? 'selected' : ''} value="Selesai">Selesai</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan Dokumentasi (Drive)</label>
+                        <input type="url" id="tautan_dokumentasi" value="${item?.tautan_dokumentasi || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-mono" placeholder="https://drive.google.com/...">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Keterangan / Instruksi Khusus</label>
-                    <textarea id="keterangan" rows="2.5" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">${item?.keterangan || ''}</textarea>
+                    <textarea id="keterangan" rows="2" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">${item?.keterangan || ''}</textarea>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status Progress</label>
-                    <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                        <option ${item?.status === 'Ditugaskan' ? 'selected' : ''}>Ditugaskan</option>
-                        <option ${item?.status === 'Selesai' ? 'selected' : ''}>Selesai</option>
-                    </select>
+                <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold">
+                        <input type="checkbox" id="hubungkan_content_planner" ${item?.hubungkan_content_planner ? 'checked' : ''} class="rounded text-indigo-600">
+                        <span>Hubungkan ke Content Planner</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold">
+                        <input type="checkbox" id="hubungkan_kalender" ${item?.hubungkan_kalender !== false ? 'checked' : ''} class="rounded text-indigo-600">
+                        <span>Tampilkan di Kalender Kegiatan</span>
+                    </label>
                 </div>
             </div>
         `;
@@ -991,27 +1226,35 @@ function getModalFieldsHTML(type, item) {
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Petugas Ditunjuk</label>
-                        <select id="petugas" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option value="">Pilih Anggota...</option>
-                            ${db.team.map(m => `<option ${item?.petugas === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
-                        </select>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Petugas Ditunjuk (PIC) <span class="text-rose-500">*</span></label>
+                        <input type="text" id="petugas" list="pic-list-proto" value="${item?.petugas || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold" placeholder="Ketik atau pilih nama PIC..." required autocomplete="off">
+                        <datalist id="pic-list-proto">
+                            ${(window.getCentralizedUserList ? window.getCentralizedUserList() : db.team.map(m=>m.nama)).map(n => `<option value="${n}"></option>`).join('')}
+                        </datalist>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status Kegiatan</label>
-                        <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option ${item?.status === 'Ditugaskan' ? 'selected' : ''}>Ditugaskan</option>
-                            <option ${item?.status === 'Selesai' ? 'selected' : ''}>Selesai</option>
+                        <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
+                            <option ${item?.status === 'Ditugaskan' || !item ? 'selected' : ''} value="Ditugaskan">Ditugaskan</option>
+                            <option ${item?.status === 'Sedang Dikerjakan' ? 'selected' : ''} value="Sedang Dikerjakan">Sedang Dikerjakan</option>
+                            <option ${item?.status === 'Selesai' ? 'selected' : ''} value="Selesai">Selesai</option>
                         </select>
                     </div>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Keterangan Tambahan</label>
-                    <textarea id="keterangan" rows="2" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">${item?.keterangan || ''}</textarea>
+                    <textarea id="keterangan" rows="2" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="Detail ruangan, instruksi, atau link panduan...">${item?.keterangan || ''}</textarea>
+                </div>
+                <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <input type="checkbox" id="hubungkan_kalender" ${item?.hubungkan_kalender !== false ? 'checked' : ''} class="rounded text-indigo-600">
+                        <span>Tampilkan di Kalender Kegiatan Terintegrasi</span>
+                    </label>
                 </div>
             </div>
         `;
     } else if (type === 'brs_rilis') {
+        const uList = window.getCentralizedUserList ? window.getCentralizedUserList() : db.team.map(m=>m.nama);
         return `
             <div class="space-y-4 text-slate-700 dark:text-slate-350">
                 <div>
@@ -1025,64 +1268,115 @@ function getModalFieldsHTML(type, item) {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">PIC Poster & Infografis</label>
-                        <select id="pic_poster_info" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option value="">Pilih Anggota...</option>
-                            ${db.team.map(m => `<option ${item?.pic_poster_info === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
-                        </select>
+                        <input type="text" id="pic_poster_info" list="pic-list-brs" value="${item?.pic_poster_info || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold" placeholder="Ketik/pilih PIC...">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">PIC Dokumentasi Dalam Ruang</label>
-                        <select id="pic_doc_ruang" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option value="">Pilih Anggota...</option>
-                            ${db.team.map(m => `<option ${item?.pic_doc_ruang === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
-                        </select>
+                        <input type="text" id="pic_doc_ruang" list="pic-list-brs" value="${item?.pic_doc_ruang || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold" placeholder="Ketik/pilih PIC...">
                     </div>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">PIC Dokumentasi YouTube & Zoom</label>
-                    <select id="pic_doc_yt_zoom" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                        <option value="">Pilih Anggota...</option>
-                        ${db.team.map(m => `<option ${item?.pic_doc_yt_zoom === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
-                    </select>
+                    <input type="text" id="pic_doc_yt_zoom" list="pic-list-brs" value="${item?.pic_doc_yt_zoom || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold" placeholder="Ketik/pilih PIC...">
+                    <datalist id="pic-list-brs">
+                        ${uList.map(n => `<option value="${n}"></option>`).join('')}
+                    </datalist>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Highlight</label>
-                    <input type="text" id="highlight" value="${item?.highlight || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Highlight / Link Dokumen Ringkasan</label>
+                    <input type="text" id="highlight" value="${item?.highlight || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-mono text-indigo-600 dark:text-indigo-400" placeholder="https://drive.google.com/...">
+                </div>
+                <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <input type="checkbox" id="hubungkan_content_planner" ${item?.hubungkan_content_planner ? 'checked' : ''} class="rounded text-indigo-600">
+                        <span>Hubungkan ke Content Planner</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <input type="checkbox" id="hubungkan_kalender" ${item?.hubungkan_kalender !== false ? 'checked' : ''} class="rounded text-indigo-600">
+                        <span>Tampilkan di Kalender</span>
+                    </label>
                 </div>
             </div>
         `;
     } else if (type === 'hari_besar') {
+        const currentKategori = item?.kategori || 'Medsos Instansi';
+        const currentMedia = item?.jenis_media || item?.media || 'Instagram';
+        const memberList = [];
+        const seen = new Set();
+        (db.team && db.team.length > 0 ? db.team : db.users).forEach(m => {
+            if (m.nama && !seen.has(m.nama)) {
+                seen.add(m.nama);
+                memberList.push(m.nama);
+            }
+        });
+
         return `
-            <div class="space-y-4 text-slate-700 dark:text-slate-350">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Peringatan Hari Besar <span class="text-rose-500">*</span></label>
-                    <input type="text" id="hari_besar" value="${item?.hari_besar || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-medium" placeholder="Contoh: Hari Kemerdekaan RI" required>
+            <div class="space-y-4 text-slate-700 dark:text-slate-300">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kategori Medsos <span class="text-rose-500">*</span></label>
+                        <select id="kategori" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
+                            <option ${currentKategori === 'Medsos Instansi' ? 'selected' : ''} value="Medsos Instansi">Medsos Instansi</option>
+                            <option ${currentKategori === 'Medsos Pimpinan' ? 'selected' : ''} value="Medsos Pimpinan">Medsos Pimpinan</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jenis Media <span class="text-rose-500">*</span></label>
+                        <select id="jenis_media" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
+                            <option ${currentMedia === 'Instagram' ? 'selected' : ''} value="Instagram">Instagram</option>
+                            <option ${currentMedia === 'TikTok' ? 'selected' : ''} value="TikTok">TikTok</option>
+                            <option ${currentMedia === 'YouTube' ? 'selected' : ''} value="YouTube">YouTube</option>
+                            <option ${currentMedia === 'Website' ? 'selected' : ''} value="Website">Website</option>
+                            <option ${currentMedia === 'Facebook' ? 'selected' : ''} value="Facebook">Facebook</option>
+                            <option ${currentMedia === 'Twitter / X' ? 'selected' : ''} value="Twitter / X">Twitter / X</option>
+                        </select>
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Peringatan <span class="text-rose-500">*</span></label>
-                    <input type="date" id="tanggal" value="${formatDateInput(item?.tanggal)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Peringatan Hari Besar <span class="text-rose-500">*</span></label>
+                    <input type="text" id="hari_besar" value="${item?.hari_besar || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold text-slate-800 dark:text-white" placeholder="Contoh: Hari Kemerdekaan Republik Indonesia" required>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Hari / Tanggal Peringatan <span class="text-rose-500">*</span></label>
+                        <input type="date" id="tanggal" value="${formatDateInput(item?.tanggal)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold" required>
+                    </div>
+                    <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Pembuat Konten (PIC)</label>
-                        <select id="pembuat_konten" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option value="">Pilih Anggota...</option>
-                            ${db.team.map(m => `<option ${item?.pembuat_konten === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
+                        <input type="text" id="pembuat_konten" list="pic-list-haribesar" value="${item?.pembuat_konten || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold text-slate-800 dark:text-white" placeholder="Pilih atau ketik PIC...">
+                        <datalist id="pic-list-haribesar">
+                            ${memberList.map(m => `<option value="${m}"></option>`).join('')}
+                        </datalist>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status Pekerjaan</label>
+                        <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
+                            <option ${item?.status === 'Draft' ? 'selected' : ''} value="Draft">Draft</option>
+                            <option ${item?.status === 'On Progress' || item?.status === 'Sedang Dikerjakan' ? 'selected' : ''} value="Sedang Dikerjakan">Sedang Dikerjakan</option>
+                            <option ${item?.status === 'Revisi' ? 'selected' : ''} value="Revisi">Revisi</option>
+                            <option ${item?.status === 'Selesai' ? 'selected' : ''} value="Selesai">Selesai</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status Pekerjaan</label>
-                        <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
-                            <option ${item?.status === 'Draft' ? 'selected' : ''}>Draft</option>
-                            <option ${item?.status === 'On Progress' ? 'selected' : ''}>On Progress</option>
-                            <option ${item?.status === 'Revisi' ? 'selected' : ''}>Revisi</option>
-                            <option ${item?.status === 'Selesai' ? 'selected' : ''}>Selesai</option>
-                        </select>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan Konten Tayang (URL)</label>
+                        <input type="url" id="tautan_konten" value="${item?.tautan_konten || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-mono" placeholder="https://instagram.com/p/...">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan Data Pendukung / Aset (URL)</label>
-                    <input type="text" id="data_pendukung" value="${item?.data_pendukung || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="https://example.com/asset.zip">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan Cloud Storage (Google Drive / Aset)</label>
+                    <input type="url" id="data_pendukung" value="${item?.data_pendukung || item?.link_cloud || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-mono text-indigo-600 dark:text-indigo-400" placeholder="https://drive.google.com/drive/folders/...">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Keterangan / Pesan Ucapan</label>
+                    <textarea id="keterangan" rows="2" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="Konsep ucapan atau catatan perayaan...">${item?.keterangan || ''}</textarea>
+                </div>
+                <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <input type="checkbox" id="hubungkan_content_planner" ${item?.hubungkan_content_planner ? 'checked' : ''} class="rounded text-indigo-600">
+                        <span>Hubungkan ke Content Planner (Otomatis jadwalkan tanpa duplikasi)</span>
+                    </label>
                 </div>
             </div>
         `;
@@ -1144,6 +1438,67 @@ function getModalFieldsHTML(type, item) {
                         <option ${item?.role === 'koordinator' ? 'selected' : ''} value="koordinator">Koordinator Humas</option>
                         <option ${item?.role === 'tim' ? 'selected' : ''} value="tim">Tim Humas</option>
                         <option ${item?.role === 'pemohon' ? 'selected' : ''} value="pemohon">Pegawai/Pemohon</option>
+                        <option ${item?.role === 'kabkot' ? 'selected' : ''} value="kabkot">BPS Kab/Kota</option>
+                    </select>
+                </div>
+            </div>
+        `;
+    } else if (type === 'repository') {
+        const uList = window.getCentralizedUserList ? window.getCentralizedUserList() : db.team.map(m=>m.nama);
+        const categories = [
+            'Pedoman',
+            'Template',
+            'Surat Masuk Humas',
+            'Surat Keluar Humas',
+            'Daftar Kontak Media/Wartawan',
+            'Daftar Kontak Humas Instansi',
+            'Daftar Kontak Protokoler Instansi',
+            'Dokumen lainnya'
+        ];
+        return `
+            <div class="space-y-4 text-slate-700 dark:text-slate-300">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Dokumen / Berkas <span class="text-rose-500">*</span></label>
+                    <input type="text" id="repo_nama" value="${item?.nama_dokumen || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold text-slate-800 dark:text-white" placeholder="Contoh: Pedoman Standar Kehumasan BPS 2026" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kategori Dokumen <span class="text-rose-500">*</span></label>
+                        <select id="repo_kategori" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
+                            ${categories.map(c => `<option ${item?.kategori === c ? 'selected' : ''} value="${c}">${c}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Versi / Edisi</label>
+                        <input type="text" id="repo_versi" value="${item?.versi || 'v1.0'}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold" placeholder="v1.0 / 2026 Q1">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Pembaruan / Terbit <span class="text-rose-500">*</span></label>
+                        <input type="date" id="repo_tanggal" value="${formatDateInput(item?.tanggal || new Date().toISOString().split('T')[0])}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Pemilik / PIC Dokumen</label>
+                        <input type="text" id="repo_pic" list="pic-list-repo" value="${item?.pic || 'Azhari (Koordinator)'}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold" placeholder="Ketik atau pilih PIC...">
+                        <datalist id="pic-list-repo">
+                            ${uList.map(n => `<option value="${n}"></option>`).join('')}
+                        </datalist>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan Berkas Cloud Storage (Google Drive) <span class="text-rose-500">*</span></label>
+                    <input type="url" id="repo_link" value="${item?.link_cloud || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-mono text-indigo-600 dark:text-indigo-400" placeholder="https://drive.google.com/drive/folders/..." required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Deskripsi Ringkas Dokumen</label>
+                    <textarea id="repo_deskripsi" rows="2.5" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="Uraian isi pedoman, aturan pakai, atau catatan isi berkas...">${item?.deskripsi || ''}</textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status Dokumen</label>
+                    <select id="repo_status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
+                        <option ${item?.status === 'Aktif' || !item ? 'selected' : ''} value="Aktif">Aktif / Berlaku</option>
+                        <option ${item?.status === 'Diarsipkan' ? 'selected' : ''} value="Diarsipkan">Diarsipkan / Versi Lama</option>
                     </select>
                 </div>
             </div>
@@ -1180,7 +1535,9 @@ function openModal(type, item = null) {
             'brs_rilis': 'Edit Kegiatan BRS',
             'hari_besar': 'Edit Kalender Ucapan',
             'team': 'Edit Anggota Tim',
-            'user_manager': 'Ubah Akun Pengguna'
+            'user_manager': 'Ubah Akun Pengguna',
+            'repository': 'Edit Dokumen Pedoman / Template',
+            'tickets': 'Edit Permintaan Layanan'
         };
         title = titleMap[type] || 'Ubah Data';
         const fields = getModalFieldsHTML(type, item);
@@ -1209,7 +1566,9 @@ function openModal(type, item = null) {
             'brs_rilis': 'Kegiatan BRS',
             'hari_besar': 'Kalender Ucapan',
             'team': 'Anggota Tim',
-            'user_manager': 'Akun Pengguna'
+            'user_manager': 'Akun Pengguna',
+            'repository': 'Dokumen Pedoman / Template',
+            'tickets': 'Permintaan Layanan'
         };
         const label = featureLabels[type] || 'Data Baru';
         title = `Tambah ${label}`;
@@ -1339,7 +1698,7 @@ window.renderExcelForm = function(type) {
 
 window.downloadExcelTemplate = function(type) {
     const schemas = {
-        'content': ["judul", "konsep", "jenis", "postType", "progres", "jadwal", "status", "assignedTo"],
+        'content': ["judul", "jenis_konten", "media_post", "assignTo", "tanggal_posting", "jam_posting", "konsep", "status", "progres"],
         'rekap_rutin': ["tanggal", "hari", "rubrikasi", "kegiatan", "petugas", "status"],
         'ad_hoc': ["tanggal", "hari", "kegiatan", "jumlah_bertugas", "petugas", "keterangan", "status"],
         'protokoler': ["tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"],
@@ -1352,7 +1711,7 @@ window.downloadExcelTemplate = function(type) {
     };
 
     const examples = {
-        'content': ["Infografis Inflasi Juni 2026", "Menampilkan data inflasi Kalbar bulanan", "Infografis", "Feeds", 50, "2026-06-25", "Draft", "Azhari"],
+        'content': ["Infografis Pertumbuhan Ekonomi Kalbar", "Carousel", "Instagram", "Azhari", "2026-06-25", "09:00", "5 slide carousel data ekonomi", "Draft", 0],
         'rekap_rutin': ["2026-06-24", "Rabu", "Humas", "Rapat Koordinasi Mingguan", "Rian", "Selesai"],
         'ad_hoc': ["2026-06-24", "Rabu", "Peliputan Kunjungan Kerja Gubernur", 2, "Dian, Siska", "Mendokumentasikan acara di pendopo", "Selesai"],
         'protokoler': ["2026-06-24", "Juni", "Audiensi BPS dengan Kepala Dinas Kominfo", "Kantor Dinas Kominfo", "09.00", "Eksternal", "Formal", "Dian", "Membahas integrasi portal satu data", "Ditugaskan"],
@@ -1368,13 +1727,14 @@ window.downloadExcelTemplate = function(type) {
         'content': [
             ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
             ["judul", "Wajib. Judul rencana konten.", "Bebas"],
+            ["jenis_konten", "Wajib. Jenis format konten.", "Video, Carousel, Reels, Single Image"],
+            ["media_post", "Wajib. Platform media penayangan.", "Instagram, TikTok, YouTube, Website, Facebook, Twitter / X, WhatsApp Channel"],
+            ["assignTo", "Wajib. Nama petugas penanggung jawab (PIC) - Kolom I.", "Bebas (Nama anggota tim)"],
+            ["tanggal_posting", "Wajib. Tanggal penayangan konten (Format: YYYY-MM-DD).", "Contoh: 2026-06-25"],
+            ["jam_posting", "Opsional. Jam penayangan konten (Format: HH:MM).", "Contoh: 09:00"],
             ["konsep", "Opsional. Konsep atau deskripsi konten.", "Bebas"],
-            ["jenis", "Opsional. Jenis media konten.", "Infografis, Video, Artikel, Rilis, Hari Besar"],
-            ["postType", "Opsional. Tipe postingan.", "Feeds, Story, Reels, IGTV, Website"],
-            ["progres", "Opsional. Angka kemajuan (0-100).", "0 s/d 100"],
-            ["jadwal", "Wajib. Tanggal tayang konten (Format: YYYY-MM-DD).", "Contoh: 2026-06-25"],
-            ["status", "Opsional. Status pengerjaan.", "Rencana, Draft, Posting, Selesai"],
-            ["assignedTo", "Opsional. Nama petugas penanggung jawab.", "Bebas (Nama anggota tim)"]
+            ["status", "Opsional. Status pengerjaan.", "Draft, In Progress, Done, Posted"],
+            ["progres", "Opsional. Angka kemajuan (0-100).", "0 s/d 100"]
         ],
         'rekap_rutin': [
             ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
@@ -1533,7 +1893,7 @@ window.handleExcelUpload = function(event, type) {
 
             let successCount = 0;
             const schemas = {
-                'content': ["judul", "konsep", "jenis", "postType", "progres", "jadwal", "status", "assignedTo"],
+                'content': ["judul", "jenis_konten", "media_post", "assignTo", "assignedTo", "tanggal_posting", "jam_posting", "konsep", "status", "progres", "postType", "jadwal"],
                 'rekap_rutin': ["tanggal", "hari", "rubrikasi", "kegiatan", "petugas", "status"],
                 'ad_hoc': ["tanggal", "hari", "kegiatan", "jumlah_bertugas", "petugas", "keterangan", "status"],
                 'protokoler': ["tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"],
@@ -1557,6 +1917,34 @@ window.handleExcelUpload = function(event, type) {
                 }
                 if ((type === 'content' || type === 'assignment') && item.progres !== "") {
                     item.progres = Number(item.progres);
+                }
+                if (type === 'content') {
+                    const pic = row.assignTo || row['assign To'] || row.assignedTo || row.pic || row.PIC || '';
+                    item.assignedTo = pic;
+                    item.assignTo = pic;
+                    item['assign To'] = pic;
+                    item.pic = pic;
+
+                    if (row.jenis_konten) item.jenis_konten = row.jenis_konten;
+                    if (row.postType && !item.jenis_konten) item.jenis_konten = row.postType;
+                    item.postType = item.jenis_konten || 'Carousel';
+
+                    const media = row.media_post || row.media || 'Instagram';
+                    item.media_post = media;
+                    item.media = media;
+
+                    if (row.tanggal_posting) item.tanggal_posting = row.tanggal_posting;
+                    if (row.jadwal && !item.tanggal_posting) item.tanggal_posting = row.jadwal;
+                    item.jadwal = item.tanggal_posting;
+                    if (row.jam_posting) item.jam_posting = row.jam_posting;
+
+                    if (item.status === 'Posted') {
+                        item.progres = 100;
+                    } else if (item.status === 'Done') {
+                        if (item.progres === "" || item.progres === undefined || isNaN(item.progres) || item.progres === 0 || item.progres < 90) {
+                            item.progres = 90;
+                        }
+                    }
                 }
 
                 // Generate ID
@@ -1596,7 +1984,7 @@ function closeModal() {
 
 // Form Validation helper
 function validateFormInput(type, data) {
-    if (type === 'content' && (!data.judul || !data.konsep || !data.jadwal)) return 'Kolom bertanda bintang (*) wajib diisi.';
+    if (type === 'content' && (!data.judul || !data.jadwal || !(data.assignTo || data.assignedTo || data['assign To']))) return 'Kolom bertanda bintang (*) wajib diisi (Judul, PIC, Tanggal Posting).';
     if (type === 'rekap_rutin' && (!data.tanggal || !data.kegiatan)) return 'Kolom bertanda bintang (*) wajib diisi.';
     if (type === 'ad_hoc' && (!data.tanggal || !data.kegiatan || !data.petugas)) return 'Kolom bertanda bintang (*) wajib diisi.';
     if (type === 'protokoler' && (!data.kegiatan || !data.tanggal || !data.lokasi || !data.jam_mulai)) return 'Kolom bertanda bintang (*) wajib diisi.';
@@ -1606,6 +1994,7 @@ function validateFormInput(type, data) {
     if (type === 'team' && (!data.nama || !data.jabatan || !data.tugas || !data.kontak)) return 'Kolom bertanda bintang (*) wajib diisi.';
     if (type === 'user_manager' && (!data.nama || !data.username)) return 'Kolom bertanda bintang (*) wajib diisi.';
     if (type === 'assignment' && (!data.tugas || !data.deskripsi || !data.tanggal_penugasan || !data.deadline || !data.assigned_to)) return 'Kolom bertanda bintang (*) wajib diisi.';
+    if (type === 'repository' && (!data.nama_dokumen || !data.link_cloud)) return 'Nama Dokumen dan Tautan Cloud Storage wajib diisi.';
     return null;
 }
 
@@ -1632,13 +2021,38 @@ async function saveData(event) {
 
     if (currentModalType === 'content') {
         item.judul = document.getElementById('judul').value;
-        item.konsep = document.getElementById('konsep').value;
-        item.jenis = document.getElementById('jenis').value;
-        item.postType = document.getElementById('postType').value;
-        item.progres = Number(document.getElementById('progres').value);
+        item.jenis_konten = document.getElementById('jenis_konten')?.value || 'Carousel';
+        item.postType = item.jenis_konten;
+        item.media_post = document.getElementById('media_post')?.value || 'Instagram';
+        item.media = item.media_post;
+
+        // Simpan PIC ke semua variasi key: assignTo (Kolom I), assignedTo, assign To, pic
+        const picVal = document.getElementById('assignedTo')?.value || document.getElementById('assignTo')?.value || '';
+        item.assignedTo = picVal;
+        item.assignTo = picVal;
+        item['assign To'] = picVal;
+        item.pic = picVal;
+
         item.jadwal = document.getElementById('jadwal').value;
-        item.status = document.getElementById('status').value;
-        item.assignedTo = document.getElementById('assignedTo').value;
+        item.tanggal_posting = item.jadwal;
+        item.jam_posting = document.getElementById('jam_posting')?.value || '09:00';
+        item.progres = Number(document.getElementById('progres')?.value || 0);
+        item.status = document.getElementById('status')?.value || 'Draft';
+        item.konsep = document.getElementById('konsep')?.value || '';
+
+        const cloud = document.getElementById('tautan_cloud')?.value || '';
+        item.tautan_cloud = cloud;
+        item.link_cloud = cloud;
+        item.link_konten = cloud;
+
+        // Aturan Progres Otomatis Content Planner:
+        if (item.status === 'Posted') {
+            item.progres = 100;
+        } else if (item.status === 'Done') {
+            if (item.progres === undefined || isNaN(item.progres) || item.progres === 0 || item.progres < 90) {
+                item.progres = 90;
+            }
+        }
     } else if (currentModalType === 'assignment') {
         item.tugas = document.getElementById('tugas').value;
         item.deskripsi = document.getElementById('deskripsi').value;
@@ -1654,8 +2068,14 @@ async function saveData(event) {
         item.hari = document.getElementById('hari').value;
         item.rubrikasi = document.getElementById('rubrikasi').value;
         item.kegiatan = document.getElementById('kegiatan').value;
+        item.sifat_kegiatan = document.getElementById('sifat_kegiatan')?.value || 'Rutin';
         item.petugas = document.getElementById('petugas').value;
         item.status = document.getElementById('status').value;
+        item.tautan_dokumentasi = document.getElementById('tautan_dokumentasi')?.value || '';
+        item.tautan_konten = document.getElementById('tautan_konten')?.value || '';
+        item.keterangan = document.getElementById('keterangan')?.value || '';
+        item.hubungkan_content_planner = document.getElementById('hubungkan_content_planner')?.checked || false;
+        item.hubungkan_kalender = document.getElementById('hubungkan_kalender')?.checked !== false;
     } else if (currentModalType === 'ad_hoc') {
         item.tanggal = document.getElementById('tanggal').value;
         item.hari = document.getElementById('hari').value;
@@ -1664,6 +2084,9 @@ async function saveData(event) {
         item.petugas = document.getElementById('petugas').value;
         item.keterangan = document.getElementById('keterangan').value;
         item.status = document.getElementById('status').value;
+        item.tautan_dokumentasi = document.getElementById('tautan_dokumentasi')?.value || '';
+        item.hubungkan_content_planner = document.getElementById('hubungkan_content_planner')?.checked || false;
+        item.hubungkan_kalender = document.getElementById('hubungkan_kalender')?.checked !== false;
     } else if (currentModalType === 'protokoler' || currentModalType === 'mc') {
         item.kegiatan = document.getElementById('kegiatan').value;
         item.tanggal = document.getElementById('tanggal').value;
@@ -1677,6 +2100,7 @@ async function saveData(event) {
         item.petugas = document.getElementById('petugas').value;
         item.status = document.getElementById('status').value;
         item.keterangan = document.getElementById('keterangan').value;
+        item.hubungkan_kalender = document.getElementById('hubungkan_kalender')?.checked !== false;
     } else if (currentModalType === 'brs_rilis') {
         item.judul = document.getElementById('judul').value;
         item.tanggal_rilis = document.getElementById('tanggal_rilis').value;
@@ -1684,12 +2108,21 @@ async function saveData(event) {
         item.pic_doc_ruang = document.getElementById('pic_doc_ruang').value;
         item.pic_doc_yt_zoom = document.getElementById('pic_doc_yt_zoom').value;
         item.highlight = document.getElementById('highlight').value;
+        item.hubungkan_content_planner = document.getElementById('hubungkan_content_planner')?.checked || false;
+        item.hubungkan_kalender = document.getElementById('hubungkan_kalender')?.checked !== false;
     } else if (currentModalType === 'hari_besar') {
         item.hari_besar = document.getElementById('hari_besar').value;
         item.tanggal = document.getElementById('tanggal').value;
+        item.kategori = document.getElementById('kategori')?.value || 'Medsos Instansi';
+        item.jenis_media = document.getElementById('jenis_media')?.value || 'Instagram';
         item.pembuat_konten = document.getElementById('pembuat_konten').value;
         item.status = document.getElementById('status').value;
-        item.data_pendukung = document.getElementById('data_pendukung').value;
+        item.tautan_konten = document.getElementById('tautan_konten')?.value || '';
+        item.data_pendukung = document.getElementById('data_pendukung')?.value || '';
+        item.link_cloud = item.data_pendukung;
+        item.keterangan = document.getElementById('keterangan')?.value || '';
+        item.hubungkan_content_planner = document.getElementById('hubungkan_content_planner')?.checked || false;
+        item.hubungkan_kalender = document.getElementById('hubungkan_kalender')?.checked !== false;
     } else if (currentModalType === 'team') {
         item.nama = document.getElementById('nama').value;
         item.jabatan = document.getElementById('jabatan').value;
@@ -1702,6 +2135,15 @@ async function saveData(event) {
         item.bidang = document.getElementById('bidang').value;
         item.role = document.getElementById('role').value;
         item.password = 'password';
+    } else if (currentModalType === 'repository') {
+        item.nama_dokumen = document.getElementById('repo_nama').value;
+        item.kategori = document.getElementById('repo_kategori').value;
+        item.versi = document.getElementById('repo_versi').value;
+        item.tanggal = document.getElementById('repo_tanggal').value;
+        item.pic = document.getElementById('repo_pic').value;
+        item.link_cloud = document.getElementById('repo_link').value;
+        item.deskripsi = document.getElementById('repo_deskripsi').value;
+        item.status = document.getElementById('repo_status').value;
     }
 
     const err = validateFormInput(currentModalType, item);
@@ -1723,10 +2165,45 @@ async function saveData(event) {
         'hari_besar': 'hari_besar',
         'team': 'team',
         'user_manager': 'users',
-        'assignment': 'assignments'
+        'assignment': 'assignments',
+        'repository': 'repository'
     };
 
     const sheetName = sheetMapping[currentModalType];
+
+    // Otomatis Hubungkan ke Content Planner jika dicentang dan belum ada (Single Source of Truth)
+    if (item.hubungkan_content_planner) {
+        const itemTitle = item.judul || item.kegiatan || item.hari_besar;
+        const existingPlanner = (db.contentPlanner || []).find(p => 
+            (p.linked_source === currentModalType && Number(p.linked_id) === Number(item.id)) ||
+            (p.judul && p.judul === itemTitle)
+        );
+        if (!existingPlanner) {
+            const newPlanner = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                judul: itemTitle,
+                jenis_konten: currentModalType === 'hari_besar' ? 'Single Image' : (item.rubrikasi?.includes('video') ? 'Video' : 'Carousel'),
+                postType: currentModalType === 'hari_besar' ? 'Single Image' : (item.rubrikasi?.includes('video') ? 'Video' : 'Carousel'),
+                media_post: item.jenis_media || item.media_post || 'Instagram',
+                media: item.jenis_media || item.media_post || 'Instagram',
+                assignTo: item.petugas || item.pembuat_konten || item.pic_poster_info || item.assignTo || '',
+                assignedTo: item.petugas || item.pembuat_konten || item.pic_poster_info || item.assignTo || '',
+                'assign To': item.petugas || item.pembuat_konten || item.pic_poster_info || item.assignTo || '',
+                pic: item.petugas || item.pembuat_konten || item.pic_poster_info || item.assignTo || '',
+                jadwal: item.tanggal || item.tanggal_rilis || item.jadwal,
+                tanggal_posting: item.tanggal || item.tanggal_rilis || item.jadwal,
+                jam_posting: item.jam_posting || '09:00',
+                status: item.status === 'Selesai' ? 'Posted' : 'Draft',
+                progres: item.status === 'Selesai' ? 100 : 10,
+                tautan_cloud: item.tautan_dokumentasi || item.data_pendukung || item.link_cloud || item.tautan_cloud || '',
+                link_cloud: item.tautan_dokumentasi || item.data_pendukung || item.link_cloud || item.tautan_cloud || '',
+                konsep: item.keterangan || `Otomatis dibuat dari modul ${currentModalType}`,
+                linked_source: currentModalType,
+                linked_id: item.id
+            };
+            sendDataToServer('add', 'content_planner', newPlanner).catch(console.error);
+        }
+    }
 
     // Notification Triggers - kirim ke pegawai yang ditugaskan
     if (action === 'add' && item.petugas) {
@@ -1804,7 +2281,8 @@ function deleteItem(type, id) {
         'monitoring': 'monitoring',
         'users': 'users',
         'masterData': 'master_data',
-        'assignment': 'assignments'
+        'assignment': 'assignments',
+        'repository': 'repository'
     };
 
     const sheetName = sheetMapping[type];
@@ -1836,31 +2314,244 @@ function deleteItem(type, id) {
 
 
 // Tickets Subsystems
-window.saveTicketRequest = async function (event) {
+window.openTicketModal = function (item = null) {
+    document.getElementById('dynamic-modal')?.remove();
+    const uList = window.getCentralizedUserList ? window.getCentralizedUserList() : db.team.map(m => m.nama);
+    const isEdit = !!item;
+    const isStaffOrAdmin = isUserAdminOrKetua();
+
+    const serviceTypes = [
+        'Infografis / Poster Rilis',
+        'Pembuatan Video / Reels',
+        'Peliputan & Dokumentasi',
+        'Desain Publikasi / Booklet',
+        'Pendampingan Protokol & MC',
+        'Live Streaming YouTube / Zoom',
+        'Lainnya'
+    ];
+
+    const statuses = [
+        'Diajukan',
+        'Diproses',
+        'Dijadwalkan',
+        'Selesai',
+        'Ditolak/Dibatalkan'
+    ];
+
+    const modalHTML = `
+        <div class="modal" id="dynamic-modal">
+            <div class="modal-content p-6 max-w-lg border border-slate-200 dark:border-slate-700 shadow-2xl relative">
+                <button onclick="closeModal()" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 transition-all">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="mb-5 flex items-center gap-3">
+                    <div class="w-10 h-10 bg-indigo-50 dark:bg-indigo-950 rounded-xl flex items-center justify-center text-indigo-650 text-lg">
+                        <i class="fa-solid fa-ticket"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-slate-900 dark:text-white text-base tracking-tight">${isEdit ? 'Ubah Pengajuan Layanan' : 'Form Permintaan Layanan Humas'}</h3>
+                        <p class="text-[10px] text-slate-400 font-semibold">Alur Pengajuan & Penugasan Terintegrasi</p>
+                    </div>
+                </div>
+                <form onsubmit="saveTicketRequest(event, ${isEdit ? item.id : 'null'})" class="space-y-3.5 text-xs text-slate-700 dark:text-slate-300">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nama Pemohon <span class="text-rose-500">*</span></label>
+                            <input type="text" id="req-pengaju" value="${item?.pengaju || currentUser.name || ''}" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg font-semibold dark:text-white" required>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Unit / Bagian <span class="text-rose-500">*</span></label>
+                            <input type="text" id="req-bidang" value="${item?.bidang || currentUser.bidang || 'Bagian Umum'}" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg font-semibold dark:text-white" placeholder="Contoh: Tim Nerwilis" required>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Jenis Layanan <span class="text-rose-500">*</span></label>
+                            <select id="req-type" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg font-bold dark:text-white">
+                                ${serviceTypes.map(st => `<option ${item?.jenis === st ? 'selected' : ''} value="${st}">${st}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Batas Waktu / Deadline <span class="text-rose-500">*</span></label>
+                            <input type="date" id="req-deadline" value="${formatDateInput(item?.deadline || new Date().toISOString().split('T')[0])}" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg font-semibold dark:text-white" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Judul / Keperluan Layanan <span class="text-rose-500">*</span></label>
+                        <input type="text" id="req-title" value="${item?.judul || ''}" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg font-bold dark:text-white" placeholder="Contoh: Pembuatan Infografis Hasil SAKERNAS 2026" required>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tanggal Kegiatan</label>
+                            <input type="date" id="req-tgl-kegiatan" value="${formatDateInput(item?.tanggal_kegiatan || item?.deadline)}" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg font-semibold dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Waktu</label>
+                            <input type="time" id="req-waktu" value="${item?.waktu || '09:00'}" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg font-semibold dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Lokasi</label>
+                            <input type="text" id="req-lokasi" value="${item?.lokasi || 'Kantor BPS Prov. Kalbar'}" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg font-semibold dark:text-white" placeholder="Ruang Rapat / Aula">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Deskripsi Kebutuhan</label>
+                        <textarea id="req-detail" rows="2.5" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg dark:text-white" placeholder="Jelaskan kebutuhan konten, format, atau instruksi rilis..." required>${item?.detail || ''}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tautan Lampiran / Data Pendukung (Google Drive)</label>
+                        <input type="url" id="req-lampiran" value="${item?.lampiran || ''}" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg font-mono text-indigo-600 dark:text-indigo-400" placeholder="https://drive.google.com/...">
+                    </div>
+
+                    ${isStaffOrAdmin ? `
+                        <div class="p-3 bg-indigo-50/50 dark:bg-indigo-950/40 rounded-xl border border-indigo-150 dark:border-indigo-900/60 space-y-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-wider mb-1">PIC Petugas Yang Ditugaskan</label>
+                                    <input type="text" id="req-pic" list="pic-list-tickets" value="${item?.pic || ''}" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-indigo-200 rounded-lg font-bold text-indigo-700 dark:text-indigo-300" placeholder="Ketik atau pilih PIC...">
+                                    <datalist id="pic-list-tickets">
+                                        ${uList.map(n => `<option value="${n}"></option>`).join('')}
+                                    </datalist>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-wider mb-1">Status Permintaan</label>
+                                    <select id="req-status" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-indigo-200 rounded-lg font-bold text-indigo-700 dark:text-indigo-300">
+                                        ${statuses.map(st => `<option ${item?.status === st || (!item && st === 'Diajukan') ? 'selected' : ''} value="${st}">${st}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex flex-col sm:flex-row gap-3 pt-1">
+                                <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-800 dark:text-indigo-300">
+                                    <input type="checkbox" id="req-hubungkan-kalender" checked class="rounded text-indigo-600">
+                                    <span>Teruskan Menjadi Agenda Kalender</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-indigo-800 dark:text-indigo-300">
+                                    <input type="checkbox" id="req-hubungkan-cp" class="rounded text-indigo-600">
+                                    <span>Jadwalkan di Content Planner</span>
+                                </label>
+                            </div>
+                        </div>
+                    ` : `
+                        <input type="hidden" id="req-pic" value="${item?.pic || ''}">
+                        <input type="hidden" id="req-status" value="${item?.status || 'Diajukan'}">
+                    `}
+
+                    <div class="flex gap-3 pt-3">
+                        <button type="submit" class="flex-1 btn-primary py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-paper-plane"></i> ${isEdit ? 'Simpan Perubahan' : 'Kirim Pengajuan'}
+                        </button>
+                        <button type="button" onclick="closeModal()" class="px-5 btn-secondary text-xs font-bold uppercase tracking-wider rounded-xl">Batal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+};
+
+window.saveTicketRequest = async function (event, editId = null) {
     event.preventDefault();
-    const judul = document.getElementById('req-title').value;
+    const pengaju = document.getElementById('req-pengaju').value;
+    const bidang = document.getElementById('req-bidang').value;
     const jenis = document.getElementById('req-type').value;
     const deadline = document.getElementById('req-deadline').value;
+    const judul = document.getElementById('req-title').value;
+    const tglKegiatan = document.getElementById('req-tgl-kegiatan')?.value || deadline;
+    const waktu = document.getElementById('req-waktu')?.value || '09:00';
+    const lokasi = document.getElementById('req-lokasi')?.value || 'Kantor BPS Kalbar';
     const detail = document.getElementById('req-detail').value;
+    const lampiran = document.getElementById('req-lampiran')?.value || '';
+    const pic = document.getElementById('req-pic')?.value || '';
+    const status = document.getElementById('req-status')?.value || 'Diajukan';
 
-    const newTicket = {
-        id: db.tickets.length + 1,
-        pengaju: currentUser.name,
-        bidang: currentUser.bidang || 'Internal',
-        jenis: jenis,
-        judul: judul,
-        deadline: deadline,
-        detail: detail,
-        status: 'Pending',
-        pic: ''
-    };
+    const hubungkanKalender = document.getElementById('req-hubungkan-kalender')?.checked;
+    const hubungkanCp = document.getElementById('req-hubungkan-cp')?.checked;
 
-    logActivity('Buat Pengajuan', `Mengirim permintaan layanan baru: "${judul}".`);
-    addNotification('Pengajuan Layanan Baru', `Permintaan layanan "${judul}" berhasil diajukan dan sedang menunggu persetujuan.`, 'koordinator');
+    if (editId) {
+        const ticket = db.tickets.find(t => t.id === editId);
+        if (!ticket) return;
+        ticket.pengaju = pengaju;
+        ticket.bidang = bidang;
+        ticket.jenis = jenis;
+        ticket.deadline = deadline;
+        ticket.judul = judul;
+        ticket.tanggal_kegiatan = tglKegiatan;
+        ticket.waktu = waktu;
+        ticket.lokasi = lokasi;
+        ticket.detail = detail;
+        ticket.lampiran = lampiran;
+        ticket.pic = pic;
+        ticket.status = status;
 
-    await sendDataToServer('add', 'tickets', newTicket);
+        logActivity('Ubah Pengajuan', `Mengubah permintaan layanan: "${judul}".`);
+        await sendDataToServer('update', 'tickets', ticket);
+        showToast('Pengajuan berhasil diperbarui!');
+    } else {
+        const newTicket = {
+            id: Date.now(),
+            pengaju: pengaju,
+            bidang: bidang,
+            jenis: jenis,
+            judul: judul,
+            tanggal_kegiatan: tglKegiatan,
+            waktu: waktu,
+            lokasi: lokasi,
+            deadline: deadline,
+            detail: detail,
+            lampiran: lampiran,
+            status: status,
+            pic: pic
+        };
+
+        logActivity('Buat Pengajuan', `Mengirim permintaan layanan baru: "${judul}".`);
+        addNotification('Pengajuan Layanan Baru', `Permintaan layanan "${judul}" diajukan oleh ${pengaju}.`, 'koordinator');
+
+        await sendDataToServer('add', 'tickets', newTicket);
+
+        // Teruskan ke agenda kalender jika dicentang dan ada tanggal/PIC
+        if (hubungkanKalender && (status === 'Diproses' || status === 'Dijadwalkan')) {
+            const adHocItem = {
+                id: Date.now() + 50,
+                tanggal: tglKegiatan,
+                hari: new Date(tglKegiatan).toLocaleDateString('id-ID', { weekday: 'long' }),
+                kegiatan: `[Layanan] ${judul}`,
+                jumlah_bertugas: 1,
+                petugas: pic || 'Staf Humas',
+                keterangan: `${detail} (Lokasi: ${lokasi})`,
+                status: 'Sedang Dikerjakan',
+                hubungkan_kalender: true
+            };
+            sendDataToServer('add', 'ad_hoc_2026', adHocItem).catch(console.error);
+        }
+
+        // Teruskan ke Content Planner jika dicentang
+        if (hubungkanCp) {
+            const cpItem = {
+                id: Date.now() + 100,
+                judul: `[Layanan] ${judul}`,
+                jenis_konten: jenis.includes('Video') ? 'Video' : 'Carousel',
+                postType: jenis.includes('Video') ? 'Video' : 'Carousel',
+                media_post: 'Instagram',
+                media: 'Instagram',
+                assignTo: pic || 'Staf Humas',
+                assignedTo: pic || 'Staf Humas',
+                'assign To': pic || 'Staf Humas',
+                pic: pic || 'Staf Humas',
+                jadwal: deadline,
+                tanggal_posting: deadline,
+                jam_posting: waktu,
+                status: 'Draft',
+                progres: 10,
+                konsep: detail,
+                tautan_cloud: lampiran
+            };
+            sendDataToServer('add', 'content_planner', cpItem).catch(console.error);
+        }
+
+        showToast('Pengajuan layanan berhasil dikirim!');
+    }
+
     closeModal();
-    showToast('Pengajuan layanan berhasil dikirim!');
     router(currentState);
 };
 
@@ -1883,12 +2574,19 @@ window.confirmApproveTicket = async function (event, id) {
         id: db.contentPlanner.length + 1,
         judul: `[Layanan] ${ticket.judul}`,
         konsep: ticket.detail,
-        jenis: 'Informasi',
+        jenis_konten: ticket.jenis === 'Pembuatan Video' ? 'Video' : 'Single Image',
         postType: ticket.jenis === 'Pembuatan Video' ? 'Video' : 'Single Image',
+        media_post: 'Instagram',
+        media: 'Instagram',
         progres: 10,
         jadwal: ticket.deadline,
+        tanggal_posting: ticket.deadline,
+        jam_posting: '09:00',
         status: 'In Progress',
-        assignedTo: pic
+        assignedTo: pic,
+        assignTo: pic,
+        'assign To': pic,
+        pic: pic
     };
 
     logActivity('Approve Tiket', `Menyetujui permintaan layanan "${ticket.judul}" dan menugaskan ${pic}.`);
@@ -2072,14 +2770,15 @@ function showDetail(type, item) {
     if (type === 'content') {
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Judul Konten:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.judul}</span></div>
-                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deskripsi Konsep:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.konsep || 'Tidak ada konsep.'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jenis Promosi:</strong><span class="font-bold">${item.jenis}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Post Type:</strong><span class="font-bold">${item.postType}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Target Jadwal:</strong><span class="font-bold text-rose-600">${formatDate(item.jadwal)}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Progres Kerja:</strong><span class="font-black text-indigo-650">${item.progres}%</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC Ditugaskan:</strong><span class="font-bold text-slate-800 dark:text-white">${item.assignedTo || '-'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status Konten:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Judul:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.judul}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jenis Konten:</strong><span class="font-bold">${item.jenis_konten || item.postType || item.jenis || 'Carousel'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Media Post:</strong><span class="font-bold">${item.media_post || item.media || 'Instagram'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC:</strong><span class="font-bold text-slate-800 dark:text-white">${item['assign To'] || item.assignTo || item.assignedTo || item.pic || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal Posting:</strong><span class="font-bold text-rose-600">${formatDate(item.jadwal || item.tanggal_posting)}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jam Posting:</strong><span class="font-bold">${item.jam_posting || '09:00'} WIB</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || 'Draft'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Progres:</strong><span class="font-black text-indigo-650">${item.progres || 0}%</span></div>
+                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deskripsi Konsep / Catatan:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.konsep || 'Tidak ada catatan khusus.'}</span></div>
             </div>
         `;
     } else if (type === 'protokoler' || type === 'mc') {
@@ -2197,19 +2896,22 @@ window.debounce = debounce;
 
 // Navigation & Routing System
 function router(page) {
+    if (!currentUser) return;
     const allowedPages = {
-        admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'settings', 'assignment'],
-        kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar'],
-        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar'],
-        tim: ['dashboard', 'calendar', 'assignment', 'rekap_kegiatan', 'monitoring'],
-        pemohon: ['dashboard', 'tickets']
+        admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'settings', 'assignment', 'repository'],
+        kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository'],
+        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository'],
+        tim: ['dashboard', 'calendar', 'assignment', 'rekap_kegiatan', 'monitoring', 'repository'],
+        pemohon: ['dashboard', 'tickets'],
+        kabkot: ['repository', 'team']
     };
 
     const userRole = currentUser ? currentUser.role : 'pemohon';
+    const roleAllowed = allowedPages[userRole] || allowedPages['pemohon'];
 
-    // Safety redirect to dashboard if role doesn't have access
-    if (!allowedPages[userRole].includes(page)) {
-        page = 'dashboard';
+    // Safety redirect to first permitted page if role doesn't have access
+    if (!roleAllowed.includes(page)) {
+        page = roleAllowed[0] || 'dashboard';
     }
 
     currentState = page;
@@ -2294,6 +2996,7 @@ function router(page) {
         case 'calendar': renderIntegratedCalendar(contentDiv); break;
         case 'settings': renderSettingsPage(contentDiv); break;
         case 'assignment': renderAssignmentPage(contentDiv); break;
+        case 'repository': renderRepository(contentDiv); break;
     }
 
     // Restore scroll position if re-rendering same page (after save/delete)

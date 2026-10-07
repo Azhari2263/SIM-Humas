@@ -60,6 +60,31 @@ function renderLoginScreen() {
                     Masuk ke Sistem
                 </button>
             </form>
+
+            <div class="mt-5 pt-4 border-t border-slate-700/50">
+                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center mb-2">Masuk Cepat (Akun Demo)</p>
+                <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <button type="button" onclick="quickLogin('admin')" class="py-1.5 px-2 bg-slate-800/90 hover:bg-indigo-600/30 border border-slate-700/70 rounded-lg text-slate-300 hover:text-white transition-all text-center font-medium">
+                        <i class="fa-solid fa-shield-halved text-indigo-400 mr-1"></i> Admin
+                    </button>
+                    <button type="button" onclick="quickLogin('koordinator')" class="py-1.5 px-2 bg-slate-800/90 hover:bg-indigo-600/30 border border-slate-700/70 rounded-lg text-slate-300 hover:text-white transition-all text-center font-medium">
+                        <i class="fa-solid fa-user-tie text-emerald-400 mr-1"></i> Koordinator
+                    </button>
+                    <button type="button" onclick="quickLogin('tim')" class="py-1.5 px-2 bg-slate-800/90 hover:bg-indigo-600/30 border border-slate-700/70 rounded-lg text-slate-300 hover:text-white transition-all text-center font-medium">
+                        <i class="fa-solid fa-users text-amber-400 mr-1"></i> Tim Humas
+                    </button>
+                    <button type="button" onclick="quickLogin('kepala')" class="py-1.5 px-2 bg-slate-800/90 hover:bg-indigo-600/30 border border-slate-700/70 rounded-lg text-slate-300 hover:text-white transition-all text-center font-medium">
+                        <i class="fa-solid fa-crown text-purple-400 mr-1"></i> Kepala BPS
+                    </button>
+                    <button type="button" onclick="quickLogin('pemohon')" class="py-1.5 px-2 bg-slate-800/90 hover:bg-indigo-600/30 border border-slate-700/70 rounded-lg text-slate-300 hover:text-white transition-all text-center font-medium">
+                        <i class="fa-solid fa-paper-plane text-sky-400 mr-1"></i> Pemohon / Pegawai
+                    </button>
+                    <button type="button" onclick="quickLogin('kabkot')" class="py-1.5 px-2 bg-slate-800/90 hover:bg-teal-600/30 border border-slate-700/70 rounded-lg text-slate-300 hover:text-white transition-all text-center font-medium">
+                        <i class="fa-solid fa-map-location-dot text-teal-400 mr-1"></i> BPS Kab/Kota
+                    </button>
+                </div>
+                <p class="text-[8px] text-slate-500 text-center mt-2.5">Login manual: <b>admin</b> &bull; sandi: <b>password</b></p>
+            </div>
         </div>
     `;
 }
@@ -123,6 +148,9 @@ function quickLogin(role) {
     } else if (role === 'pemohon') { 
         username = 'pemohon'; 
         name = 'User Bidang'; 
+    } else if (role === 'kabkot') { 
+        username = 'kabkot'; 
+        name = 'BPS Kab. Kubu Raya'; 
     }
 
     currentUser = { username, role: String(role).toLowerCase().trim(), name };
@@ -223,6 +251,7 @@ function getRoleLabel(role) {
         case 'koordinator': return 'Ketua Tim Humas';
         case 'tim': return 'Tim Humas';
         case 'pemohon': return 'Pegawai/Pemohon';
+        case 'kabkot': return 'BPS Kabupaten/Kota';
         default: return role;
     }
 }

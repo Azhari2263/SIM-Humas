@@ -1,0 +1,8 @@
+{
+  "name": "SIM Humas BPS Kalbar",
+  "description": "Sistem Informasi Humas & Protokol Terintegrasi BPS Kalbar",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

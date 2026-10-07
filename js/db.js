@@ -21,13 +21,48 @@ let db = {
     auditTrail: [],
     notifications: [],
     masterData: [],
-    assignments: []
+    assignments: [],
+    repository: [
+        {
+            id: 1,
+            nama_dokumen: 'Pedoman Standar Pelayanan Informasi Publik & Kehumasan BPS 2026',
+            kategori: 'Pedoman',
+            deskripsi: 'Panduan tata kelola penyebarluasan rilis data, protokol pimpinan, dan standar infografis.',
+            tanggal: '2026-01-10',
+            pic: 'Azhari (Koordinator)',
+            link_cloud: 'https://drive.google.com/drive/folders/bps-kalbar-pedoman-humas',
+            versi: 'v2.1',
+            status: 'Aktif'
+        },
+        {
+            id: 2,
+            nama_dokumen: 'Template Desain Carousel & Infografis Rilis BRS (Adobe & Canva)',
+            kategori: 'Template',
+            deskripsi: 'Kit template grafis resmi identitas BPS Kalbar ukuran feed IG dan banner website.',
+            tanggal: '2026-02-01',
+            pic: 'Staf Humas',
+            link_cloud: 'https://drive.google.com/drive/folders/bps-kalbar-template-desain',
+            versi: 'v1.4',
+            status: 'Aktif'
+        },
+        {
+            id: 3,
+            nama_dokumen: 'Daftar Kontak Media Partner & Wartawan Kalbar 2026',
+            kategori: 'Daftar Kontak Media/Wartawan',
+            deskripsi: 'Database jurnalis cetak, TV, radio, dan media siber lokal Pontianak dan sekitarnya.',
+            tanggal: '2026-02-15',
+            pic: 'Azhari (Koordinator)',
+            link_cloud: 'https://docs.google.com/spreadsheets/d/bps-kalbar-kontak-wartawan',
+            versi: '2026 Q1',
+            status: 'Aktif'
+        }
+    ]
 };
 
 const TABLES = [
     'contentPlanner', 'brsSchedule', 'protocol', 'team', 'tickets', 'assets', 'monitoring',
     'users', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'rekapKegiatan',
-    'auditTrail', 'notifications', 'masterData', 'assignments'
+    'auditTrail', 'notifications', 'masterData', 'assignments', 'repository'
 ];
 
 const SHEET_TO_VAR = {
@@ -46,34 +81,115 @@ const SHEET_TO_VAR = {
     'brs_rilis': 'brsRilis',
     'hari_besar': 'hariBesar',
     'rekap_kegiatan': 'rekapKegiatan',
+    'audit_trail': 'auditTrail',
+    'auditTrail': 'auditTrail',
     'notifications': 'notifications',
     'master_data': 'masterData',
-    'assignments': 'assignments'
+    'assignments': 'assignments',
+    'repository': 'repository'
 };
 
 let isLoading = false;
 let isError = false;
 let errorMessage = '';
 
+// Purge legacy mock/dummy data from previous sessions so only genuine database records are shown
+(function purgeLegacyDummyData() {
+    try {
+        const PURGE_KEY = 'sim_humas_purged_mock_v3';
+        if (!localStorage.getItem(PURGE_KEY)) {
+            const dummyIdentifiers = [
+                'Infografis Pertumbuhan Ekonomi',
+                'Pontianak Post',
+                'Tribun Pontianak',
+                'Rilis Berita Resmi Statistik (BRS) Inflasi & Pariwisata',
+                'Desain Booklet Hasil Survei Kepuasan',
+                'Dokumentasi Workshop Metadata Statistik',
+                'Hari Puisi Sedunia',
+                'Penyusunan Laporan Kinerja Humas Triwulan',
+                'Azhari, S.Tr.Stat.'
+            ];
+            TABLES.forEach(tb => {
+                if (tb !== 'users') {
+                    const stored = localStorage.getItem('sim_humas_db_' + tb);
+                    if (stored) {
+                        const hasDummy = dummyIdentifiers.some(idStr => stored.includes(idStr));
+                        if (hasDummy) {
+                            localStorage.removeItem('sim_humas_db_' + tb);
+                        }
+                    }
+                }
+            });
+            localStorage.setItem(PURGE_KEY, 'true');
+        }
+    } catch (_) {}
+})();
+
 // Load fallback database from LocalStorage
 function loadLocalFallbacks() {
     TABLES.forEach(tb => {
         const localData = localStorage.getItem('sim_humas_db_' + tb);
-        if (localData) {
+        if (localData && localData !== 'undefined' && localData !== 'null') {
             try {
                 db[tb] = JSON.parse(localData);
             } catch (e) {
-                console.error('Failed to parse local fallback for ' + tb, e);
+                console.warn('Resetting invalid local fallback for ' + tb);
                 db[tb] = [];
+                try { localStorage.removeItem('sim_humas_db_' + tb); } catch (_) {}
             }
         } else {
             db[tb] = [];
+            if (localData === 'undefined' || localData === 'null') {
+                try { localStorage.removeItem('sim_humas_db_' + tb); } catch (_) {}
+            }
         }
     });
+
+    if (!db.users || db.users.length === 0) {
+        db.users = [
+            { id: 1, username: 'admin', password: 'password', nama: 'Super Admin', role: 'admin', bidang: 'IPDS' },
+            { id: 2, username: 'koordinator', password: 'password', nama: 'Azhari (Koordinator)', role: 'koordinator', bidang: 'Humas' },
+            { id: 3, username: 'kepala', password: 'password', nama: 'Kepala BPS Kalbar', role: 'kepala', bidang: 'Pimpinan' },
+            { id: 4, username: 'tim', password: 'password', nama: 'Staf Humas', role: 'tim', bidang: 'Humas' },
+            { id: 5, username: 'pemohon', password: 'password', nama: 'User Bidang', role: 'pemohon', bidang: 'Sosial' },
+            { id: 6, username: 'kabkot', password: 'password', nama: 'BPS Kab. Kubu Raya', role: 'kabkot', bidang: 'BPS Kab/Kota' }
+        ];
+    }
+
+    if (db.contentPlanner && Array.isArray(db.contentPlanner)) {
+        db.contentPlanner.forEach(item => {
+            const pic = item['assign To'] || item.assignTo || item.assignedTo || item.pic || '';
+            item['assign To'] = pic;
+            item.assignTo = pic;
+            item.assignedTo = pic;
+            item.pic = pic;
+
+            const media = item.media_post || item.media || 'Instagram';
+            item.media_post = media;
+            item.media = media;
+
+            const jenis = item.jenis_konten || item.postType || item.jenis || 'Carousel';
+            item.jenis_konten = jenis;
+            item.postType = jenis;
+
+            const jadwal = item.tanggal_posting || item.jadwal || '';
+            item.tanggal_posting = jadwal;
+            item.jadwal = jadwal;
+
+            item.jam_posting = item.jam_posting || '09:00';
+
+            if (item.status === 'Posted') {
+                item.progres = 100;
+            } else if (item.status === 'Done' && (!item.progres || Number(item.progres) === 0)) {
+                item.progres = 90;
+            }
+        });
+    }
 }
 
 function saveLocalFallback(tb) {
-    localStorage.setItem('sim_humas_db_' + tb, JSON.stringify(db[tb]));
+    const data = (db && db[tb] !== undefined) ? db[tb] : [];
+    localStorage.setItem('sim_humas_db_' + tb, JSON.stringify(data));
 }
 
 // Fetch data from Google Sheets API
@@ -89,14 +205,64 @@ async function fetchDataFromSheets(silent = false) {
         updateLoadingStateUI(true);
     }
 
+    let data = null;
+
+    // 1. Attempt to fetch from primary Google Sheets Apps Script URL
     try {
-        const response = await fetch(GOOGLE_SHEETS_API_URL);
-        if (!response.ok) throw new Error('Gagal mengambil data dari server database (HTTP ' + response.status + ')');
+        const response = await fetch(GOOGLE_SHEETS_API_URL, {
+            method: 'GET',
+            cache: 'no-cache'
+        });
+        if (response.ok) {
+            const json = await response.json();
+            if (json && typeof json === 'object') {
+                data = json;
+            }
+        } else {
+            console.warn(`[Sync] Primary Sheets URL returned HTTP ${response.status}. Checking local API fallback...`);
+        }
+    } catch (netErr) {
+        console.warn('[Sync] Direct Google Sheets connection unavailable (network/CORS/offline):', netErr.message);
+    }
 
-        const data = await response.json();
+    // 2. If primary Google Sheets URL was unavailable or returned non-200, try local API endpoint /api/sheets
+    if (!data && GOOGLE_SHEETS_API_URL !== '/api/sheets') {
+        try {
+            const fallbackResp = await fetch('/api/sheets');
+            if (fallbackResp.ok) {
+                const json = await fallbackResp.json();
+                if (json && typeof json === 'object') {
+                    data = json;
+                    console.log('[Sync] Connected to local database cache successfully.');
+                }
+            }
+        } catch (apiErr) {
+            console.warn('[Sync] Local API endpoint unavailable:', apiErr.message);
+        }
+    }
 
+    // 3. If no network data could be retrieved, cleanly use offline LocalStorage
+    if (!data) {
+        console.warn('[Sync] Menampilkan data offline lokal (Koneksi Sheets terhambat/offline).');
+        if (!silent) {
+            showToast('Menampilkan data offline lokal (Koneksi Sheets terhambat)', 'info');
+        }
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            router(currentState);
+        }
+        isLoading = false;
+        if (!silent) {
+            updateLoadingStateUI(false);
+        }
+        return;
+    }
+
+    try {
         // Create temporary DB for comparison
         let tempDb = {};
+        TABLES.forEach(tb => {
+            tempDb[tb] = [];
+        });
 
         // Map database collections dynamically
         for (let sheetName in SHEET_TO_VAR) {
@@ -128,6 +294,90 @@ async function fetchDataFromSheets(silent = false) {
             }
         });
 
+        // Aturan Khusus Progres Content Planner & Normalisasi Field:
+        // PIC di assignTo (kolom I), multi-media_post, dsb.
+        if (tempDb.contentPlanner && Array.isArray(tempDb.contentPlanner)) {
+            tempDb.contentPlanner.forEach(item => {
+                const pic = item['assign To'] || item.assignTo || item.assignedTo || item.pic || '';
+                item['assign To'] = pic;
+                item.assignTo = pic;
+                item.assignedTo = pic;
+                item.pic = pic;
+
+                const media = item.media_post || item.media || 'Instagram';
+                item.media_post = media;
+                item.media = media;
+
+                const jenis = item.jenis_konten || item.postType || item.jenis || 'Carousel';
+                item.jenis_konten = jenis;
+                item.postType = jenis;
+
+                const jadwal = item.tanggal_posting || item.jadwal || '';
+                item.tanggal_posting = jadwal;
+                item.jadwal = jadwal;
+
+                item.jam_posting = item.jam_posting || '09:00';
+
+                const cloud = item.tautan_cloud || item.link_cloud || item.link_konten || '';
+                item.tautan_cloud = cloud;
+                item.link_cloud = cloud;
+                item.link_konten = cloud;
+
+                if (item.status === 'Posted') {
+                    item.progres = 100;
+                } else if (item.status === 'Done' && (!item.progres || Number(item.progres) === 0)) {
+                    item.progres = 90;
+                }
+            });
+        }
+
+        // Normalisasi Hari Besar (Kategori Medsos Instansi vs Medsos Pimpinan)
+        if (tempDb.hariBesar && Array.isArray(tempDb.hariBesar)) {
+            tempDb.hariBesar.forEach(item => {
+                item.kategori = item.kategori || 'Medsos Instansi';
+                item.jenis_media = item.jenis_media || item.media || 'Instagram';
+                item.data_pendukung = item.data_pendukung || item.link_cloud || '';
+                item.status = item.status || 'Draft';
+            });
+        }
+
+        // Normalisasi Rekap Rutin & Ad Hoc (Status Konsistensi)
+        if (tempDb.rekapRutin && Array.isArray(tempDb.rekapRutin)) {
+            tempDb.rekapRutin.forEach(item => {
+                if (item.status === 'Sedang Dikerjakan') item.status = 'Sedang Dikerjakan';
+                else if (!item.status) item.status = 'Draft';
+            });
+        }
+        if (tempDb.adHoc && Array.isArray(tempDb.adHoc)) {
+            tempDb.adHoc.forEach(item => {
+                if (item.status === 'Sedang Dikerjakan') item.status = 'Sedang Dikerjakan';
+                else if (!item.status) item.status = 'Draft';
+            });
+        }
+
+        // Normalisasi Media Monitoring (Topik, Jenis Berita, dsb)
+        if (tempDb.monitoring && Array.isArray(tempDb.monitoring)) {
+            tempDb.monitoring.forEach(item => {
+                item.topik = item.topik || 'Umum / Statistik';
+                item.jenis_berita = item.jenis_berita || 'Media Online';
+                item.sentimen = item.sentimen || 'Positif';
+            });
+        }
+
+        // Normalisasi Permintaan Layanan Humas (Tiket)
+        if (tempDb.tickets && Array.isArray(tempDb.tickets)) {
+            tempDb.tickets.forEach(item => {
+                if (item.status === 'Pending') item.status = 'Diajukan';
+                else if (item.status === 'Approved') item.status = 'Diproses';
+                else if (item.status === 'Rejected') item.status = 'Ditolak/Dibatalkan';
+            });
+        }
+
+        // Pastikan Pusat Dokumen / Repository memiliki default jika kosong
+        if ((!tempDb.repository || tempDb.repository.length === 0) && db.repository && db.repository.length > 0) {
+            tempDb.repository = JSON.parse(JSON.stringify(db.repository));
+        }
+
         // Detect if any table has changed
         let hasChanges = false;
         for (let i = 0; i < TABLES.length; i++) {
@@ -148,9 +398,11 @@ async function fetchDataFromSheets(silent = false) {
             });
 
             if (!silent) {
-                showToast('Data berhasil disinkronkan dari Google Sheets!');
+                showToast('Data berhasil disinkronkan!');
             }
-            router(currentState);
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                router(currentState);
+            }
         } else {
             console.log('[RealTime] Tidak ada perubahan data di database, lewati re-render.');
         }
@@ -164,12 +416,14 @@ async function fetchDataFromSheets(silent = false) {
         const mobileSyncEl = document.getElementById('mobile-last-sync-date');
         if (mobileSyncEl) mobileSyncEl.textContent = dateStr;
 
-    } catch (error) {
-        console.error('Error fetching data from sheets, using offline local copy:', error);
+    } catch (parseError) {
+        console.warn('[Sync] Error processing database payload, using local fallback:', parseError);
         if (!silent) {
-            showToast('Menampilkan data offline lokal (Koneksi Sheets terhambat)', 'info');
+            showToast('Menampilkan data offline lokal', 'info');
         }
-        router(currentState);
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            router(currentState);
+        }
     } finally {
         isLoading = false;
         if (!silent) {
@@ -234,6 +488,28 @@ function applySyncQueueToDb() {
 async function sendDataToServer(action, sheetName, item) {
     const varName = SHEET_TO_VAR[sheetName] || sheetName;
 
+    if (varName === 'contentPlanner' && item) {
+        const pic = item['assign To'] || item.assignTo || item.assignedTo || item.pic || '';
+        item['assign To'] = pic;
+        item.assignTo = pic;
+        item.assignedTo = pic;
+        item.pic = pic;
+
+        const media = item.media_post || item.media || 'Instagram';
+        item.media_post = media;
+        item.media = media;
+
+        const jenis = item.jenis_konten || item.postType || item.jenis || 'Carousel';
+        item.jenis_konten = jenis;
+        item.postType = jenis;
+
+        const jadwal = item.tanggal_posting || item.jadwal || '';
+        item.tanggal_posting = jadwal;
+        item.jadwal = jadwal;
+
+        item.jam_posting = item.jam_posting || '09:00';
+    }
+
     // Update local cache first (Optimistic UI update)
     if (action === 'add') {
         if (!item.id) {
@@ -258,7 +534,9 @@ async function sendDataToServer(action, sheetName, item) {
     }
 
     saveLocalFallback(varName);
-    router(currentState); // Instantly update view
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        router(currentState); // Instantly update view
+    }
 
     // Add task to sync queue
     syncQueue.push({ action, sheet: sheetName, item });
@@ -285,15 +563,28 @@ async function processSyncQueue() {
                 item: task.item
             };
 
-            const response = await fetch(GOOGLE_SHEETS_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'text/plain'
-                },
-                body: JSON.stringify(payload)
-            });
+            let response = null;
+            try {
+                response = await fetch(GOOGLE_SHEETS_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    },
+                    body: JSON.stringify(payload)
+                });
+            } catch (err) {
+                if (GOOGLE_SHEETS_API_URL !== '/api/sheets') {
+                    try {
+                        response = await fetch('/api/sheets', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                    } catch (_) {}
+                }
+            }
 
-            if (!response.ok) throw new Error('HTTP Status ' + response.status);
+            if (!response || !response.ok) throw new Error('HTTP Status ' + (response ? response.status : 'offline'));
 
             const result = await response.json();
             if (!result.success) throw new Error(result.error || 'Server error');

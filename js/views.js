@@ -17,6 +17,8 @@ function isTaskForCurrentUser(item) {
     const picFields = [
         item.petugas,
         item.assignedTo,
+        item.assignTo,
+        item['assign To'],
         item.pic,
         item.pembuat_konten,
         item.pic_poster_info,
@@ -183,6 +185,7 @@ function openPrintReportWindow(title, headers, rows) {
 // 1. INTEGRATED DASHBOARD VIEW
 // -------------------------------------------------------------
 function renderDashboard(container) {
+    if (!currentUser) return;
     const userRole = currentUser.role;
 
     if (userRole === 'pemohon') {
@@ -248,7 +251,7 @@ function renderDashboard(container) {
         const aTasks = db.adHoc.filter(a => a.petugas && a.petugas.includes(member.nama)).length;
         const pTasks = db.protokoler.filter(p => p.petugas && p.petugas.includes(member.nama)).length;
         const mTasks = db.mc.filter(m => m.petugas && m.petugas.includes(member.nama)).length;
-        const cTasks = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
+        const cTasks = db.contentPlanner.filter(c => (c['assign To'] === member.nama || c.assignTo === member.nama || c.assignedTo === member.nama || c.pic === member.nama)).length;
         const asTasks = db.assignments.filter(as => as.assigned_to === member.nama).length;
 
         return {
@@ -301,7 +304,7 @@ function renderDashboard(container) {
             tanggal: item.jadwal,
             waktu: null,
             status: item.status,
-            pic: item.assignedTo || '-',
+            pic: item['assign To'] || item.assignTo || item.assignedTo || item.pic || '-',
             sumber: 'Konten'
         })),
         // Rekap Rutin: tanggal kegiatan
@@ -364,7 +367,7 @@ function renderDashboard(container) {
             tanggal: item.jadwal,
             waktu: null,
             sumber: 'Konten',
-            pic: item.assignedTo || '-'
+            pic: item['assign To'] || item.assignTo || item.assignedTo || item.pic || '-'
         })),
         ...db.tickets.filter(t => t.status === 'Approved').filter(isTaskForCurrentUser).map(item => ({
             judul: item.judul,
@@ -400,7 +403,7 @@ function renderDashboard(container) {
     const publishHariIni = [
         ...plannerSrc
             .filter(i => i.jadwal && formatDateInput(i.jadwal) === todayStr)
-            .map(i => ({ judul: i.judul, tipe: 'Content Planner', pic: i.assignedTo || '-', status: i.status })),
+            .map(i => ({ judul: i.judul, tipe: 'Content Planner', pic: i['assign To'] || i.assignTo || i.assignedTo || i.pic || '-', status: i.status })),
         ...hbSrc
             .filter(i => i.tanggal && formatDateInput(i.tanggal) === todayStr)
             .map(i => ({ judul: i.judul || i.kegiatan, tipe: 'Hari Besar', pic: i.petugas || 'Tim Humas', status: i.status })),
@@ -829,7 +832,16 @@ function renderPlanner(container) {
                 <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-user-tag mr-1 text-slate-405"></i> PIC:</span>
                 <select id="planner-pic-select" onchange="handlePlannerPicFilter(this.value)" class="w-full text-xs font-bold py-2 px-3 bg-white dark:bg-slate-750 border border-slate-250 dark:border-slate-700 rounded-xl text-slate-655 dark:text-slate-200 focus:outline-none shadow-xs">
                     <option value="">Semua PIC</option>
-                    ${db.team.map(m => `<option ${plannerPicFilter === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
+                    ${(() => {
+                        const picSet = new Set();
+                        (db.team || []).forEach(m => m.nama && picSet.add(m.nama));
+                        (db.users || []).forEach(u => u.nama && picSet.add(u.nama));
+                        (db.contentPlanner || []).forEach(c => {
+                            const p = c['assign To'] || c.assignTo || c.assignedTo || c.pic;
+                            if (p && p !== '-') picSet.add(p);
+                        });
+                        return Array.from(picSet).map(name => `<option ${plannerPicFilter === name ? 'selected' : ''} value="${name}">${name}</option>`).join('');
+                    })()}
                 </select>
             </div>
             <div class="flex justify-end items-center">
@@ -847,21 +859,22 @@ function renderPlanner(container) {
                         <tr class="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 select-none">
                             <th class="py-3.5 px-4 w-12 text-center">No</th>
                             <th onclick="handlePlannerSort('judul')" class="py-3.5 px-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
-                                Judul Konten <span id="sort-icon-judul" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                                Judul <span id="sort-icon-judul" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
                             </th>
-                            <th class="py-3.5 px-4">Konsep / Visual</th>
-                            <th class="py-3.5 px-4 w-32">Jenis &amp; Tipe</th>
-                            <th onclick="handlePlannerSort('progres')" class="py-3.5 px-4 w-32 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 text-center">
-                                Progres <span id="sort-icon-progres" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            <th onclick="handlePlannerSort('jenis_konten')" class="py-3.5 px-4 w-44 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
+                                Jenis Konten (Video/Carousel) <span id="sort-icon-jenis_konten" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
                             </th>
-                            <th onclick="handlePlannerSort('jadwal')" class="py-3.5 px-4 w-36 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
-                                Jadwal Post <span id="sort-icon-jadwal" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
-                            </th>
-                            <th onclick="handlePlannerSort('status')" class="py-3.5 px-4 w-28 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 text-center">
-                                Status <span id="sort-icon-status" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            <th onclick="handlePlannerSort('media_post')" class="py-3.5 px-4 w-36 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
+                                Media Post <span id="sort-icon-media_post" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
                             </th>
                             <th onclick="handlePlannerSort('assignedTo')" class="py-3.5 px-4 w-36 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
                                 PIC <span id="sort-icon-assignedTo" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th onclick="handlePlannerSort('jadwal')" class="py-3.5 px-4 w-36 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700">
+                                Tanggal Posting <span id="sort-icon-jadwal" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
+                            </th>
+                            <th onclick="handlePlannerSort('jam_posting')" class="py-3.5 px-4 w-28 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 text-center">
+                                Jam Posting <span id="sort-icon-jam_posting" class="ml-1 text-[8px] text-slate-400"><i class="fa-solid fa-sort"></i></span>
                             </th>
                             ${!isKepala ? `<th class="py-3.5 px-4 w-24 text-center">Aksi</th>` : ''}
                         </tr>
@@ -880,6 +893,41 @@ function renderPlanner(container) {
 
     drawPlannerBoard();
 }
+
+window.getPlannerMediaIcon = function(media) {
+    if (!media) return '<span class="text-slate-400 text-xs font-semibold">-</span>';
+    const list = String(media).split(',').map(s => s.trim()).filter(Boolean);
+    if (list.length === 0) return '<span class="text-slate-400 text-xs font-semibold">-</span>';
+
+    const badges = list.map(item => {
+        const m = item.toLowerCase();
+        if (m.includes('instagram')) return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300 border border-pink-200 dark:border-pink-800 text-[9px] font-bold whitespace-nowrap"><i class="fa-brands fa-instagram text-pink-500"></i> Instagram</span>';
+        if (m.includes('tiktok')) return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-[9px] font-bold whitespace-nowrap"><i class="fa-brands fa-tiktok text-slate-700 dark:text-white"></i> TikTok</span>';
+        if (m.includes('youtube')) return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 border border-red-200 dark:border-red-800 text-[9px] font-bold whitespace-nowrap"><i class="fa-brands fa-youtube text-red-500"></i> YouTube</span>';
+        if (m.includes('website')) return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[9px] font-bold whitespace-nowrap"><i class="fa-solid fa-globe text-blue-500"></i> Website</span>';
+        if (m.includes('facebook')) return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[9px] font-bold whitespace-nowrap"><i class="fa-brands fa-facebook text-blue-600"></i> Facebook</span>';
+        if (m.includes('twitter') || m.includes('x')) return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 text-[9px] font-bold whitespace-nowrap"><i class="fa-brands fa-x-twitter"></i> X</span>';
+        if (m.includes('whatsapp')) return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[9px] font-bold whitespace-nowrap"><i class="fa-brands fa-whatsapp text-emerald-500"></i> WhatsApp</span>';
+        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-[9px] font-bold whitespace-nowrap"><i class="fa-solid fa-share-nodes text-indigo-500"></i> ${item}</span>`;
+    });
+
+    return `<div class="flex flex-wrap gap-1 items-center">${badges.join('')}</div>`;
+};
+
+window.getJenisKontenBadge = function(jenis) {
+    if (!jenis) return '<span class="text-slate-400 text-xs font-semibold">-</span>';
+    const j = String(jenis).toLowerCase();
+    if (j.includes('video') || j.includes('reels')) {
+        return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300 border border-violet-200 dark:border-violet-800 text-[10px] font-extrabold"><i class="fa-solid fa-video text-violet-500"></i> Video</span>';
+    }
+    if (j.includes('carousel')) {
+        return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[10px] font-extrabold"><i class="fa-solid fa-images text-indigo-500"></i> Carousel</span>';
+    }
+    if (j.includes('single') || j.includes('image') || j.includes('poster')) {
+        return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] font-extrabold"><i class="fa-regular fa-image text-emerald-500"></i> Single Image</span>';
+    }
+    return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-[10px] font-extrabold">${jenis}</span>`;
+};
 
 window.handlePlannerSearch = function(val) {
     plannerSearch = val;
@@ -941,7 +989,7 @@ window.drawPlannerBoard = function() {
     
     // PIC filter
     if (plannerPicFilter) {
-        filtered = filtered.filter(item => item.assignedTo === plannerPicFilter);
+        filtered = filtered.filter(item => (item['assign To'] || item.assignTo || item.assignedTo || item.pic) === plannerPicFilter);
     }
 
     // Sorting
@@ -949,12 +997,18 @@ window.drawPlannerBoard = function() {
         let valA = a[plannerSortField] || '';
         let valB = b[plannerSortField] || '';
         
-        if (plannerSortField === 'progres') {
-            valA = Number(valA);
-            valB = Number(valB);
-        } else if (plannerSortField === 'jadwal') {
-            valA = new Date(valA || '1970-01-01');
-            valB = new Date(valB || '1970-01-01');
+        if (plannerSortField === 'assignedTo' || plannerSortField === 'assignTo') {
+            valA = a['assign To'] || a.assignTo || a.assignedTo || a.pic || '';
+            valB = b['assign To'] || b.assignTo || b.assignedTo || b.pic || '';
+        } else if (plannerSortField === 'jadwal' || plannerSortField === 'tanggal_posting') {
+            valA = new Date(a.jadwal || a.tanggal_posting || '1970-01-01');
+            valB = new Date(b.jadwal || b.tanggal_posting || '1970-01-01');
+        } else if (plannerSortField === 'media_post') {
+            valA = String(a.media_post || a.media || '').toLowerCase();
+            valB = String(b.media_post || b.media || '').toLowerCase();
+        } else if (plannerSortField === 'jenis_konten') {
+            valA = String(a.jenis_konten || a.postType || a.jenis || '').toLowerCase();
+            valB = String(b.jenis_konten || b.postType || b.jenis || '').toLowerCase();
         } else {
             valA = String(valA).toLowerCase();
             valB = String(valB).toLowerCase();
@@ -966,7 +1020,7 @@ window.drawPlannerBoard = function() {
     });
 
     // Update sort icons
-    const sortFields = ['judul', 'progres', 'jadwal', 'status', 'assignedTo'];
+    const sortFields = ['judul', 'jenis_konten', 'media_post', 'assignedTo', 'jadwal', 'jam_posting'];
     sortFields.forEach(f => {
         const iconEl = document.getElementById(`sort-icon-${f}`);
         if (iconEl) {
@@ -979,15 +1033,9 @@ window.drawPlannerBoard = function() {
     });
 
     const isKepala = currentUser.role === 'kepala';
-    const postTypeIcons = {
-        'Carousel': '<span class="inline-flex items-center gap-1 text-indigo-650 dark:text-indigo-400 font-medium"><i class="fa-solid fa-images"></i> Carousel</span>',
-        'Reels': '<span class="inline-flex items-center gap-1 text-rose-500 font-medium"><i class="fa-solid fa-clapperboard"></i> Reels</span>',
-        'Single Image': '<span class="inline-flex items-center gap-1 text-emerald-500 font-medium"><i class="fa-regular fa-image"></i> Image</span>',
-        'Video': '<span class="inline-flex items-center gap-1 text-violet-500 font-medium"><i class="fa-solid fa-video"></i> Video</span>'
-    };
 
     const emptyHtml = `
-        <tr><td colspan="${isKepala ? 8 : 9}" class="py-0">
+        <tr><td colspan="${isKepala ? 7 : 8}" class="py-0">
             <div class="empty-state">
                 <div class="empty-state-icon"><i class="fa-solid fa-list-check"></i></div>
                 <p class="empty-state-title">Data Rencana Konten Kosong</p>
@@ -1010,27 +1058,13 @@ window.drawPlannerBoard = function() {
     }
 
     tableBody.innerHTML = filtered.map((item, index) => {
-        const initials = getPicInitials(item.assignedTo);
-        const avatarBg = getAvatarBg(item.assignedTo);
-
-        // Status Badge Style
-        let statusBadge = '';
-        switch (item.status) {
-            case 'Draft':
-                statusBadge = '<span class="px-2.5 py-1 bg-slate-105 text-slate-700 dark:bg-slate-700 dark:text-slate-300 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-600">Draft</span>';
-                break;
-            case 'In Progress':
-                statusBadge = '<span class="px-2.5 py-1 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 rounded-full text-[10px] font-bold border border-blue-105 dark:border-blue-900/65">In Progress</span>';
-                break;
-            case 'Done':
-                statusBadge = '<span class="px-2.5 py-1 bg-violet-50 text-violet-700 dark:bg-violet-955/40 dark:text-violet-300 rounded-full text-[10px] font-bold border border-violet-105 dark:border-violet-900/65">Done</span>';
-                break;
-            case 'Posted':
-                statusBadge = '<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-955/40 dark:text-emerald-300 rounded-full text-[10px] font-bold border border-emerald-105 dark:border-emerald-900/65">Posted</span>';
-                break;
-            default:
-                statusBadge = `<span class="px-2.5 py-1 bg-slate-50 text-slate-600 rounded-full text-[10px] font-bold">${item.status}</span>`;
-        }
+        const picVal = item['assign To'] || item.assignTo || item.assignedTo || item.pic || '-';
+        const initials = getPicInitials(picVal);
+        const avatarBg = getAvatarBg(picVal);
+        const jenisBadge = getJenisKontenBadge(item.jenis_konten || item.postType || item.jenis);
+        const mediaBadge = getPlannerMediaIcon(item.media_post || item.media);
+        const tanggalStr = formatDate(item.jadwal || item.tanggal_posting);
+        const jamStr = item.jam_posting || '09:00';
 
         let actions = '';
         if (!isKepala) {
@@ -1053,35 +1087,26 @@ window.drawPlannerBoard = function() {
         return `
             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors">
                 <td class="py-3.5 px-4 text-center font-bold text-slate-400">${index + 1}</td>
-                <td class="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 min-w-[180px] max-w-[280px]">
-                    <span onclick="showDetailById('content', ${item.id})" class="hover:text-indigo-650 transition-colors cursor-pointer block truncate" title="${item.judul}">${item.judul}</span>
+                <td class="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 min-w-[200px]">
+                    <span onclick="showDetailById('content', ${item.id})" class="hover:text-indigo-650 transition-colors cursor-pointer block" title="${item.judul}">${item.judul}</span>
                 </td>
-                <td class="py-3.5 px-4 text-slate-500 dark:text-slate-400 min-w-[200px]">
-                    <p class="line-clamp-2 leading-relaxed" title="${item.konsep || ''}">${item.konsep || '-'}</p>
+                <td class="py-3.5 px-4 whitespace-nowrap">
+                    ${jenisBadge}
                 </td>
-                <td class="py-3.5 px-4 font-semibold text-[10px]">
-                    <div class="flex flex-col gap-1">
-                        <span class="px-2 py-0.5 w-max rounded text-[9px] font-extrabold uppercase ${item.jenis === 'Hard Selling' ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-100 dark:border-rose-900' : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900'}">${item.jenis}</span>
-                        <span>${postTypeIcons[item.postType] || item.postType || '-'}</span>
-                    </div>
+                <td class="py-3.5 px-4 whitespace-nowrap">
+                    ${mediaBadge}
                 </td>
-                <td class="py-3.5 px-4 text-center">
-                    <div class="flex flex-col items-center justify-center gap-1 min-w-[80px]">
-                        <span class="font-bold text-[10px] text-slate-600 dark:text-slate-450">${item.progres}%</span>
-                        <div class="w-20 bg-slate-100 dark:bg-slate-800 rounded-full h-1">
-                            <div class="bg-gradient-to-r from-indigo-500 to-violet-650 h-1 rounded-full" style="width: ${item.progres}%"></div>
-                        </div>
+                <td class="py-3.5 px-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold border border-slate-200 shadow-xs ${avatarBg}" title="${picVal}">${initials}</div>
+                        <span class="font-bold text-[10px] text-slate-600 dark:text-slate-400 truncate max-w-[100px]">${picVal}</span>
                     </div>
                 </td>
                 <td class="py-3.5 px-4 font-bold text-rose-600 dark:text-rose-450 whitespace-nowrap">
-                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300"><i class="fa-regular fa-calendar-check text-[10px]"></i> ${formatDate(item.jadwal)}</span>
+                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300"><i class="fa-regular fa-calendar-check text-[10px]"></i> ${tanggalStr}</span>
                 </td>
-                <td class="py-3.5 px-4 text-center">${statusBadge}</td>
-                <td class="py-3.5 px-4">
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold border border-slate-200 shadow-xs ${avatarBg}" title="${item.assignedTo}">${initials}</div>
-                        <span class="font-bold text-[10px] text-slate-600 dark:text-slate-400 truncate max-w-[80px]">${item.assignedTo || '-'}</span>
-                    </div>
+                <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-[11px]"><i class="fa-regular fa-clock text-[10px] text-indigo-500"></i> ${jamStr}</span>
                 </td>
                 ${actions}
             </tr>
@@ -1092,16 +1117,14 @@ window.drawPlannerBoard = function() {
     const mobileBody = document.getElementById('planner-mobile-body');
     if (mobileBody) {
         mobileBody.innerHTML = filtered.map((item, index) => {
-            const initials2 = getPicInitials(item.assignedTo);
-            const avatarBg2 = getAvatarBg(item.assignedTo);
-            let statusCls = '';
-            switch (item.status) {
-                case 'Draft': statusCls = 'badge badge-neutral'; break;
-                case 'In Progress': statusCls = 'badge badge-progress'; break;
-                case 'Done': statusCls = 'badge badge-progress'; break;
-                case 'Posted': statusCls = 'badge badge-selesai'; break;
-                default: statusCls = 'badge badge-neutral';
-            }
+            const picVal2 = item['assign To'] || item.assignTo || item.assignedTo || item.pic || '-';
+            const initials2 = getPicInitials(picVal2);
+            const avatarBg2 = getAvatarBg(picVal2);
+            const jenisBadge2 = getJenisKontenBadge(item.jenis_konten || item.postType || item.jenis);
+            const mediaBadge2 = getPlannerMediaIcon(item.media_post || item.media);
+            const tanggalStr2 = formatDate(item.jadwal || item.tanggal_posting);
+            const jamStr2 = item.jam_posting || '09:00';
+
             const mobileActions = !isKepala ? `
                 <div class="flex items-center gap-2" onclick="event.stopPropagation()">
                     <button onclick="openModalById('content', ${item.id})" class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><i class="fa-solid fa-pen text-xs"></i></button>
@@ -1110,27 +1133,21 @@ window.drawPlannerBoard = function() {
             return `
                 <div class="mobile-data-card cursor-pointer" onclick="showDetailById('content', ${item.id})">
                     <div class="flex items-start justify-between gap-2 mb-2">
-                        <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 leading-snug flex-1 min-w-0 truncate">${item.judul}</p>
-                        <span class="${statusCls} shrink-0">${item.status || '-'}</span>
+                        <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 leading-snug flex-1 min-w-0">${item.judul}</p>
+                        <div class="shrink-0">${jenisBadge2}</div>
                     </div>
-                    <p class="text-[10px] text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">${item.konsep || '-'}</p>
-                    <div class="flex items-center justify-between">
+                    <div class="flex flex-wrap items-center gap-2 mb-3">
+                        ${mediaBadge2}
+                        <span class="inline-flex items-center gap-1 text-[10px] font-extrabold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded"><i class="fa-regular fa-clock text-indigo-500"></i> ${jamStr2}</span>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
                         <div class="flex items-center gap-2">
                             <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${avatarBg2}">${initials2}</div>
-                            <span class="text-[10px] font-semibold text-slate-500">${item.assignedTo || '-'}</span>
+                            <span class="text-[10px] font-bold text-slate-600 dark:text-slate-400">${picVal2}</span>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[9px] font-bold text-rose-600"><i class="fa-regular fa-calendar-check mr-1"></i>${formatDate(item.jadwal)}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400"><i class="fa-regular fa-calendar-check mr-1"></i>${tanggalStr2}</span>
                             ${mobileActions}
-                        </div>
-                    </div>
-                    <div class="mt-2.5">
-                        <div class="flex items-center justify-between mb-1">
-                            <span class="text-[9px] text-slate-400 font-semibold">Progres</span>
-                            <span class="text-[9px] font-bold text-indigo-600">${item.progres}%</span>
-                        </div>
-                        <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5">
-                            <div class="bg-gradient-to-r from-indigo-500 to-violet-500 h-1.5 rounded-full" style="width:${item.progres}%"></div>
                         </div>
                     </div>
                 </div>`;
@@ -2077,7 +2094,7 @@ function renderRekapKegiatan(container) {
         allTasks.push({
             judul: item.judul,
             jenis: 'Konten Planner',
-            petugas: item.assignedTo || '-',
+            petugas: item['assign To'] || item.assignTo || item.assignedTo || item.pic || '-',
             tanggal: item.jadwal,
             progress: item.progres || 0,
             status: item.status || 'Draft'
@@ -2437,7 +2454,7 @@ window.showCalendarDayEvents = function (dateStr) {
 
     db.contentPlanner.forEach(e => {
         if (e.jadwal && formatDateInput(e.jadwal).includes(dateStr)) {
-            dayEvents.push({ type: 'content', label: 'Konten', title: e.judul, pic: e.assignedTo || '-', status: e.status, item: e, color: 'bg-teal-600' });
+            dayEvents.push({ type: 'content', label: 'Konten', title: e.judul, pic: e['assign To'] || e.assignTo || e.assignedTo || e.pic || '-', status: e.status, item: e, color: 'bg-teal-600' });
         }
     });
 
@@ -2712,7 +2729,7 @@ function drawTeamGrid() {
     }
 
     grid.innerHTML = filtered.map(member => {
-        const taskCount = db.contentPlanner.filter(c => c.assignedTo === member.nama).length;
+        const taskCount = db.contentPlanner.filter(c => (c['assign To'] === member.nama || c.assignTo === member.nama || c.assignedTo === member.nama || c.pic === member.nama)).length;
         const initials = getPicInitials(member.nama);
         const avatarBg = getAvatarBg(member.nama);
         const itemJson = JSON.stringify(member).replace(/"/g, '&quot;');
@@ -3382,7 +3399,7 @@ window.drawAssignmentTable = function() {
             deadline: item.jadwal,
             progres: item.progres || 0,
             lampiran: item.lampiran || '',
-            assigned_to: item.assignedTo || '-'
+            assigned_to: item['assign To'] || item.assignTo || item.assignedTo || item.pic || '-'
         })),
         ...db.rekapRutin.filter(isTaskForCurrentUser).map(item => ({
             id: `rutin-${item.id}`,

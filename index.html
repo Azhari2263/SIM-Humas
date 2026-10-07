@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
     <title>Sistem Informasi Humas & Protokol Terintegrasi BPS Kalbar</title>
+    <meta name="description" content="Sistem Informasi Humas & Protokol Terintegrasi BPS Kalbar">
+    <meta property="og:title" content="SIM Humas BPS Kalbar">
+    <meta property="og:description" content="Sistem Informasi Humas & Protokol Terintegrasi BPS Kalbar">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -873,8 +876,13 @@
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-chart-simple w-5 text-sm"></i> SLA & Rekap Tugas
                 </button>
+                <button onclick="router('repository'); closeMobileSidebar();" id="mobile-nav-repository"
+                    data-roles="admin,kepala,koordinator,tim,kabkot"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-folder-open w-5 text-sm text-amber-500"></i> Pusat Dokumen
+                </button>
                 <button onclick="router('team'); closeMobileSidebar();" id="mobile-nav-team"
-                    data-roles="admin,kepala,koordinator"
+                    data-roles="admin,kepala,koordinator,kabkot"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-users w-5 text-sm"></i> Direktori Tim
                 </button>
@@ -998,7 +1006,12 @@
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-chart-simple w-5 text-sm shrink-0"></i> <span class="sidebar-text">SLA & Rekap Tugas</span>
                 </button>
-                <button onclick="router('team')" id="nav-team" data-roles="admin,kepala,koordinator"
+                <button onclick="router('repository')" id="nav-repository"
+                    data-roles="admin,kepala,koordinator,tim,kabkot"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-folder-open w-5 text-sm shrink-0 text-amber-500"></i> <span class="sidebar-text">Pusat Dokumen</span>
+                </button>
+                <button onclick="router('team')" id="nav-team" data-roles="admin,kepala,koordinator,kabkot"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-users w-5 text-sm shrink-0"></i> <span class="sidebar-text">Direktori Tim</span>
                 </button>
