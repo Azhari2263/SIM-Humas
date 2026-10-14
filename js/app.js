@@ -136,11 +136,24 @@ function showConfirmModal(message, onConfirm, options = {}) {
 // ===================================================================
 
 /**
- * Mendapatkan waktu "sekarang" dalam konteks WIB.
- * Selalu gunakan ini sebagai pengganti `new Date()` untuk perbandingan waktu.
+ * Mendapatkan waktu "sekarang" yang akurat dalam zona waktu WIB (Asia/Jakarta, UTC+7).
+ * Selalu gunakan ini sebagai pengganti `new Date()` untuk perhitungan dan perbandingan waktu
+ * agar konsisten di semua perangkat dan container terlepas dari timezone mesin klien.
  */
 function getNowWIB() {
-    return new Date(); // Browser sudah pakai local time (WIB jika OS diset WIB)
+    try {
+        const now = new Date();
+        const jakartaStr = now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' });
+        const wibDate = new Date(jakartaStr);
+        if (!isNaN(wibDate.getTime())) {
+            return wibDate;
+        }
+    } catch (e) {
+        // Fallback
+    }
+    const now = new Date();
+    const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+    return new Date(utcMs + (7 * 3600000));
 }
 
 /**
@@ -301,7 +314,13 @@ function formatDate(dateString) {
  * Selalu timezone-safe.
  */
 function formatDateInput(dateString) {
-    if (!dateString) return '';
+    if (!dateString) {
+        const now = getNowWIB();
+        const year  = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day   = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
     try {
         let d = parseIndonesianDate(dateString);
         if (!d || isNaN(d.getTime())) return '';
@@ -396,6 +415,50 @@ function formatTimeInput(timeStr) {
     return '08.30';
 }
 
+/**
+ * Format tanggal dan jam sekaligus dalam WIB
+ * Contoh: "24 Juni 2026, 09.00 WIB"
+ */
+function formatDateTimeWIB(dateStr, timeStr = null) {
+    if (!dateStr) return '-';
+    const dateFormatted = formatDate(dateStr);
+    if (!timeStr) return `${dateFormatted} WIB`;
+    const timeFormatted = formatTime(timeStr);
+    return `${dateFormatted}, ${timeFormatted}`;
+}
+
+/**
+ * Live Digital Clock Widget (WIB - Asia/Jakarta, UTC+7)
+ */
+function updateRealtimeWIBClock() {
+    const nowWIB = getNowWIB();
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    
+    const dayName = days[nowWIB.getDay()];
+    const dateNum = String(nowWIB.getDate()).padStart(2, '0');
+    const monthName = months[nowWIB.getMonth()];
+    const yearNum = nowWIB.getFullYear();
+    const dateFormatted = `${dayName}, ${dateNum} ${monthName} ${yearNum}`;
+    
+    const hh = String(nowWIB.getHours()).padStart(2, '0');
+    const mm = String(nowWIB.getMinutes()).padStart(2, '0');
+    const ss = String(nowWIB.getSeconds()).padStart(2, '0');
+    const timeFormatted = `${hh}:${mm}:${ss}`;
+
+    const dateEl = document.getElementById('header-wib-date');
+    const timeEl = document.getElementById('header-wib-time');
+    if (dateEl) dateEl.textContent = dateFormatted;
+    if (timeEl) timeEl.textContent = timeFormatted;
+}
+
+function initRealtimeWIBClock() {
+    updateRealtimeWIBClock();
+    if (!window._wibClockInterval) {
+        window._wibClockInterval = setInterval(updateRealtimeWIBClock, 1000);
+    }
+}
+
 // Expose helpers globally to avoid script loading order issues with views.js
 window.parseIndonesianDate = parseIndonesianDate;
 window.parseDateTimeWIB    = parseDateTimeWIB;
@@ -405,6 +468,8 @@ window.formatDate          = formatDate;
 window.formatDateInput     = formatDateInput;
 window.formatTime          = formatTime;
 window.formatTimeInput     = formatTimeInput;
+window.formatDateTimeWIB   = formatDateTimeWIB;
+window.initRealtimeWIBClock = initRealtimeWIBClock;
 
 
 // Helpers for opening modals and viewing details via ID
@@ -435,7 +500,13 @@ window.openModalById = function (type, id) {
     openModal(type, item);
 };
 
+let lastNavigationTime = 0;
+
 window.showDetailById = function (type, id) {
+    // Guard against ghost-clicks or touch fall-through during page transition or drawer close
+    if (Date.now() - lastNavigationTime < 450) {
+        return;
+    }
     const item = getItemByTypeAndId(type, id);
     if (item) {
         showDetail(type, item);
@@ -489,12 +560,37 @@ function toggleDesktopSidebar() {
 function initSidebarState() {
     const sidebar = document.getElementById('desktop-sidebar');
     const icon = document.getElementById('sidebar-toggle-icon');
-    const isCollapsed = localStorage.getItem('sim_humas_sidebar_collapsed') === 'true';
-    if (sidebar && isCollapsed) {
+    if (!sidebar) return;
+
+    const saved = localStorage.getItem('sim_humas_sidebar_collapsed');
+    // On tablet viewports (768px <= width < 1024px), default to collapsed if user has no saved preference
+    const isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
+    const isCollapsed = saved !== null ? saved === 'true' : isTablet;
+
+    if (isCollapsed) {
         sidebar.classList.add('collapsed');
         if (icon) icon.className = 'fa-solid fa-angles-right text-sm';
+    } else {
+        sidebar.classList.remove('collapsed');
+        if (icon) icon.className = 'fa-solid fa-angles-left text-sm';
     }
 }
+
+// Mobile Bottom Navigation Primary Action (role-aware)
+function handleBottomNavPrimary() {
+    if (!currentUser) return;
+    const role = currentUser.role;
+    if (role === 'pemohon') {
+        router('tickets');
+    } else if (role === 'tim') {
+        router('assignment');
+    } else if (role === 'koordinator') {
+        router('planner');
+    } else {
+        router('tickets');
+    }
+}
+window.handleBottomNavPrimary = handleBottomNavPrimary;
 
 // Global System Notifications (Per-User Targeting)
 function addNotification(title, message, target = 'all') {
@@ -732,7 +828,7 @@ window.setAllMediaOptions = function(mode) {
     if (!input) return;
     let list = [];
     if (mode === 'all') {
-        list = ['Instagram', 'TikTok', 'YouTube', 'Website', 'Facebook', 'Twitter / X', 'WhatsApp Channel'];
+        list = ['Instagram', 'TikTok', 'YouTube', 'Facebook'];
     } else if (mode === 'popular') {
         list = ['Instagram', 'TikTok', 'YouTube'];
     } else {
@@ -789,16 +885,36 @@ function getModalFieldsHTML(type, item) {
         const rawMedia = item?.media_post || item?.media || 'Instagram';
         const selectedMedia = rawMedia.split(',').map(s => s.trim()).filter(Boolean);
         const currentJam = item?.jam_posting || '09:00';
+        let currentHour = '09';
+        let currentMinute = '00';
+        const jamMatch = String(currentJam).match(/^(\d{1,2})[:.](\d{1,2})/);
+        if (jamMatch) {
+            currentHour = jamMatch[1].padStart(2, '0');
+            currentMinute = jamMatch[2].padStart(2, '0');
+        }
+
+        let hourOptions = '';
+        for (let h = 0; h < 24; h++) {
+            const hStr = String(h).padStart(2, '0');
+            hourOptions += `<option value="${hStr}" ${currentHour === hStr ? 'selected' : ''}>${hStr}</option>`;
+        }
+
+        let minuteOptions = '';
+        for (let m = 0; m < 60; m += 5) {
+            const mStr = String(m).padStart(2, '0');
+            minuteOptions += `<option value="${mStr}" ${currentMinute === mStr ? 'selected' : ''}>${mStr}</option>`;
+        }
+        // Pastikan currentMinute jika bukan kelipatan 5 tetap ada di options
+        if (!minuteOptions.includes(`value="${currentMinute}"`)) {
+            minuteOptions += `<option value="${currentMinute}" selected>${currentMinute}</option>`;
+        }
         const currentPic = item?.assignTo || item?.['assign To'] || item?.assignedTo || item?.pic || '';
 
         const mediaOptions = [
             { id: 'Instagram', label: 'Instagram', icon: 'fa-brands fa-instagram text-pink-500' },
             { id: 'TikTok', label: 'TikTok', icon: 'fa-brands fa-tiktok text-slate-800 dark:text-white' },
             { id: 'YouTube', label: 'YouTube', icon: 'fa-brands fa-youtube text-red-500' },
-            { id: 'Website', label: 'Website BPS', icon: 'fa-solid fa-globe text-blue-500' },
-            { id: 'Facebook', label: 'Facebook', icon: 'fa-brands fa-facebook text-blue-600' },
-            { id: 'Twitter / X', label: 'X / Twitter', icon: 'fa-brands fa-x-twitter text-slate-800 dark:text-white' },
-            { id: 'WhatsApp Channel', label: 'WhatsApp', icon: 'fa-brands fa-whatsapp text-emerald-500' }
+            { id: 'Facebook', label: 'Facebook', icon: 'fa-brands fa-facebook text-blue-600' }
         ];
 
         // Daftar PIC yang unik dan valid
@@ -887,8 +1003,17 @@ function getModalFieldsHTML(type, item) {
                         <input type="date" id="jadwal" value="${formatDateInput(item?.jadwal || item?.tanggal_posting)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs text-slate-800 dark:text-white font-semibold" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jam Posting <span class="text-rose-500">*</span></label>
-                        <input type="time" id="jam_posting" value="${currentJam}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs text-slate-800 dark:text-white font-semibold" required>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jam Posting (WIB / 24 Jam) <span class="text-rose-500">*</span></label>
+                        <div class="flex items-center gap-1.5">
+                            <select id="jam_posting_hour" class="flex-1 px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold text-slate-800 dark:text-white" required>
+                                ${hourOptions}
+                            </select>
+                            <span class="text-xs font-bold text-slate-400">:</span>
+                            <select id="jam_posting_minute" class="flex-1 px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold text-slate-800 dark:text-white" required>
+                                ${minuteOptions}
+                            </select>
+                            <span class="text-xs font-bold text-indigo-650 dark:text-indigo-400 ml-1">WIB</span>
+                        </div>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
@@ -1326,9 +1451,7 @@ function getModalFieldsHTML(type, item) {
                             <option ${currentMedia === 'Instagram' ? 'selected' : ''} value="Instagram">Instagram</option>
                             <option ${currentMedia === 'TikTok' ? 'selected' : ''} value="TikTok">TikTok</option>
                             <option ${currentMedia === 'YouTube' ? 'selected' : ''} value="YouTube">YouTube</option>
-                            <option ${currentMedia === 'Website' ? 'selected' : ''} value="Website">Website</option>
                             <option ${currentMedia === 'Facebook' ? 'selected' : ''} value="Facebook">Facebook</option>
-                            <option ${currentMedia === 'Twitter / X' ? 'selected' : ''} value="Twitter / X">Twitter / X</option>
                         </select>
                     </div>
                 </div>
@@ -1420,8 +1543,14 @@ function getModalFieldsHTML(type, item) {
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Username <span class="text-rose-500">*</span></label>
-                        <input type="text" id="username" value="${item?.username || ''}" ${item?.username === 'admin' ? 'readonly' : ''} class="w-full px-4 py-2 bg-white dark:bg-slate-755 border border-slate-205 rounded-lg text-xs font-medium" required>
+                        <input type="text" id="username" value="${item?.username || ''}" ${item?.username === 'admin' ? 'readonly' : ''} class="w-full px-4 py-2 bg-white dark:bg-slate-755 border border-slate-205 rounded-lg text-xs font-medium" placeholder="username" required>
                     </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kata Sandi (Password)</label>
+                        <input type="text" id="user_password" value="${item?.password || 'password'}" class="w-full px-4 py-2 bg-white dark:bg-slate-755 border border-slate-205 rounded-lg text-xs font-mono" placeholder="Default: password">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Seksi/Bidang Kerja</label>
                         <select id="bidang" class="w-full px-4 py-2 bg-white dark:bg-slate-755 border border-slate-205 rounded-lg text-xs">
@@ -1429,17 +1558,17 @@ function getModalFieldsHTML(type, item) {
                             ${db.masterData.filter(m => m.kategori === 'Bidang').map(m => `<option ${item?.bidang === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
                         </select>
                     </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Hak Akses Peran (Role)</label>
-                    <select id="role" class="w-full px-4 py-2 bg-white dark:bg-slate-755 border border-slate-205 rounded-lg text-xs">
-                        <option ${item?.role === 'admin' ? 'selected' : ''} value="admin">Administrator Sistem</option>
-                        <option ${item?.role === 'kepala' ? 'selected' : ''} value="kepala">Kepala BPS</option>
-                        <option ${item?.role === 'koordinator' ? 'selected' : ''} value="koordinator">Koordinator Humas</option>
-                        <option ${item?.role === 'tim' ? 'selected' : ''} value="tim">Tim Humas</option>
-                        <option ${item?.role === 'pemohon' ? 'selected' : ''} value="pemohon">Pegawai/Pemohon</option>
-                        <option ${item?.role === 'kabkot' ? 'selected' : ''} value="kabkot">BPS Kab/Kota</option>
-                    </select>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Hak Akses Peran (Role)</label>
+                        <select id="role" class="w-full px-4 py-2 bg-white dark:bg-slate-755 border border-slate-205 rounded-lg text-xs">
+                            <option ${item?.role === 'admin' ? 'selected' : ''} value="admin">Administrator Sistem</option>
+                            <option ${item?.role === 'kepala' ? 'selected' : ''} value="kepala">Kepala BPS</option>
+                            <option ${item?.role === 'koordinator' ? 'selected' : ''} value="koordinator">Koordinator Humas</option>
+                            <option ${item?.role === 'tim' ? 'selected' : ''} value="tim">Tim Humas</option>
+                            <option ${item?.role === 'pemohon' ? 'selected' : ''} value="pemohon">Pegawai/Pemohon</option>
+                            <option ${item?.role === 'kabkot' ? 'selected' : ''} value="kabkot">BPS Kab/Kota</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         `;
@@ -1728,7 +1857,7 @@ window.downloadExcelTemplate = function(type) {
             ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
             ["judul", "Wajib. Judul rencana konten.", "Bebas"],
             ["jenis_konten", "Wajib. Jenis format konten.", "Video, Carousel, Reels, Single Image"],
-            ["media_post", "Wajib. Platform media penayangan.", "Instagram, TikTok, YouTube, Website, Facebook, Twitter / X, WhatsApp Channel"],
+            ["media_post", "Wajib. Platform media penayangan.", "Instagram, TikTok, YouTube, Facebook"],
             ["assignTo", "Wajib. Nama petugas penanggung jawab (PIC) - Kolom I.", "Bebas (Nama anggota tim)"],
             ["tanggal_posting", "Wajib. Tanggal penayangan konten (Format: YYYY-MM-DD).", "Contoh: 2026-06-25"],
             ["jam_posting", "Opsional. Jam penayangan konten (Format: HH:MM).", "Contoh: 09:00"],
@@ -2035,7 +2164,13 @@ async function saveData(event) {
 
         item.jadwal = document.getElementById('jadwal').value;
         item.tanggal_posting = item.jadwal;
-        item.jam_posting = document.getElementById('jam_posting')?.value || '09:00';
+        const jamH = document.getElementById('jam_posting_hour')?.value;
+        const jamM = document.getElementById('jam_posting_minute')?.value;
+        if (jamH && jamM) {
+            item.jam_posting = `${jamH}:${jamM}`;
+        } else {
+            item.jam_posting = document.getElementById('jam_posting')?.value || '09:00';
+        }
         item.progres = Number(document.getElementById('progres')?.value || 0);
         item.status = document.getElementById('status')?.value || 'Draft';
         item.konsep = document.getElementById('konsep')?.value || '';
@@ -2134,7 +2269,8 @@ async function saveData(event) {
         item.username = document.getElementById('username').value;
         item.bidang = document.getElementById('bidang').value;
         item.role = document.getElementById('role').value;
-        item.password = 'password';
+        const pwdInput = document.getElementById('user_password');
+        item.password = pwdInput && pwdInput.value ? pwdInput.value.trim() : (item.password || 'password');
     } else if (currentModalType === 'repository') {
         item.nama_dokumen = document.getElementById('repo_nama').value;
         item.kategori = document.getElementById('repo_kategori').value;
@@ -2338,6 +2474,30 @@ window.openTicketModal = function (item = null) {
         'Ditolak/Dibatalkan'
     ];
 
+    const currentReqWaktu = item?.waktu || '09:00';
+    let reqHour = '09';
+    let reqMinute = '00';
+    const reqTimeMatch = String(currentReqWaktu).match(/^(\d{1,2})[:.](\d{1,2})/);
+    if (reqTimeMatch) {
+        reqHour = reqTimeMatch[1].padStart(2, '0');
+        reqMinute = reqTimeMatch[2].padStart(2, '0');
+    }
+
+    let reqHourOptions = '';
+    for (let h = 0; h < 24; h++) {
+        const hStr = String(h).padStart(2, '0');
+        reqHourOptions += `<option value="${hStr}" ${reqHour === hStr ? 'selected' : ''}>${hStr}</option>`;
+    }
+
+    let reqMinuteOptions = '';
+    for (let m = 0; m < 60; m += 5) {
+        const mStr = String(m).padStart(2, '0');
+        reqMinuteOptions += `<option value="${mStr}" ${reqMinute === mStr ? 'selected' : ''}>${mStr}</option>`;
+    }
+    if (!reqMinuteOptions.includes(`value="${reqMinute}"`)) {
+        reqMinuteOptions += `<option value="${reqMinute}" selected>${reqMinute}</option>`;
+    }
+
     const modalHTML = `
         <div class="modal" id="dynamic-modal">
             <div class="modal-content p-6 max-w-lg border border-slate-200 dark:border-slate-700 shadow-2xl relative">
@@ -2386,8 +2546,17 @@ window.openTicketModal = function (item = null) {
                             <input type="date" id="req-tgl-kegiatan" value="${formatDateInput(item?.tanggal_kegiatan || item?.deadline)}" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg font-semibold dark:text-white">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Waktu</label>
-                            <input type="time" id="req-waktu" value="${item?.waktu || '09:00'}" class="w-full px-3 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg font-semibold dark:text-white">
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Waktu (WIB / 24 Jam)</label>
+                            <div class="flex items-center gap-1">
+                                <select id="req-waktu-hour" class="flex-1 px-2 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold dark:text-white" required>
+                                    ${reqHourOptions}
+                                </select>
+                                <span class="text-xs font-bold text-slate-400">:</span>
+                                <select id="req-waktu-minute" class="flex-1 px-2 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold dark:text-white" required>
+                                    ${reqMinuteOptions}
+                                </select>
+                                <span class="text-[10px] font-bold text-indigo-650 dark:text-indigo-400">WIB</span>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Lokasi</label>
@@ -2457,7 +2626,9 @@ window.saveTicketRequest = async function (event, editId = null) {
     const deadline = document.getElementById('req-deadline').value;
     const judul = document.getElementById('req-title').value;
     const tglKegiatan = document.getElementById('req-tgl-kegiatan')?.value || deadline;
-    const waktu = document.getElementById('req-waktu')?.value || '09:00';
+    const reqWaktuHour = document.getElementById('req-waktu-hour')?.value;
+    const reqWaktuMin = document.getElementById('req-waktu-minute')?.value;
+    const waktu = (reqWaktuHour && reqWaktuMin) ? `${reqWaktuHour}:${reqWaktuMin}` : (document.getElementById('req-waktu')?.value || '09:00');
     const lokasi = document.getElementById('req-lokasi')?.value || 'Kantor BPS Kalbar';
     const detail = document.getElementById('req-detail').value;
     const lampiran = document.getElementById('req-lampiran')?.value || '';
@@ -2673,14 +2844,23 @@ function _buildMonitoringModalHTML(item = null) {
                     </div>
                 </div>
                 <form onsubmit="saveMonitoringItem(event, ${item ? item.id : 'null'})" class="space-y-4">
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                         <div>
                             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Portal Media <span class="text-rose-500">*</span></label>
-                            <input type="text" id="mon-media" value="${item?.media || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-lg text-xs font-medium dark:text-white" placeholder="Contoh: Tribun Pontianak" required>
+                            <input type="text" id="mon-media" value="${item?.media || ''}" class="w-full px-3.5 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-lg text-xs font-medium dark:text-white" placeholder="Contoh: Tribun Pontianak" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Topik Berita <span class="text-rose-500">*</span></label>
+                            <select id="mon-topik" class="w-full px-3.5 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-lg text-xs dark:text-white" required>
+                                ${['Inflasi','Perdagangan','Kemiskinan','Indikator Strategis','Ketenagakerjaan','Luas Panen dan Produksi Padi','Pertumbuhan Ekonomi','Sektoral','Ekspor Impor','Indeks Pembangunan Manusia','Kependudukan','Rekrutmen CPNS','Sensus Ekonomi 2026','Transportasi','Wisatawan Mancanegara','Wisatawan Nusantara','Ketimpangan Gender','Nilai Tukar Petani','Opini Publik Pegawai','Indeks Demokrasi','Indeks Kebahagiaan'].map(t => {
+                                    const currT = (item?.topik === 'Rilis BRS' || item?.topik === 'Sensus Ekonomi 2026' || item?.topik === 'SE2026' || item?.topik === 'Sensus Ekonomi' || item?.topik === 'Sensus Ekonomi 2026 (SE2026)') ? 'Sensus Ekonomi 2026' : (item?.topik || 'Sektoral');
+                                    return `<option ${currT === t ? 'selected' : ''} value="${t}">${t}</option>`;
+                                }).join('')}
+                            </select>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Sentimen <span class="text-rose-500">*</span></label>
-                            <select id="mon-sentiment" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-lg text-xs dark:text-white" required>
+                            <select id="mon-sentiment" class="w-full px-3.5 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-lg text-xs dark:text-white" required>
                                 <option ${item?.sentimen === 'Positif' ? 'selected' : ''} value="Positif">Positif</option>
                                 <option ${item?.sentimen === 'Netral' ? 'selected' : ''} value="Netral">Netral</option>
                                 <option ${item?.sentimen === 'Negatif' ? 'selected' : ''} value="Negatif">Negatif</option>
@@ -2726,6 +2906,7 @@ window.openEditMonitoringModal = function (id) {
 window.saveMonitoringItem = async function (event, editId = null) {
     event.preventDefault();
     const media = document.getElementById('mon-media').value;
+    const topik = document.getElementById('mon-topik')?.value || 'Sensus Ekonomi 2026';
     const title = document.getElementById('mon-title').value;
     const sentiment = document.getElementById('mon-sentiment').value;
     const summary = document.getElementById('mon-summary').value;
@@ -2736,6 +2917,7 @@ window.saveMonitoringItem = async function (event, editId = null) {
         const existing = db.monitoring.find(m => m.id === editId);
         if (!existing) return;
         existing.media = media;
+        existing.topik = topik;
         existing.judul = title;
         existing.sentimen = sentiment;
         existing.ringkasan = summary;
@@ -2748,6 +2930,7 @@ window.saveMonitoringItem = async function (event, editId = null) {
         const newItem = {
             id: Date.now(),
             media: media,
+            topik: topik,
             judul: title,
             tanggal: new Date().toISOString().split('T')[0],
             sentimen: sentiment,
@@ -2765,6 +2948,11 @@ window.saveMonitoringItem = async function (event, editId = null) {
 
 // Detail modal builder
 function showDetail(type, item) {
+    if (Date.now() - lastNavigationTime < 450) {
+        return;
+    }
+    // Remove any existing detail modal
+    document.querySelectorAll('.modal').forEach(m => m.remove());
     let content = '';
 
     if (type === 'content') {
@@ -2775,7 +2963,7 @@ function showDetail(type, item) {
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Media Post:</strong><span class="font-bold">${item.media_post || item.media || 'Instagram'}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC:</strong><span class="font-bold text-slate-800 dark:text-white">${item['assign To'] || item.assignTo || item.assignedTo || item.pic || '-'}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal Posting:</strong><span class="font-bold text-rose-600">${formatDate(item.jadwal || item.tanggal_posting)}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jam Posting:</strong><span class="font-bold">${item.jam_posting || '09:00'} WIB</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jam Posting:</strong><span class="font-bold">${formatTime(item.jam_posting || '09:00')}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || 'Draft'}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Progres:</strong><span class="font-black text-indigo-650">${item.progres || 0}%</span></div>
                 <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deskripsi Konsep / Catatan:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.konsep || 'Tidak ada catatan khusus.'}</span></div>
@@ -2786,7 +2974,7 @@ function showDetail(type, item) {
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Agenda:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.kegiatan}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal & Waktu:</strong><span class="font-bold">${formatDate(item.tanggal)} - ${item.jam_mulai || '08:30'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal & Waktu:</strong><span class="font-bold">${formatDate(item.tanggal)} - ${formatTime(item.jam_mulai || '08:30')}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Lokasi Acara:</strong><span class="font-bold">${item.lokasi || '-'}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jenis Agenda:</strong><span class="font-bold">${item.jenis || 'Internal'}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Level Keprotokolan:</strong><span class="font-bold">${item.level || 'Formal'}</span></div>
@@ -2863,6 +3051,45 @@ function showDetail(type, item) {
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Lampiran:</strong><span class="font-bold">${item.lampiran ? `<a href="${item.lampiran}" target="_blank" class="text-indigo-650 dark:text-indigo-400 hover:underline">Buka Tautan</a>` : '-'}</span></div>
             </div>
         `;
+    } else if (type === 'repository') {
+        content = `
+            <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Dokumen:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.nama_dokumen}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Kategori:</strong><span class="px-2 py-0.5 bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 rounded font-bold uppercase tracking-wider text-[9px] border border-amber-200 dark:border-amber-800">${item.kategori || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Versi / Edisi:</strong><span class="font-bold">${item.versi || 'v1.0'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal Pembaruan:</strong><span class="font-bold">${formatDate(item.tanggal)}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Pemilik / PIC:</strong><span class="font-bold text-slate-800 dark:text-white">${item.pic || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 ${item.status === 'Aktif' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'} rounded font-bold uppercase tracking-wider text-[9px]">${item.status || 'Aktif'}</span></div>
+                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deskripsi Ringkas:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.deskripsi || 'Tidak ada deskripsi.'}</span></div>
+                <div class="flex justify-between pt-1"><strong>Tautan Cloud:</strong><span>${item.link_cloud ? `<a href="${item.link_cloud}" target="_blank" class="inline-flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-bold hover:underline"><i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Buka di Google Drive</a>` : '-'}</span></div>
+            </div>
+        `;
+    } else if (type === 'monitoring') {
+        content = `
+            <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Media:</strong><span class="font-extrabold text-slate-800 dark:text-white">${item.media}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Judul:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.judul}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal:</strong><span class="font-bold">${formatDate(item.tanggal)}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Sentimen:</strong><span class="font-bold">${item.sentimen || 'Netral'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Topik:</strong><span class="font-bold">${item.topik || '-'}</span></div>
+                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Ringkasan:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.ringkasan || '-'}</span></div>
+                <div class="flex justify-between pt-1"><strong>Tautan Berita:</strong><span>${item.url ? `<a href="${item.url}" target="_blank" class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">Buka Tautan Berita</a>` : '-'}</span></div>
+            </div>
+        `;
+    } else if (type === 'tickets') {
+        content = `
+            <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Pengaju:</strong><span class="font-extrabold text-slate-800 dark:text-white">${item.pengaju}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Bidang:</strong><span class="font-bold">${item.bidang}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jenis Layanan:</strong><span class="font-bold">${item.jenis}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Judul Permohonan:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.judul}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deadline / Jadwal:</strong><span class="font-bold text-rose-600">${formatDate(item.deadline)}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Petugas / PIC:</strong><span class="font-bold text-slate-800 dark:text-white">${item.pic || '-'}</span></div>
+                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Rincian Kebutuhan:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.detail || '-'}</span></div>
+                <div class="flex justify-between pt-1"><strong>Lampiran:</strong><span>${item.lampiran ? `<a href="${item.lampiran}" target="_blank" class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">Buka Berkas Lampiran</a>` : '-'}</span></div>
+            </div>
+        `;
     }
 
     const modal = document.createElement('div');
@@ -2914,7 +3141,9 @@ function router(page) {
         page = roleAllowed[0] || 'dashboard';
     }
 
+    const isSamePage = (page === currentState);
     currentState = page;
+    lastNavigationTime = Date.now();
 
     // Reset Search query
     const searchInput = document.getElementById('global-search-input');
@@ -2937,11 +3166,48 @@ function router(page) {
         }
     });
 
+    // Update Mobile Bottom Bar active classes & role-specific primary button
+    const bottomBar = document.getElementById('mobile-bottom-bar');
+    if (bottomBar) {
+        const primaryIcon = document.getElementById('bottom-nav-primary-icon');
+        const primaryLabel = document.getElementById('bottom-nav-primary-label');
+        const primaryBtn = document.getElementById('bottom-nav-primary-btn');
+
+        if (currentUser) {
+            if (currentUser.role === 'tim') {
+                if (primaryIcon) primaryIcon.className = 'fa-solid fa-clipboard-list text-base transition-transform';
+                if (primaryLabel) primaryLabel.textContent = 'Tugas';
+                if (primaryBtn) primaryBtn.dataset.page = 'assignment';
+            } else if (currentUser.role === 'koordinator') {
+                if (primaryIcon) primaryIcon.className = 'fa-solid fa-list-check text-base transition-transform';
+                if (primaryLabel) primaryLabel.textContent = 'Planner';
+                if (primaryBtn) primaryBtn.dataset.page = 'planner';
+            } else {
+                if (primaryIcon) primaryIcon.className = 'fa-solid fa-ticket text-base transition-transform';
+                if (primaryLabel) primaryLabel.textContent = 'Layanan';
+                if (primaryBtn) primaryBtn.dataset.page = 'tickets';
+            }
+        }
+
+        document.querySelectorAll('#mobile-bottom-bar .bottom-nav-btn').forEach(el => {
+            const targetPage = el.dataset.page;
+            const icon = el.querySelector('i');
+            if (targetPage === page) {
+                el.classList.remove('text-slate-500', 'dark:text-slate-400');
+                el.classList.add('text-indigo-650', 'dark:text-indigo-400', 'font-black');
+                if (icon) icon.classList.add('scale-110');
+            } else {
+                el.classList.remove('text-indigo-650', 'dark:text-indigo-400', 'font-black');
+                el.classList.add('text-slate-500', 'dark:text-slate-400');
+                if (icon) icon.classList.remove('scale-110');
+            }
+        });
+    }
+
     const contentDiv = document.getElementById('app-content');
     if (!contentDiv) return;
 
     // Save scroll position when re-rendering the same page (after CRUD operations)
-    const isSamePage = (page === currentState);
     const savedScroll = isSamePage ? contentDiv.scrollTop : 0;
 
     // Clean up charts before switching views
@@ -2953,6 +3219,10 @@ function router(page) {
         window.sentimentChartInstance.destroy();
         window.sentimentChartInstance = null;
     }
+
+    // Remove any leftover modals from previous views
+    document.querySelectorAll('.modal, .confirm-modal, #dynamic-modal').forEach(m => m.remove());
+    lastNavigationTime = Date.now();
 
     contentDiv.innerHTML = '';
 
@@ -3012,9 +3282,18 @@ window.showDetail = showDetail;
 
 // App Initialization
 document.addEventListener('DOMContentLoaded', () => {
+    initRealtimeWIBClock();
     initTheme();
     initSidebarState();
     checkAuth();
+
+    // Responsive viewport listener for mobile/tablet rotation and layout adjustments
+    window.addEventListener('resize', debounce(() => {
+        const saved = localStorage.getItem('sim_humas_sidebar_collapsed');
+        if (saved === null) {
+            initSidebarState();
+        }
+    }, 250));
 
     // Close notification panel when clicking outside
     document.addEventListener('click', (e) => {

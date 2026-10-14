@@ -1,0 +1,82 @@
+{
+  "id": "/",
+  "name": "SIM Humas BPS Kalbar",
+  "short_name": "SIM Humas",
+  "description": "Sistem Informasi Humas & Protokol Terintegrasi BPS Kalbar",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "lang": "id",
+  "categories": [
+    "productivity",
+    "government",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Planner Konten",
+      "short_name": "Planner",
+      "description": "Buka Manajemen Konten Humas",
+      "url": "/?view=planner",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Jadwal Rilis BRS",
+      "short_name": "Jadwal BRS",
+      "description": "Jadwal Siaran Pers & Berita Resmi Statistik",
+      "url": "/?view=brs",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Helpdesk & Tiket",
+      "short_name": "Helpdesk",
+      "description": "Layanan Permohonan & Helpdesk Kehumasan",
+      "url": "/?view=tickets",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

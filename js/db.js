@@ -145,6 +145,13 @@ function loadLocalFallbacks() {
         }
     });
 
+    if (db.monitoring && Array.isArray(db.monitoring)) {
+        db.monitoring = db.monitoring.map(item => ({
+            ...item,
+            topik: (item.topik === 'Rilis BRS' || item.topik === 'Sensus Ekonomi 2026' || item.topik === 'SE2026' || item.topik === 'Sensus Ekonomi' || item.topik === 'Sensus Ekonomi 2026 (SE2026)') ? 'Sensus Ekonomi 2026' : (item.topik || 'Sektoral')
+        }));
+    }
+
     if (!db.users || db.users.length === 0) {
         db.users = [
             { id: 1, username: 'admin', password: 'password', nama: 'Super Admin', role: 'admin', bidang: 'IPDS' },
@@ -153,6 +160,44 @@ function loadLocalFallbacks() {
             { id: 4, username: 'tim', password: 'password', nama: 'Staf Humas', role: 'tim', bidang: 'Humas' },
             { id: 5, username: 'pemohon', password: 'password', nama: 'User Bidang', role: 'pemohon', bidang: 'Sosial' },
             { id: 6, username: 'kabkot', password: 'password', nama: 'BPS Kab. Kubu Raya', role: 'kabkot', bidang: 'BPS Kab/Kota' }
+        ];
+    }
+
+    if (!db.repository || db.repository.length === 0) {
+        db.repository = [
+            {
+                id: 1,
+                nama_dokumen: 'Pedoman Standar Pelayanan Informasi Publik & Kehumasan BPS 2026',
+                kategori: 'Pedoman',
+                deskripsi: 'Panduan tata kelola penyebarluasan rilis data, protokol pimpinan, dan standar infografis.',
+                tanggal: '2026-01-10',
+                pic: 'Azhari (Koordinator)',
+                link_cloud: 'https://drive.google.com/drive/folders/bps-kalbar-pedoman-humas',
+                versi: 'v2.1',
+                status: 'Aktif'
+            },
+            {
+                id: 2,
+                nama_dokumen: 'Template Desain Carousel & Infografis Rilis BRS (Adobe & Canva)',
+                kategori: 'Template',
+                deskripsi: 'Kit template grafis resmi identitas BPS Kalbar ukuran feed IG dan banner website.',
+                tanggal: '2026-02-01',
+                pic: 'Staf Humas',
+                link_cloud: 'https://drive.google.com/drive/folders/bps-kalbar-template-desain',
+                versi: 'v1.4',
+                status: 'Aktif'
+            },
+            {
+                id: 3,
+                nama_dokumen: 'Daftar Kontak Media Partner & Wartawan Kalbar 2026',
+                kategori: 'Daftar Kontak Media/Wartawan',
+                deskripsi: 'Database jurnalis cetak, TV, radio, dan media siber lokal Pontianak dan sekitarnya.',
+                tanggal: '2026-02-15',
+                pic: 'Azhari (Koordinator)',
+                link_cloud: 'https://docs.google.com/spreadsheets/d/bps-kalbar-kontak-wartawan',
+                versi: '2026 Q1',
+                status: 'Aktif'
+            }
         ];
     }
 
@@ -356,12 +401,15 @@ async function fetchDataFromSheets(silent = false) {
         }
 
         // Normalisasi Media Monitoring (Topik, Jenis Berita, dsb)
-        if (tempDb.monitoring && Array.isArray(tempDb.monitoring)) {
+        if (tempDb.monitoring && Array.isArray(tempDb.monitoring) && tempDb.monitoring.length > 0) {
             tempDb.monitoring.forEach(item => {
                 item.topik = item.topik || 'Umum / Statistik';
                 item.jenis_berita = item.jenis_berita || 'Media Online';
                 item.sentimen = item.sentimen || 'Positif';
             });
+        } else if (db.monitoring && db.monitoring.length > 0) {
+            // Preserve existing monitoring data if remote sheets returned empty
+            tempDb.monitoring = JSON.parse(JSON.stringify(db.monitoring));
         }
 
         // Normalisasi Permintaan Layanan Humas (Tiket)
@@ -407,8 +455,8 @@ async function fetchDataFromSheets(silent = false) {
             console.log('[RealTime] Tidak ada perubahan data di database, lewati re-render.');
         }
 
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' WIB';
+        const nowWIB = typeof getNowWIB === 'function' ? getNowWIB() : new Date();
+        const dateStr = nowWIB.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' ' + nowWIB.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }) + ' WIB';
 
         const lastSyncEl = document.getElementById('last-sync-date');
         if (lastSyncEl) lastSyncEl.textContent = dateStr;
@@ -431,6 +479,32 @@ async function fetchDataFromSheets(silent = false) {
         }
     }
 }
+
+// Fetch authoritative monitoring data from server
+async function syncMonitoringDataFromServer() {
+    try {
+        const resp = await fetch('/api/monitoring/data');
+        if (resp.ok) {
+            const res = await resp.json();
+            if (res.success && Array.isArray(res.articles) && res.articles.length > 0) {
+                db.monitoring = res.articles.map(item => ({
+                    ...item,
+                    topik: (item.topik === 'Rilis BRS' || item.topik === 'Sensus Ekonomi 2026' || item.topik === 'SE2026' || item.topik === 'Sensus Ekonomi' || item.topik === 'Sensus Ekonomi 2026 (SE2026)') ? 'Sensus Ekonomi 2026' : (item.topik || 'Sektoral')
+                }));
+                saveLocalFallback('monitoring');
+                if (typeof currentState !== 'undefined' && currentState === 'monitoring') {
+                    if (typeof updateMonitoringKpiCards === 'function') updateMonitoringKpiCards();
+                    if (typeof drawMonitoringCurrentView === 'function') drawMonitoringCurrentView();
+                }
+                return res.articles;
+            }
+        }
+    } catch (e) {
+        console.warn('[Sync] Could not fetch monitoring data from server:', e);
+    }
+    return db.monitoring || [];
+}
+window.syncMonitoringDataFromServer = syncMonitoringDataFromServer;
 
 // Persistent Sync Queue for Offline-Safe Operations
 let syncQueue = JSON.parse(localStorage.getItem('sim_humas_sync_queue')) || [];
@@ -677,8 +751,8 @@ function stopRealtimePolling() {
 
 // Update indikator "Live" di UI sidebar
 function updateLiveIndicator() {
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' WIB';
+    const nowWIB = typeof getNowWIB === 'function' ? getNowWIB() : new Date();
+    const dateStr = nowWIB.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' ' + nowWIB.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) + ' WIB';
 
     const lastSyncEl = document.getElementById('last-sync-date');
     if (lastSyncEl) lastSyncEl.textContent = dateStr;

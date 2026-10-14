@@ -3,11 +3,22 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-    <title>Sistem Informasi Humas & Protokol Terintegrasi BPS Kalbar</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, viewport-fit=cover">
+    <title>SIM Humas BPS Kalbar - Sistem Informasi Humas & Protokol Terintegrasi</title>
     <meta name="description" content="Sistem Informasi Humas & Protokol Terintegrasi BPS Kalbar">
     <meta property="og:title" content="SIM Humas BPS Kalbar">
     <meta property="og:description" content="Sistem Informasi Humas & Protokol Terintegrasi BPS Kalbar">
+
+    <!-- PWA & Mobile Installability -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SIM Humas">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -50,7 +61,24 @@
                     }
                 }
             }
-        }
+        };
+    </script>
+    <script>
+        // Global navigation fallback helpers (immediately available before all bundles complete loading)
+        window.handleBottomNavPrimary = function () {
+            if (typeof router === 'function') {
+                const role = (window.currentUser && window.currentUser.role) ? window.currentUser.role : 'pemohon';
+                if (role === 'pemohon') {
+                    router('tickets');
+                } else if (role === 'tim') {
+                    router('assignment');
+                } else if (role === 'koordinator') {
+                    router('planner');
+                } else {
+                    router('tickets');
+                }
+            }
+        };
     </script>
 
     <style>
@@ -98,6 +126,181 @@
             to {
                 opacity: 1;
                 transform: translateY(0);
+            }
+        }
+
+        /* === ANIMASI LUCU KEHUMASAN (LOGIN MASCOT & PROPS) === */
+        @keyframes mascotBob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-7px); }
+        }
+
+        @keyframes mascotBlink {
+            0%, 92%, 100% { transform: scaleY(1); }
+            95% { transform: scaleY(0.08); }
+        }
+
+        @keyframes micWave {
+            0% { transform: scale(0.85); opacity: 0.9; }
+            50% { opacity: 0.4; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+
+        @keyframes cameraFlash {
+            0%, 88%, 94%, 100% { opacity: 0; transform: scale(0.5); }
+            90% { opacity: 0.95; transform: scale(1.25); }
+            92% { opacity: 0.15; transform: scale(0.9); }
+        }
+
+        @keyframes floatGentle {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(2deg); }
+        }
+
+        @keyframes floatReverse {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(7px) rotate(-3deg); }
+        }
+
+        @keyframes speechBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        @keyframes starTwinkle {
+            0%, 100% { opacity: 0.2; transform: scale(0.8) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1.2) rotate(45deg); }
+        }
+
+        .mascot-container {
+            animation: mascotBob 4s ease-in-out infinite;
+        }
+
+        .mascot-eye-pupil {
+            transition: transform 0.25s ease-out;
+        }
+
+        .mascot-eye-lid {
+            transform-origin: center;
+            animation: mascotBlink 4.2s infinite;
+        }
+
+        .mascot-hand {
+            transform-origin: 50% 90%;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Hand positions for hiding eyes (password hidden) */
+        .covering-eyes .mascot-hand-left {
+            transform: translate(25px, -36px) rotate(28deg);
+        }
+
+        .covering-eyes .mascot-hand-right {
+            transform: translate(-25px, -36px) rotate(-28deg);
+        }
+
+        /* Hand positions for peeking (password visible) */
+        .peeking .mascot-hand-left {
+            transform: translate(22px, -34px) rotate(22deg);
+        }
+
+        .peeking .mascot-hand-right {
+            transform: translate(-10px, -24px) rotate(-10deg);
+        }
+
+        .peeking .mascot-eye-pupil-right {
+            transform: translate(3px, -1px);
+        }
+
+        /* Looking down when username focused */
+        .looking-down .mascot-eye-pupil {
+            transform: translateY(4px);
+        }
+
+        .floating-prop-1 {
+            animation: floatGentle 5s ease-in-out infinite;
+        }
+
+        .floating-prop-2 {
+            animation: floatReverse 6s ease-in-out infinite;
+        }
+
+        .floating-prop-3 {
+            animation: floatGentle 4.5s ease-in-out infinite 1s;
+        }
+
+        .speech-bubble-anim {
+            animation: speechBounce 3s ease-in-out infinite;
+        }
+
+        .star-sparkle {
+            animation: starTwinkle 3.2s ease-in-out infinite;
+        }
+
+        /* === MASCOT LOGO ENTRANCE & HOVER ANIMATIONS === */
+        @keyframes mascotLogoEntrance {
+            0% {
+                opacity: 0;
+                transform: scale(0.8) rotate(-8deg);
+            }
+            55% {
+                opacity: 1;
+                transform: scale(1.08) rotate(3deg);
+            }
+            80% {
+                transform: scale(0.98) rotate(-1deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        .mascot-logo-img {
+            display: inline-block;
+            transform-origin: center center;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        filter 0.35s ease,
+                        box-shadow 0.35s ease;
+            animation: mascotLogoEntrance 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+            will-change: transform;
+        }
+
+        /* Hover on logo itself or parent brand container: soft tilt and lively scale */
+        .mascot-logo-wrapper:hover .mascot-logo-img,
+        .sidebar-logo-section:hover .mascot-logo-img,
+        .mascot-logo-img:hover {
+            transform: scale(1.1) rotate(-5deg);
+            filter: drop-shadow(0 8px 16px rgba(99, 102, 241, 0.35));
+        }
+
+        /* Subtle gentle floating when container hovered */
+        .sidebar-logo-section:hover .mascot-logo-wrapper,
+        .mascot-logo-wrapper:hover {
+            animation: speechBounce 2.5s ease-in-out infinite 0.4s;
+        }
+
+        /* Active / click tap micro-compression */
+        .mascot-logo-wrapper:active .mascot-logo-img,
+        .sidebar-logo-section:active .mascot-logo-img,
+        .mascot-logo-img:active {
+            transform: scale(0.94) rotate(2deg);
+            transition-duration: 0.12s;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .mascot-logo-img {
+                animation: none !important;
+                transition: none !important;
+            }
+            .mascot-logo-wrapper:hover .mascot-logo-img,
+            .sidebar-logo-section:hover .mascot-logo-img,
+            .mascot-logo-img:hover {
+                transform: none !important;
+            }
+            .sidebar-logo-section:hover .mascot-logo-wrapper,
+            .mascot-logo-wrapper:hover {
+                animation: none !important;
             }
         }
 
@@ -404,13 +607,14 @@
         .mobile-sidebar {
             position: fixed;
             top: 0;
-            left: -290px;
-            width: 290px;
+            left: -340px;
+            width: min(320px, 86vw);
             height: 100%;
+            height: 100dvh;
             background: white;
             z-index: 1030;
             transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 4px 0 20px rgba(15, 23, 42, 0.08);
+            box-shadow: 4px 0 24px rgba(15, 23, 42, 0.12);
         }
 
         .dark .mobile-sidebar {
@@ -437,6 +641,31 @@
 
         .sidebar-overlay.open {
             display: block;
+        }
+
+        /* Mobile Bottom Navigation Bar */
+        #mobile-bottom-bar {
+            padding-bottom: calc(0.35rem + env(safe-area-inset-bottom, 0px));
+        }
+
+        .bottom-nav-btn {
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .bottom-nav-btn:active {
+            transform: scale(0.92);
+        }
+
+        /* Touch optimization & smooth scrolling */
+        button, a, input, select, textarea {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .overflow-x-auto {
+            -webkit-overflow-scrolling: touch;
         }
 
         /* Specific overrides for login input text visibility on focus and autofill */
@@ -759,7 +988,7 @@
 
     <!-- Login Page Wrapper -->
     <div id="login-layout"
-        class="h-screen w-full flex items-center justify-center bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 transition-all duration-300">
+        class="min-h-screen w-full flex items-center justify-center bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 transition-all duration-300 p-3 sm:p-6 py-8 sm:py-12 overflow-y-auto">
         <!-- populated by auth.js -->
     </div>
 
@@ -771,13 +1000,12 @@
         <!-- Mobile Sidebar -->
         <div id="mobile-sidebar" class="mobile-sidebar flex flex-col border-r border-slate-100 dark:border-slate-700">
             <div class="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div
-                        class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-100">
-                        <i class="fa-solid fa-chart-pie text-lg"></i>
+                <div class="flex items-center gap-3 cursor-pointer group" onclick="router('dashboard'); closeMobileSidebar();" title="Ke Dashboard SIM Humas">
+                    <div class="mascot-logo-wrapper relative shrink-0">
+                        <img src="/icon.svg" alt="SIM Humas Logo" class="mascot-logo-img w-10 h-10 rounded-xl object-contain shadow-md shadow-indigo-500/20 shrink-0">
                     </div>
                     <div>
-                        <h1 class="font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">SIM Humas
+                        <h1 class="font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">SIM Humas
                         </h1>
                         <p class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
                             BPS Prov. Kalbar</p>
@@ -881,7 +1109,7 @@
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-folder-open w-5 text-sm text-amber-500"></i> Pusat Dokumen
                 </button>
-                <button onclick="router('team'); closeMobileSidebar();" id="mobile-nav-team"
+                <button onclick="closeMobileSidebar(); router('team');" id="mobile-nav-team"
                     data-roles="admin,kepala,koordinator,kabkot"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-users w-5 text-sm"></i> Direktori Tim
@@ -893,6 +1121,12 @@
             </nav>
 
             <div class="p-4 border-t border-slate-100 dark:border-slate-700">
+                <!-- Mobile PWA Install Button -->
+                <button id="pwa-install-mobile-sidebar-btn" onclick="triggerPWAInstall(); closeMobileSidebar();"
+                    class="w-full mb-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-bold uppercase tracking-wider py-2.5 px-3 rounded-xl shadow-xs transition-all flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-mobile-screen-button"></i> Instal di HP (PWA)
+                </button>
+
                 <div
                     class="bg-slate-50/80 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
                     <div class="flex items-center justify-between mb-2">
@@ -920,13 +1154,12 @@
         <aside id="desktop-sidebar"
             class="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col shadow-sm z-10 hidden md:flex shrink-0">
             <!-- Logo Section -->
-            <div class="sidebar-logo-section p-5 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-                <div
-                    class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-100 shrink-0">
-                    <i class="fa-solid fa-chart-pie text-lg"></i>
+            <div class="sidebar-logo-section p-5 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3 cursor-pointer group" onclick="router('dashboard')" title="Ke Dashboard SIM Humas">
+                <div class="mascot-logo-wrapper relative shrink-0">
+                    <img src="/icon.svg" alt="SIM Humas Logo" class="mascot-logo-img w-10 h-10 rounded-xl object-contain shadow-md shadow-indigo-500/20 shrink-0">
                 </div>
                 <div class="sidebar-logo-text">
-                    <h1 class="font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">SIM Humas</h1>
+                    <h1 class="font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">SIM Humas</h1>
                     <p class="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">BPS Prov. Kalbar</p>
                 </div>
             </div>
@@ -1022,6 +1255,12 @@
             </nav>
 
             <div class="sidebar-sync-section p-4 border-t border-slate-100 dark:border-slate-700">
+                <!-- Desktop/PC PWA Install Button -->
+                <button id="pwa-install-desktop-sidebar-btn" onclick="triggerPWAInstall()"
+                    class="w-full mb-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-bold uppercase tracking-wider py-2.5 px-3 rounded-xl shadow-xs transition-all flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-mobile-screen-button"></i> <span class="sidebar-text">Instal di HP / PC</span>
+                </button>
+
                 <div class="bg-slate-50/80 dark:bg-slate-900/60 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
                     <div class="flex items-center justify-between mb-2">
                         <p class="text-[9px] uppercase font-extrabold text-indigo-650 dark:text-indigo-400 tracking-widest">Sinkronisasi</p>
@@ -1060,29 +1299,50 @@
                         title="Tampilkan/Sembunyikan Sidebar">
                         <i class="fa-solid fa-angles-left text-sm" id="sidebar-toggle-icon"></i>
                     </button>
-                    <div>
-                        <h2 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-shield-halved text-indigo-500 hidden md:inline"></i>
+                    <div class="flex items-center gap-2 cursor-pointer group" onclick="router('dashboard')" title="Ke Dashboard SIM Humas">
+                        <div class="mascot-logo-wrapper relative shrink-0">
+                            <img src="/icon.svg" alt="SIM Humas Logo" class="mascot-logo-img w-6 h-6 md:w-7 md:h-7 rounded-lg object-contain shadow-xs shadow-indigo-500/20 shrink-0">
+                        </div>
+                        <h2 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                             <span class="hidden sm:inline">SIM Humas BPS Kalbar</span>
                             <span class="sm:hidden">SIM Humas</span>
                         </h2>
                     </div>
                 </div>
 
-                <!-- Top Right Utilities -->
-                <div class="flex items-center gap-2">
+                <!-- Center: Live WIB Clock Widget -->
+                <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <div id="header-wib-clock" class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-slate-100/90 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 tabular-nums shadow-xs shrink-0">
+                        <span class="flex h-2 w-2 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span id="header-wib-date" class="hidden md:inline text-slate-600 dark:text-slate-300 font-semibold text-[11px]">-</span>
+                        <span class="hidden md:inline text-slate-300 dark:text-slate-600">·</span>
+                        <span id="header-wib-time" class="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-xs tracking-tight">--:--:--</span>
+                        <span class="hidden sm:inline text-[9px] font-black tracking-wider uppercase text-slate-500 dark:text-slate-400 px-1 py-0.5 bg-white dark:bg-slate-800 rounded border border-slate-200/60 dark:border-slate-700/60">WIB</span>
+                    </div>
+
+                    <!-- PWA Install Button (Mobile & Desktop) -->
+                    <button id="pwa-install-header-btn" onclick="triggerPWAInstall()"
+                        class="hidden items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl text-xs font-bold shadow-xs transition-all active:scale-95 border border-indigo-400/30 shrink-0"
+                        title="Instal SIM Humas di HP atau Komputer">
+                        <i class="fa-solid fa-mobile-screen-button text-xs"></i>
+                        <span class="hidden sm:inline">Instal App</span>
+                    </button>
+
                     <!-- Dark Mode Toggle -->
                     <button onclick="toggleDarkMode()"
-                        class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+                        class="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shrink-0"
                         title="Toggle Dark/Light Mode">
                         <i class="fa-solid fa-moon dark:hidden text-xs"></i>
                         <i class="fa-solid fa-sun hidden dark:block text-amber-500 text-xs"></i>
                     </button>
 
                     <!-- Notifications Dropdown -->
-                    <div class="relative">
+                    <div class="relative shrink-0">
                         <button onclick="toggleNotificationPanel()"
-                            class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all relative"
+                            class="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all relative"
                             title="Notifikasi System">
                             <i class="fa-solid fa-bell text-xs"></i>
                             <span id="notif-badge"
@@ -1091,7 +1351,7 @@
 
                         <!-- Panel Dropdown -->
                         <div id="notif-panel"
-                            class="absolute right-0 mt-3.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl hidden z-50 overflow-hidden" style="width:320px">
+                            class="absolute right-0 mt-3.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl hidden z-50 overflow-hidden w-80 max-w-[calc(100vw-24px)]">
                             <div
                                 class="p-3.5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
                                 <h4
@@ -1112,7 +1372,7 @@
             </header>
 
             <!-- Main Render Area -->
-            <div id="app-content" class="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 lg:p-8 fade-in" style="scroll-behavior:smooth;">
+            <div id="app-content" class="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 lg:p-8 pb-24 md:pb-8 fade-in" style="scroll-behavior:smooth;">
                 <div class="flex flex-col justify-center items-center h-full">
                     <div class="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin mb-4">
                     </div>
@@ -1120,14 +1380,135 @@
                         database...</span>
                 </div>
             </div>
+
+            <!-- Mobile Bottom Navigation Bar (Thumb Friendly) -->
+            <nav id="mobile-bottom-bar"
+                class="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-around px-2 py-1.5 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.35)] transition-all">
+                <button onclick="router('dashboard')" data-page="dashboard"
+                    class="bottom-nav-btn flex-1 py-1 px-1 flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors min-h-[44px]">
+                    <i class="fa-solid fa-gauge-high text-base transition-transform"></i>
+                    <span class="text-[10px] font-bold tracking-tight">Beranda</span>
+                </button>
+                <button onclick="router('calendar')" data-page="calendar"
+                    class="bottom-nav-btn flex-1 py-1 px-1 flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors min-h-[44px]">
+                    <i class="fa-regular fa-calendar-days text-base transition-transform"></i>
+                    <span class="text-[10px] font-bold tracking-tight">Kalender</span>
+                </button>
+                <button onclick="if (typeof handleBottomNavPrimary === 'function') { handleBottomNavPrimary(); } else if (typeof router === 'function') { router('tickets'); }" id="bottom-nav-primary-btn" data-page="tickets"
+                    class="bottom-nav-btn flex-1 py-1 px-1 flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors min-h-[44px]">
+                    <i class="fa-solid fa-ticket text-base transition-transform" id="bottom-nav-primary-icon"></i>
+                    <span class="text-[10px] font-bold tracking-tight" id="bottom-nav-primary-label">Layanan</span>
+                </button>
+                <button onclick="router('team')" data-page="team"
+                    class="bottom-nav-btn flex-1 py-1 px-1 flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors min-h-[44px]">
+                    <i class="fa-solid fa-users text-base transition-transform"></i>
+                    <span class="text-[10px] font-bold tracking-tight">Tim</span>
+                </button>
+                <button onclick="openMobileSidebar()"
+                    class="bottom-nav-btn flex-1 py-1 px-1 flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors min-h-[44px]"
+                    title="Buka Menu Lengkap">
+                    <i class="fa-solid fa-bars text-base transition-transform"></i>
+                    <span class="text-[10px] font-bold tracking-tight">Menu</span>
+                </button>
+            </nav>
         </main>
     </div>
 
-    <!-- Application Script Bundles -->
-    <script src="js/db.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/views.js"></script>
-    <script src="js/app.js"></script>
+    <!-- Offline Status Floating Banner -->
+    <div id="offline-banner" class="hidden fixed bottom-4 left-4 right-4 sm:right-auto sm:max-w-md z-50 bg-gradient-to-r from-amber-600 to-amber-700 text-white p-3.5 rounded-2xl shadow-2xl flex items-center justify-between gap-3 text-xs font-semibold backdrop-blur-md border border-amber-400/30">
+        <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-wifi-slash text-sm"></i>
+            </span>
+            <div>
+                <p class="font-bold text-white leading-tight">Mode Offline Aktif</p>
+                <p class="text-[11px] text-amber-100 font-normal">Menggunakan data tersimpan di HP/perangkat.</p>
+            </div>
+        </div>
+        <button onclick="document.getElementById('offline-banner').classList.add('hidden')" class="text-white/80 hover:text-white p-1">
+            <i class="fa-solid fa-times"></i>
+        </button>
+    </div>
+
+    <!-- iOS Safari Installation Guide Modal -->
+    <div id="pwa-ios-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 relative text-slate-800 dark:text-slate-100">
+            <button onclick="closeIOSInstallModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center">
+                <i class="fa-solid fa-times"></i>
+            </button>
+            <div class="flex items-center gap-3 mb-4">
+                <div class="mascot-logo-wrapper relative shrink-0">
+                    <img src="/icon.svg" alt="SIM Humas Logo" class="mascot-logo-img w-12 h-12 rounded-2xl object-contain shadow-md shadow-indigo-500/20 shrink-0">
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-base leading-tight">Pasang di iPhone / iPad</h3>
+                    <p class="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider">Aplikasi Mandiri (PWA)</p>
+                </div>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+                Anda dapat memasang <strong>SIM Humas BPS Kalbar</strong> langsung ke layar utama iPhone/iPad seperti aplikasi App Store:
+            </p>
+            <ol class="space-y-3 text-xs text-slate-700 dark:text-slate-200 font-medium mb-6">
+                <li class="flex items-start gap-2.5">
+                    <span class="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-bold flex items-center justify-center shrink-0 text-xs">1</span>
+                    <span>Ketuk ikon <strong>Bagikan / Share</strong> (<i class="fa-solid fa-arrow-up-from-bracket text-indigo-500"></i>) di menu bawah browser Safari.</span>
+                </li>
+                <li class="flex items-start gap-2.5">
+                    <span class="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-bold flex items-center justify-center shrink-0 text-xs">2</span>
+                    <span>Gulir ke bawah dan pilih <strong>"Tambah ke Layar Utama" (Add to Home Screen)</strong> (<i class="fa-regular fa-square-plus text-indigo-500"></i>).</span>
+                </li>
+                <li class="flex items-start gap-2.5">
+                    <span class="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-bold flex items-center justify-center shrink-0 text-xs">3</span>
+                    <span>Ketuk <strong>Tambah (Add)</strong> di sudut kanan atas. Selesai!</span>
+                </li>
+            </ol>
+            <button onclick="closeIOSInstallModal()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-indigo-200">
+                Mengerti, Tutup
+            </button>
+        </div>
+    </div>
+
+    <!-- Generic Installation Guide Modal (Chrome / Edge / Android) -->
+    <div id="pwa-generic-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 relative text-slate-800 dark:text-slate-100">
+            <button onclick="closeGenericInstallModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center">
+                <i class="fa-solid fa-times"></i>
+            </button>
+            <div class="flex items-center gap-3 mb-4">
+                <div class="mascot-logo-wrapper relative shrink-0">
+                    <img src="/icon.svg" alt="SIM Humas Logo" class="mascot-logo-img w-12 h-12 rounded-2xl object-contain shadow-md shadow-indigo-500/20 shrink-0">
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-base leading-tight">Instal SIM Humas</h3>
+                    <p class="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider">Aplikasi Web Progresif</p>
+                </div>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+                Pasang di ponsel Android atau komputer Anda agar dapat diakses satu ketukan tanpa address bar browser:
+            </p>
+            <div class="space-y-2 text-xs text-slate-700 dark:text-slate-200 font-medium mb-6">
+                <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <p class="font-bold text-slate-900 dark:text-white mb-1"><i class="fa-brands fa-android text-emerald-500 mr-1"></i> Pengguna Android:</p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Ketuk menu titik tiga (⋮) di Chrome > pilih <strong>"Instal aplikasi"</strong> atau <strong>"Tambahkan ke Layar Utama"</strong>.</p>
+                </div>
+                <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <p class="font-bold text-slate-900 dark:text-white mb-1"><i class="fa-solid fa-laptop text-indigo-500 mr-1"></i> Pengguna Komputer / PC:</p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Klik ikon instal (<i class="fa-solid fa-download"></i>) di sebelah kanan address bar browser Chrome/Edge.</p>
+                </div>
+            </div>
+            <button onclick="closeGenericInstallModal()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-indigo-200">
+                Tutup
+            </button>
+        </div>
+    </div>
+
+    <!-- Application Script Bundles (v1.2.0 cache-busting) -->
+    <script src="js/db.js?v=1.2.0"></script>
+    <script src="js/auth.js?v=1.2.0"></script>
+    <script src="js/driveSync.js?v=1.2.0"></script>
+    <script src="js/views.js?v=1.2.0"></script>
+    <script src="js/pwa.js?v=1.2.0"></script>
+    <script src="js/app.js?v=1.2.0"></script>
 </body>
 
 </html>

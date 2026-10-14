@@ -1,9 +1,31 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
+import {
+  scrapeGoogleNewsBpsKalbar,
+  generateMonitoringWorkbook,
+  syncExcelToGoogleDrive,
+  normalizeArticleTopic,
+  DRIVE_FOLDER_ID,
+  DRIVE_FOLDER_URL,
+  MONTH_NAMES
+} from './scripts/monitoringEngine.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const DATA_DIR = path.join(__dirname, 'data');
+const MONITORING_FILE = path.join(DATA_DIR, 'monitoring.json');
+
+// Memory cache for Google Drive access token across requests
+let serverCachedDriveToken = process.env.GOOGLE_DRIVE_ACCESS_TOKEN || null;
+
+if (!fs.existsSync(DATA_DIR)) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch (e) {}
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -76,8 +98,32 @@ const initialDb = {
   ]
 };
 
-// In-Memory Database store
+// In-Memory Database store with disk persistence for monitoring
 let database = JSON.parse(JSON.stringify(initialDb));
+
+if (fs.existsSync(MONITORING_FILE)) {
+  try {
+    const raw = fs.readFileSync(MONITORING_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      database.monitoring = parsed.map(item => ({
+        ...item,
+        topik: normalizeArticleTopic(item.topik)
+      }));
+      console.log(`[DB] Restored ${parsed.length} monitoring articles from disk storage.`);
+    }
+  } catch (e) {
+    console.warn('[DB] Could not load monitoring.json:', e.message);
+  }
+}
+
+function persistMonitoringData() {
+  try {
+    fs.writeFileSync(MONITORING_FILE, JSON.stringify(database.monitoring || [], null, 2), 'utf8');
+  } catch (e) {
+    console.warn('[DB] Could not save monitoring.json:', e.message);
+  }
+}
 
 // Map sheet name in requests to database property
 const SHEET_TO_PROP = {
@@ -235,6 +281,187 @@ app.post('/api/sheets', (req, res) => {
     res.status(400).json({ success: false, error: `Unknown action: ${action}` });
   } catch (err) {
     console.error('Error handling /api/sheets POST:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// =============================================================
+// MEDIA MONITORING BPS KALBAR APIs
+// =============================================================
+
+// Helper to get active report filename
+function getMonitoringReportFileName(year = 2026, startM = 1, endM = 10) {
+  let sName = typeof startM === 'number' ? MONTH_NAMES[startM - 1] : startM;
+  let eName = typeof endM === 'number' ? MONTH_NAMES[endM - 1] : endM;
+  if (!sName) sName = 'Januari';
+  if (!eName) eName = 'Desember';
+  return `Laporan_Monitoring Berita_BPS_Kalbar_${year}_${sName}-${eName}.xlsx`;
+}
+
+// 0. Get Authoritative Monitoring Data
+app.get('/api/monitoring/data', (req, res) => {
+  res.json({
+    success: true,
+    totalCount: (database.monitoring || []).length,
+    articles: database.monitoring || []
+  });
+});
+
+// 1. Run Scraper Pipeline
+app.post('/api/monitoring/run-scraper', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let accessToken = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      accessToken = authHeader.substring(7);
+    } else if (req.body && req.body.accessToken) {
+      accessToken = req.body.accessToken;
+    }
+
+    if (accessToken) {
+      serverCachedDriveToken = accessToken;
+    } else if (!accessToken && serverCachedDriveToken) {
+      accessToken = serverCachedDriveToken;
+    }
+
+    const year = parseInt(req.body.year, 10) || 2026;
+    const startMonth = Math.max(1, Math.min(12, parseInt(req.body.startMonth, 10) || 1));
+    const endMonth = Math.max(1, Math.min(12, parseInt(req.body.endMonth, 10) || 10));
+
+    console.log(`[Scraper] Starting BPS Kalbar media monitoring scrape pipeline for ${year} (bulan ${startMonth} s/d ${endMonth})...`);
+    const scrapedArticles = await scrapeGoogleNewsBpsKalbar(year);
+    console.log(`[Scraper] Fetched ${scrapedArticles.length} raw articles from Google News RSS`);
+
+    if (!database.monitoring) database.monitoring = [];
+
+    // Filter duplicates: compare link/URL or (clean title + date)
+    const existingUrls = new Set(database.monitoring.map(m => (m.url || '').trim().toLowerCase()).filter(Boolean));
+    const existingTitleDates = new Set(database.monitoring.map(m => `${(m.judul || '').trim().toLowerCase()}_${m.tanggal || ''}`));
+
+    let addedCount = 0;
+    const newArticles = [];
+
+    for (const art of scrapedArticles) {
+      art.topik = normalizeArticleTopic(art.topik);
+      const artUrl = (art.url || '').trim().toLowerCase();
+      const artTitleDate = `${(art.judul || '').trim().toLowerCase()}_${art.tanggal || ''}`;
+
+      if (artUrl && existingUrls.has(artUrl)) continue;
+      if (existingTitleDates.has(artTitleDate)) continue;
+
+      if (artUrl) existingUrls.add(artUrl);
+      existingTitleDates.add(artTitleDate);
+
+      const maxId = database.monitoring.reduce((max, i) => Math.max(max, Number(i.id) || 0), 0);
+      art.id = maxId + 1;
+      database.monitoring.unshift(art); // Add latest first
+      newArticles.push(art);
+      addedCount++;
+    }
+
+    // Persist to disk
+    persistMonitoringData();
+
+    console.log(`[Scraper] Scrape complete. ${addedCount} new unique articles added. Total stored: ${database.monitoring.length}`);
+
+    // Generate Excel file for specified range
+    const fileName = getMonitoringReportFileName(year, startMonth, endMonth);
+    const workbook = await generateMonitoringWorkbook(database.monitoring, year, startMonth, endMonth);
+    const fileBuffer = await workbook.xlsx.writeBuffer();
+
+    let driveSyncResult = null;
+    if (accessToken) {
+      try {
+        console.log(`[Drive Sync] Syncing newly generated Excel report to Google Drive: ${fileName}...`);
+        driveSyncResult = await syncExcelToGoogleDrive(accessToken, fileBuffer, fileName);
+        console.log('[Drive Sync] Successfully synced to Google Drive:', driveSyncResult);
+      } catch (driveErr) {
+        console.warn('[Drive Sync] Google Drive sync error:', driveErr.message);
+        driveSyncResult = { success: false, error: driveErr.message };
+      }
+    }
+
+    res.json({
+      success: true,
+      addedCount,
+      totalCount: database.monitoring.length,
+      articles: database.monitoring, // Authoritative full dataset to ensure web is 100% in sync
+      newArticles,
+      fileName,
+      year,
+      startMonth,
+      endMonth,
+      driveSync: driveSyncResult,
+      driveFolderId: DRIVE_FOLDER_ID,
+      driveFolderUrl: DRIVE_FOLDER_URL
+    });
+  } catch (err) {
+    console.error('Error in /api/monitoring/run-scraper:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. Export / Download Styled Excel
+app.get('/api/monitoring/export-excel', async (req, res) => {
+  try {
+    const year = parseInt(req.query.year, 10) || 2026;
+    const startMonth = Math.max(1, Math.min(12, parseInt(req.query.startMonth, 10) || 1));
+    const endMonth = Math.max(1, Math.min(12, parseInt(req.query.endMonth, 10) || 10));
+
+    const fileName = getMonitoringReportFileName(year, startMonth, endMonth);
+    const articles = database.monitoring || [];
+    const workbook = await generateMonitoringWorkbook(articles, year, startMonth, endMonth);
+    const fileBuffer = await workbook.xlsx.writeBuffer();
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', fileBuffer.length);
+    res.send(fileBuffer);
+  } catch (err) {
+    console.error('Error generating Excel download:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 3. Sync to Google Drive Endpoint
+app.post('/api/monitoring/sync-drive', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let accessToken = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      accessToken = authHeader.substring(7);
+    } else if (req.body && req.body.accessToken) {
+      accessToken = req.body.accessToken;
+    }
+
+    if (!accessToken) {
+      return res.status(401).json({
+        success: false,
+        error: 'Google OAuth Access Token diperlukan. Silakan login ke akun Google terlebih dahulu.'
+      });
+    }
+
+    serverCachedDriveToken = accessToken;
+
+    const year = parseInt(req.body.year, 10) || 2026;
+    const startMonth = Math.max(1, Math.min(12, parseInt(req.body.startMonth, 10) || 1));
+    const endMonth = Math.max(1, Math.min(12, parseInt(req.body.endMonth, 10) || 10));
+
+    const fileName = getMonitoringReportFileName(year, startMonth, endMonth);
+    const articles = database.monitoring || [];
+    const workbook = await generateMonitoringWorkbook(articles, year, startMonth, endMonth);
+    const fileBuffer = await workbook.xlsx.writeBuffer();
+
+    const result = await syncExcelToGoogleDrive(accessToken, fileBuffer, fileName);
+    res.json({
+      success: true,
+      fileId: result.fileId,
+      fileName: result.fileName,
+      webViewLink: result.webViewLink,
+      driveFolderUrl: DRIVE_FOLDER_URL
+    });
+  } catch (err) {
+    console.error('Error in /api/monitoring/sync-drive:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
