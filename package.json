@@ -11,7 +11,7 @@
     "lint": "node --check server.js scripts/monitoringEngine.js js/app.js js/auth.js js/db.js js/views.js js/driveSync.js js/pwa.js sw.js"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "22.x"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
