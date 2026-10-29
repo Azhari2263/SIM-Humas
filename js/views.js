@@ -9450,15 +9450,28 @@ window.runMonitoringScraper = async function () {
             })
         });
 
+        let data = null;
+        let responseText = '';
+        try {
+            responseText = await resp.text();
+            data = responseText ? JSON.parse(responseText) : null;
+        } catch (parseErr) {
+            console.error('[Scraper Response Parse Error]:', parseErr, responseText);
+        }
+
+        if (!resp.ok) {
+            const serverMsg = (data && data.error) || (responseText ? responseText.slice(0, 120) : null);
+            throw new Error(serverMsg || `Koneksi ke server gagal (HTTP ${resp.status})`);
+        }
+
+        if (!data || !data.success) {
+            throw new Error((data && data.error) || 'Scraping gagal dilakukan.');
+        }
+
         setBar(70);
         setStepDone('step-2', '2. Klasifikasi media dan topik berhasil');
-        setStepDone('step-3', '3. Filter duplikasi selesai & database diperbarui');
+        setStepDone('step-3', `3. Filter duplikasi selesai & database diperbarui (${data.totalCount || 0} artikel)`);
         setStepActive('step-4', `4. Format Excel (.xlsx) BPS ${getMonitoringPeriodLabel()} selesai disusun...`);
-
-        const data = await resp.json();
-        if (!data.success) {
-            throw new Error(data.error || 'Scraping gagal dilakukan.');
-        }
 
         setBar(90);
         setStepDone('step-4', `4. File Laporan Excel (${data.fileName}) berhasil dibuat`);

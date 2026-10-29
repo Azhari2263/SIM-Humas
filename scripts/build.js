@@ -12,6 +12,7 @@ console.log('[sim-humas] Starting production build verification...');
 
 const requiredFiles = [
   'server.js',
+  'api/index.js',
   'index.html',
   'manifest.json',
   'js/app.js',
@@ -38,6 +39,7 @@ for (const file of requiredFiles) {
 // 2. Syntax validation for JS files
 const jsFilesToLint = [
   'server.js',
+  'api/index.js',
   'scripts/monitoringEngine.js',
   'js/app.js',
   'js/auth.js',

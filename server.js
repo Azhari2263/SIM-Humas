@@ -17,6 +17,7 @@ const __dirname = path.dirname(__filename);
 
 const DATA_DIR = path.join(__dirname, 'data');
 const MONITORING_FILE = path.join(DATA_DIR, 'monitoring.json');
+const TMP_MONITORING_FILE = path.join('/tmp', 'monitoring.json');
 
 // Memory cache for Google Drive access token across requests
 let serverCachedDriveToken = process.env.GOOGLE_DRIVE_ACCESS_TOKEN || null;
@@ -107,16 +108,21 @@ const initialDb = {
 // In-Memory Database store with disk persistence for monitoring
 let database = JSON.parse(JSON.stringify(initialDb));
 
-if (fs.existsSync(MONITORING_FILE)) {
+// Load existing monitoring data from persistent or tmp storage
+const candidateMonitoringFile = fs.existsSync(TMP_MONITORING_FILE)
+  ? TMP_MONITORING_FILE
+  : (fs.existsSync(MONITORING_FILE) ? MONITORING_FILE : null);
+
+if (candidateMonitoringFile) {
   try {
-    const raw = fs.readFileSync(MONITORING_FILE, 'utf8');
+    const raw = fs.readFileSync(candidateMonitoringFile, 'utf8');
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
       database.monitoring = parsed.map(item => ({
         ...item,
         topik: normalizeArticleTopic(item.topik)
       }));
-      console.log(`[DB] Restored ${parsed.length} monitoring articles from disk storage.`);
+      console.log(`[DB] Restored ${parsed.length} monitoring articles from disk storage (${candidateMonitoringFile}).`);
     }
   } catch (e) {
     console.warn('[DB] Could not load monitoring.json:', e.message);
@@ -124,10 +130,19 @@ if (fs.existsSync(MONITORING_FILE)) {
 }
 
 function persistMonitoringData() {
+  const content = JSON.stringify(database.monitoring || [], null, 2);
   try {
-    fs.writeFileSync(MONITORING_FILE, JSON.stringify(database.monitoring || [], null, 2), 'utf8');
+    if (!fs.existsSync(DATA_DIR)) {
+      try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (_) {}
+    }
+    fs.writeFileSync(MONITORING_FILE, content, 'utf8');
   } catch (e) {
-    console.warn('[DB] Could not save monitoring.json:', e.message);
+    // If running in a read-only filesystem environment (e.g. Vercel Serverless Function)
+    try {
+      fs.writeFileSync(TMP_MONITORING_FILE, content, 'utf8');
+    } catch (tmpErr) {
+      console.warn('[DB] Could not save monitoring data to disk or /tmp:', tmpErr.message);
+    }
   }
 }
 
@@ -164,12 +179,12 @@ const SHEET_TO_PROP = {
 };
 
 // API endpoint matching code.gs doGet()
-app.get('/api/sheets', (req, res) => {
+app.get(['/api/sheets', '/sheets'], (req, res) => {
   res.json(database);
 });
 
 // API endpoint matching code.gs doPost()
-app.post('/api/sheets', (req, res) => {
+app.post(['/api/sheets', '/sheets'], (req, res) => {
   try {
     let body = req.body;
     if (typeof body === 'string') {
@@ -305,7 +320,7 @@ function getMonitoringReportFileName(year = 2026, startM = 1, endM = 10) {
 }
 
 // 0. Get Authoritative Monitoring Data
-app.get('/api/monitoring/data', (req, res) => {
+app.get(['/api/monitoring/data', '/monitoring/data'], (req, res) => {
   res.json({
     success: true,
     totalCount: (database.monitoring || []).length,
@@ -314,7 +329,7 @@ app.get('/api/monitoring/data', (req, res) => {
 });
 
 // 1. Run Scraper Pipeline
-app.post('/api/monitoring/run-scraper', async (req, res) => {
+app.post(['/api/monitoring/run-scraper', '/monitoring/run-scraper'], async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     let accessToken = null;
@@ -408,7 +423,7 @@ app.post('/api/monitoring/run-scraper', async (req, res) => {
 });
 
 // 2. Export / Download Styled Excel
-app.get('/api/monitoring/export-excel', async (req, res) => {
+app.get(['/api/monitoring/export-excel', '/monitoring/export-excel'], async (req, res) => {
   try {
     const year = parseInt(req.query.year, 10) || 2026;
     const startMonth = Math.max(1, Math.min(12, parseInt(req.query.startMonth, 10) || 1));
@@ -430,7 +445,7 @@ app.get('/api/monitoring/export-excel', async (req, res) => {
 });
 
 // 3. Sync to Google Drive Endpoint
-app.post('/api/monitoring/sync-drive', async (req, res) => {
+app.post(['/api/monitoring/sync-drive', '/monitoring/sync-drive'], async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     let accessToken = null;
@@ -482,8 +497,10 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[SIM Humas] Server started successfully on http://0.0.0.0:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[SIM Humas] Server started successfully on http://0.0.0.0:${PORT}`);
+  });
+}
 
 export default app;
