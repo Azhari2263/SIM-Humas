@@ -8,7 +8,11 @@
     "dev": "node server.js",
     "start": "node server.js",
     "build": "node scripts/build.js",
+    "kosong": "node scripts/build.js",
     "lint": "node --check server.js scripts/monitoringEngine.js js/app.js js/auth.js js/db.js js/views.js js/driveSync.js js/pwa.js sw.js"
+  },
+  "bin": {
+    "kosong": "./bin/kosong"
   },
   "engines": {
     "node": "22.x"
