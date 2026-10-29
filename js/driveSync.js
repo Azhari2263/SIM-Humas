@@ -1,6 +1,6 @@
 // Google Drive Integration & Auth Handler for SIM Humas BPS Kalbar
 (function () {
-    let cachedAccessToken = localStorage.getItem('bps_google_drive_access_token') || null;
+    let cachedAccessToken = null;
     let driveUser = null;
     const DRIVE_FOLDER_ID = '1NxW8FdEHG3fTOdSj7zd0EUnaCj81klHs';
     const DRIVE_FOLDER_URL = `https://drive.google.com/drive/folders/${DRIVE_FOLDER_ID}?usp=sharing`;
@@ -14,6 +14,11 @@
     let googleAuthProviderInstance = null;
     let isSigningIn = false;
 
+    // Bersihkan token lama dari localStorage agar tidak menyimpan token kedaluwarsa
+    try {
+        localStorage.removeItem('bps_google_drive_access_token');
+    } catch (_) {}
+
     async function initFirebase() {
         if (firebaseAuthInstance) return firebaseAuthInstance;
         try {
@@ -21,20 +26,21 @@
             if (!resp.ok) return null;
             const config = await resp.json();
 
-            const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
+            const { initializeApp, getApps, getApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
             const { getAuth, GoogleAuthProvider, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
 
-            const app = initializeApp(config);
+            const app = getApps().length > 0 ? getApp() : initializeApp(config);
             firebaseAuthInstance = getAuth(app);
             googleAuthProviderInstance = new GoogleAuthProvider();
+            googleAuthProviderInstance.setCustomParameters({
+                prompt: 'select_account'
+            });
             SCOPES.forEach(scope => googleAuthProviderInstance.addScope(scope));
 
             onAuthStateChanged(firebaseAuthInstance, (user) => {
-                if (!user && !isSigningIn) {
-                    // Do not wipe cachedAccessToken abruptly to allow seamless automated pipeline runs
-                    driveUser = null;
-                } else if (user) {
-                    driveUser = user;
+                driveUser = user;
+                if (!user) {
+                    cachedAccessToken = null;
                 }
             });
 
@@ -45,8 +51,8 @@
         }
     }
 
-    async function requestGoogleDriveToken() {
-        if (cachedAccessToken) return cachedAccessToken;
+    async function requestGoogleDriveToken(forcePopup = false) {
+        if (!forcePopup && cachedAccessToken) return cachedAccessToken;
 
         const auth = await initFirebase();
         if (!auth) {
@@ -59,13 +65,21 @@
             const result = await signInWithPopup(auth, googleAuthProviderInstance);
             const credential = GoogleAuthProvider.credentialFromResult(result);
             if (!credential?.accessToken) {
-                throw new Error('Gagal mendapatkan Access Token Google Drive.');
+                throw new Error('Gagal mendapatkan Access Token Google Drive dari akun Google.');
             }
 
             cachedAccessToken = credential.accessToken;
-            localStorage.setItem('bps_google_drive_access_token', cachedAccessToken);
             driveUser = result.user;
             return cachedAccessToken;
+        } catch (err) {
+            cachedAccessToken = null;
+            if (err.code === 'auth/popup-closed-by-user') {
+                throw new Error('Jendela login Google ditutup sebelum otorisasi selesai. Silakan coba kembali.');
+            }
+            if (err.code === 'auth/popup-blocked') {
+                throw new Error('Jendela popup Google diblokir browser. Mohon izinkan popup untuk situs ini.');
+            }
+            throw err;
         } finally {
             isSigningIn = false;
         }
@@ -74,26 +88,29 @@
     window.driveSync = {
         getFolderUrl: () => DRIVE_FOLDER_URL,
         getFolderId: () => DRIVE_FOLDER_ID,
-        getCachedToken: () => cachedAccessToken || localStorage.getItem('bps_google_drive_access_token'),
+        getCachedToken: () => cachedAccessToken,
         getUser: () => driveUser,
+        clearToken: () => {
+            cachedAccessToken = null;
+            try { localStorage.removeItem('bps_google_drive_access_token'); } catch (_) {}
+        },
 
-        signInAndGetToken: async () => {
-            return await requestGoogleDriveToken();
+        signInAndGetToken: async (force = false) => {
+            return await requestGoogleDriveToken(force);
         },
 
         ensureToken: async () => {
-            const token = cachedAccessToken || localStorage.getItem('bps_google_drive_access_token');
-            if (token) return token;
-            return await requestGoogleDriveToken();
+            if (cachedAccessToken) return cachedAccessToken;
+            return await requestGoogleDriveToken(true);
         },
 
         syncReportToDrive: async (tokenOverride, year, startMonth, endMonth) => {
             let token = tokenOverride || cachedAccessToken;
             if (!token) {
-                token = await requestGoogleDriveToken();
+                token = await requestGoogleDriveToken(true);
             }
 
-            const response = await fetch('/api/monitoring/sync-drive', {
+            let response = await fetch('/api/monitoring/sync-drive', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -106,8 +123,33 @@
                 })
             });
 
+            // Jika token kedaluwarsa (HTTP 401 UNAUTHENTICATED), bersihkan cache dan minta popup segar
+            if (response.status === 401) {
+                console.warn('[Drive Sync] Token expired (401). Requesting fresh Google login...');
+                cachedAccessToken = null;
+                try { localStorage.removeItem('bps_google_drive_access_token'); } catch (_) {}
+
+                token = await requestGoogleDriveToken(true);
+                response = await fetch('/api/monitoring/sync-drive', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        year: year || 2026,
+                        startMonth: startMonth || 1,
+                        endMonth: endMonth || 10
+                    })
+                });
+            }
+
             const data = await response.json();
             if (!data.success) {
+                if (data.isAuthError || (data.error && data.error.includes('401'))) {
+                    cachedAccessToken = null;
+                    try { localStorage.removeItem('bps_google_drive_access_token'); } catch (_) {}
+                }
                 throw new Error(data.error || 'Sinkronisasi ke Google Drive gagal.');
             }
 

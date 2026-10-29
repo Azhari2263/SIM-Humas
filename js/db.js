@@ -48,7 +48,7 @@ let db = {
         {
             id: 3,
             nama_dokumen: 'Daftar Kontak Media Partner & Wartawan Kalbar 2026',
-            kategori: 'Daftar Kontak Media/Wartawan',
+            kategori: 'Kontak Partner',
             deskripsi: 'Database jurnalis cetak, TV, radio, dan media siber lokal Pontianak dan sekitarnya.',
             tanggal: '2026-02-15',
             pic: 'Azhari (Koordinator)',
@@ -125,6 +125,33 @@ let errorMessage = '';
     } catch (_) {}
 })();
 
+// Helper normalisasi format waktu dari Google Sheets (termasuk format serialisasi ISO Date 1899-12-30)
+function normalizeSheetTime(timeStr) {
+    if (!timeStr) return '09:00';
+    const s = String(timeStr).trim();
+    if (s.includes('T')) {
+        try {
+            const d = new Date(s);
+            if (!isNaN(d.getTime())) {
+                const parts = new Intl.DateTimeFormat('en-GB', {
+                    timeZone: 'Asia/Jakarta',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                }).formatToParts(d);
+                const h = parts.find(p => p.type === 'hour')?.value;
+                const m = parts.find(p => p.type === 'minute')?.value;
+                if (h && m) return `${h}:${m}`;
+            }
+        } catch (_) {}
+    }
+    const match = s.match(/^(\d{1,2})[:.](\d{1,2})/);
+    if (match) {
+        return `${match[1].padStart(2, '0')}:${match[2].padStart(2, '0')}`;
+    }
+    return s || '09:00';
+}
+
 // Load fallback database from LocalStorage
 function loadLocalFallbacks() {
     TABLES.forEach(tb => {
@@ -160,6 +187,17 @@ function loadLocalFallbacks() {
             { id: 4, username: 'tim', password: 'password', nama: 'Staf Humas', role: 'tim', bidang: 'Humas' },
             { id: 5, username: 'pemohon', password: 'password', nama: 'User Bidang', role: 'pemohon', bidang: 'Sosial' },
             { id: 6, username: 'kabkot', password: 'password', nama: 'BPS Kab. Kubu Raya', role: 'kabkot', bidang: 'BPS Kab/Kota' }
+        ];
+    }
+
+    if (!db.team || db.team.length === 0) {
+        db.team = [
+            { id: 1, nama: 'Azhari, S.Tr.Stat.', jabatan: 'Koordinator Tim Kehumasan & IPDS', seksi: 'Diseminasi & Humas', email: 'azhari@bps.go.id', kontak: '0812-3456-7890', status: 'Aktif' },
+            { id: 2, nama: 'Rina Marlina, S.Si.', jabatan: 'Staf Kehumasan & Media Publikasi', seksi: 'Publikasi & Komunikasi', email: 'rina.marlina@bps.go.id', kontak: '0813-4567-8901', status: 'Aktif' },
+            { id: 3, nama: 'Dedi Irawan, A.Md.', jabatan: 'Desainer Grafis & Infografis', seksi: 'Visual & Multimedia', email: 'dedi.irawan@bps.go.id', kontak: '0814-5678-9012', status: 'Aktif' },
+            { id: 4, nama: 'Sarah Salsabila, S.Stat.', jabatan: 'Pengelola Konten & Media Sosial', seksi: 'Digital & Media Sosial', email: 'sarah.s@bps.go.id', kontak: '0815-6789-0123', status: 'Aktif' },
+            { id: 5, nama: 'Wahyu Pratama, S.Tr.Stat.', jabatan: 'Protokoler & Dokumentasi Acara', seksi: 'Protokol & Hubungan Lembaga', email: 'wahyu.p@bps.go.id', kontak: '0816-7890-1234', status: 'Aktif' },
+            { id: 6, nama: 'Nurul Hidayah, S.E.', jabatan: 'Layanan Hubungan Masyarakat & BRS', seksi: 'Layanan Publik & BRS', email: 'nurul.h@bps.go.id', kontak: '0817-8901-2345', status: 'Aktif' }
         ];
     }
 
@@ -221,7 +259,7 @@ function loadLocalFallbacks() {
             item.tanggal_posting = jadwal;
             item.jadwal = jadwal;
 
-            item.jam_posting = item.jam_posting || '09:00';
+            item.jam_posting = normalizeSheetTime(item.jam_posting);
 
             if (item.status === 'Posted') {
                 item.progres = 100;
@@ -229,6 +267,11 @@ function loadLocalFallbacks() {
                 item.progres = 90;
             }
         });
+    }
+
+    // Otomatis sinkronisasi tugas Content Planner yang selesai ke Rekap Rutin pada data lokal
+    if (typeof syncCompletedContentToRekapRutin === 'function') {
+        syncCompletedContentToRekapRutin(db, null, false);
     }
 }
 
@@ -361,7 +404,7 @@ async function fetchDataFromSheets(silent = false) {
                 item.tanggal_posting = jadwal;
                 item.jadwal = jadwal;
 
-                item.jam_posting = item.jam_posting || '09:00';
+                item.jam_posting = normalizeSheetTime(item.jam_posting);
 
                 const cloud = item.tautan_cloud || item.link_cloud || item.link_konten || '';
                 item.tautan_cloud = cloud;
@@ -393,6 +436,11 @@ async function fetchDataFromSheets(silent = false) {
                 else if (!item.status) item.status = 'Draft';
             });
         }
+
+        // Otomatis sinkronisasi tugas Content Planner yang telah selesai dikerjakan ke Rekap Rutin tanpa duplikasi
+        if (typeof syncCompletedContentToRekapRutin === 'function') {
+            syncCompletedContentToRekapRutin(tempDb, null, true);
+        }
         if (tempDb.adHoc && Array.isArray(tempDb.adHoc)) {
             tempDb.adHoc.forEach(item => {
                 if (item.status === 'Sedang Dikerjakan') item.status = 'Sedang Dikerjakan';
@@ -421,9 +469,26 @@ async function fetchDataFromSheets(silent = false) {
             });
         }
 
-        // Pastikan Pusat Dokumen / Repository memiliki default jika kosong
+        // Pastikan Pusat Dokumen / Repository memiliki default jika kosong & normalisasi Kontak Partner
         if ((!tempDb.repository || tempDb.repository.length === 0) && db.repository && db.repository.length > 0) {
             tempDb.repository = JSON.parse(JSON.stringify(db.repository));
+        }
+        if (tempDb.repository && Array.isArray(tempDb.repository)) {
+            tempDb.repository.forEach(item => {
+                // Satukan kategori Kontak Media/Wartawan, Kontak Humas Instansi, dan Kontak Protokoler Instansi menjadi Kontak Partner
+                const catLower = (item.kategori || '').toLowerCase();
+                if (
+                    item.kategori === 'Daftar Kontak Media/Wartawan' ||
+                    item.kategori === 'Daftar Kontak Humas Instansi' ||
+                    item.kategori === 'Daftar Kontak Protokoler Instansi' ||
+                    catLower.includes('kontak media') ||
+                    catLower.includes('kontak humas') ||
+                    catLower.includes('kontak protokol') ||
+                    catLower.includes('wartawan')
+                ) {
+                    item.kategori = 'Kontak Partner';
+                }
+            });
         }
 
         // Detect if any table has changed
@@ -449,7 +514,13 @@ async function fetchDataFromSheets(silent = false) {
                 showToast('Data berhasil disinkronkan!');
             }
             if (typeof currentUser !== 'undefined' && currentUser) {
-                router(currentState);
+                // Auto refresh jangan mengganggu proses edit / input atau modal yang sedang aktif
+                if (silent && typeof window.isUserEditingOrInputting === 'function' && window.isUserEditingOrInputting()) {
+                    console.log('[RealTime] Auto-refresh data diperbarui di background, penataan ulang UI ditunda agar tidak mengganggu proses input/edit.');
+                    window._pendingViewRefresh = true;
+                } else {
+                    router(currentState);
+                }
             }
         } else {
             console.log('[RealTime] Tidak ada perubahan data di database, lewati re-render.');
@@ -558,6 +629,192 @@ function applySyncQueueToDb() {
     applySyncQueueToTempDb(db);
 }
 
+// -------------------------------------------------------------
+// SINKRONISASI OTOMATIS TUGAS CONTENT PLANNER SELESAI KE REKAP RUTIN
+// -------------------------------------------------------------
+window._syncedContentPlannerIds = window._syncedContentPlannerIds || new Set();
+
+function isContentPlannerCompleted(item) {
+    if (!item) return false;
+    if (Number(item.progres) >= 100) return true;
+    const st = String(item.status || '').toLowerCase().trim();
+    return st === 'posted' || st === 'done' || st === 'selesai' || st === 'published' || st === 'terbit' || st === 'sukses';
+}
+
+function getIndonesianDayName(dateVal) {
+    const indDays = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    if (!dateVal) return '';
+    try {
+        if (typeof dateVal === 'string') {
+            const m = dateVal.trim().match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+            if (m) {
+                const y = parseInt(m[1], 10);
+                const mo = parseInt(m[2], 10) - 1;
+                const d = parseInt(m[3], 10);
+                const dt = new Date(y, mo, d);
+                return indDays[dt.getDay()] || '';
+            }
+        }
+        const d = (typeof parseIndonesianDate === 'function' ? parseIndonesianDate(dateVal) : new Date(dateVal));
+        if (!d || isNaN(d.getTime())) return '';
+        return indDays[d.getDay()] || '';
+    } catch (e) {
+        return '';
+    }
+}
+window.getIndonesianDayName = getIndonesianDayName;
+
+function inferRubrikFromContent(item) {
+    if (item && item.rubrikasi) return item.rubrikasi;
+    if (item && (item.linked_source === 'hari_besar' || item.source === 'hari_besar')) return '#haribesar';
+    if (item && (item.linked_source === 'brs_rilis' || item.source === 'brs_rilis')) return '#rilisbrs';
+    const title = String((item && (item.judul || item.kegiatan || item.hari_besar)) || '').toLowerCase();
+    if (title.includes('se2026') || title.includes('se 2026') || title.includes('sensus ekonomi')) return '#SE2026';
+    if (title.includes('dtsen') || title.includes('dts en')) return '#DTSEN';
+    if (title.includes('klik')) return 'KLIK';
+    if (title.includes('infografis') || title.includes('brs')) return '#infografisbrs';
+    if (title.includes('publikasi')) return '#rilispublikasi';
+    if (title.includes('hari') || title.includes('ucapan') || title.includes('sumpah pemuda') || title.includes('batik') || title.includes('dokter')) return '#haribesar';
+    if (title.includes('selasa')) return '#SElasaSEnsus';
+    if (title.includes('promosi')) return '#promosistatistik';
+    if (title.includes('laporan')) return 'Laporan';
+    return 'Humas';
+}
+
+function syncCompletedContentToRekapRutin(targetDb = db, singleItem = null, sendToServer = true) {
+    if (!targetDb || !targetDb.contentPlanner || !Array.isArray(targetDb.contentPlanner)) return;
+    if (!targetDb.rekapRutin || !Array.isArray(targetDb.rekapRutin)) {
+        targetDb.rekapRutin = [];
+    }
+
+    const formatDateSafe = (dateVal) => {
+        if (!dateVal) return '';
+        if (typeof formatDateInput === 'function') return formatDateInput(dateVal);
+        try {
+            const d = new Date(dateVal);
+            if (isNaN(d.getTime())) return String(dateVal);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        } catch (e) {
+            return String(dateVal);
+        }
+    };
+
+    const itemsToProcess = singleItem ? [singleItem] : targetDb.contentPlanner;
+
+    itemsToProcess.forEach(c => {
+        if (!c) return;
+        const isDone = isContentPlannerCompleted(c);
+        const cId = Number(c.id);
+        const cTitle = String(c.judul || c.kegiatan || '').trim().toLowerCase();
+        const cDate = formatDateSafe(c.jadwal || c.tanggal_posting);
+        const cPic = String(c['assign To'] || c.assignTo || c.assignedTo || c.pic || '').trim().toLowerCase();
+
+        // Cari item Rekap Rutin yang bersesuaian untuk mencegah duplikasi data
+        let existingRutin = targetDb.rekapRutin.find(r => {
+            if (!r) return false;
+            // 1. Pencocokan ID relasi langsung
+            if (r.linked_source === 'content_planner' && Number(r.linked_id) === cId) return true;
+            if (r.content_planner_id && Number(r.content_planner_id) === cId) return true;
+            if (c.linked_source === 'rekap_rutin' && Number(c.linked_id) === Number(r.id)) return true;
+
+            // 2. Pencocokan Judul & Tanggal / PIC
+            const rTitle = String(r.kegiatan || r.judul || '').trim().toLowerCase();
+            const rDate = formatDateSafe(r.tanggal || r.jadwal);
+            if (rTitle && cTitle) {
+                const isExactOrSub = (rTitle === cTitle) || 
+                    (rTitle.length >= 6 && cTitle.length >= 6 && (rTitle.includes(cTitle) || cTitle.includes(rTitle)));
+                
+                if (isExactOrSub) {
+                    if (rDate && cDate && rDate === cDate) return true;
+                    const rPic = String(r.petugas || r.pic || '').trim().toLowerCase();
+                    if (rTitle === cTitle && rPic && cPic && (rPic.includes(cPic) || cPic.includes(rPic))) return true;
+                }
+            }
+            return false;
+        });
+
+        if (isDone) {
+            const picVal = c['assign To'] || c.assignTo || c.assignedTo || c.pic || 'Belum Ditugaskan';
+            const tglVal = c.jadwal || c.tanggal_posting || formatDateSafe(new Date());
+            const rubrikVal = inferRubrikFromContent(c);
+            const hariVal = getIndonesianDayName(tglVal);
+            const tautanDok = c.tautan_cloud || c.link_cloud || '';
+            const tautanKonten = c.link_konten || c.tautan_cloud || c.link_cloud || '';
+            const ketVal = c.konsep || (c.media_post ? `Media: ${c.media_post}` : 'Otomatis dari Content Planner');
+
+            if (existingRutin) {
+                // Item sudah ada di Rekap Rutin: sinkronisasi status ke Selesai tanpa membuat baris baru
+                let updated = false;
+                if (existingRutin.status !== 'Selesai') {
+                    existingRutin.status = 'Selesai';
+                    updated = true;
+                }
+                if (!existingRutin.linked_source) {
+                    existingRutin.linked_source = 'content_planner';
+                    existingRutin.linked_id = c.id;
+                    updated = true;
+                }
+                if (tglVal && existingRutin.tanggal !== tglVal) {
+                    existingRutin.tanggal = tglVal;
+                    existingRutin.hari = hariVal;
+                    updated = true;
+                }
+                if (picVal && picVal !== 'Belum Ditugaskan' && existingRutin.petugas !== picVal) {
+                    existingRutin.petugas = picVal;
+                    updated = true;
+                }
+                if (updated && sendToServer && typeof sendDataToServer === 'function' && !window._syncedContentPlannerIds.has(`up_${c.id}`)) {
+                    window._syncedContentPlannerIds.add(`up_${c.id}`);
+                    sendDataToServer('update', 'rekap_rutin', existingRutin).catch(console.error);
+                }
+            } else {
+                // Belum ada di Rekap Rutin: Buat entri baru di Rekap Rutin
+                const maxId = targetDb.rekapRutin.reduce((max, r) => Math.max(max, Number(r.id) || 0), 0);
+                const newId = maxId > 0 ? maxId + 1 : (Date.now() + Math.floor(Math.random() * 1000));
+
+                const newRutinItem = {
+                    id: newId,
+                    tanggal: tglVal,
+                    hari: hariVal,
+                    rubrikasi: rubrikVal,
+                    kegiatan: c.judul || 'Publikasi Konten',
+                    petugas: picVal,
+                    status: 'Selesai',
+                    tautan_dokumentasi: tautanDok,
+                    tautan_konten: tautanKonten,
+                    keterangan: ketVal,
+                    linked_source: 'content_planner',
+                    linked_id: c.id,
+                    content_planner_id: c.id,
+                    hubungkan_content_planner: true,
+                    hubungkan_kalender: true
+                };
+
+                targetDb.rekapRutin.push(newRutinItem);
+
+                if (sendToServer && typeof sendDataToServer === 'function' && !window._syncedContentPlannerIds.has(`add_${c.id}`)) {
+                    window._syncedContentPlannerIds.add(`add_${c.id}`);
+                    sendDataToServer('add', 'rekap_rutin', newRutinItem).catch(console.error);
+                }
+            }
+        } else if (existingRutin && (existingRutin.linked_source === 'content_planner' || existingRutin.content_planner_id)) {
+            // Jika tugas di Content Planner diubah kembali dari Selesai ke Draft / In Progress,
+            // perbarui status pada Rekap Rutin yang terhubung agar data selalu konsisten
+            const newStatus = c.status === 'Draft' ? 'Draft' : 'Sedang Dikerjakan';
+            if (existingRutin.status !== newStatus) {
+                existingRutin.status = newStatus;
+                if (sendToServer && typeof sendDataToServer === 'function') {
+                    sendDataToServer('update', 'rekap_rutin', existingRutin).catch(console.error);
+                }
+            }
+        }
+    });
+}
+window.syncCompletedContentToRekapRutin = syncCompletedContentToRekapRutin;
+
 // Send local changes back to the GAS backend (Queued & Offline-Safe)
 async function sendDataToServer(action, sheetName, item) {
     const varName = SHEET_TO_VAR[sheetName] || sheetName;
@@ -581,7 +838,7 @@ async function sendDataToServer(action, sheetName, item) {
         item.tanggal_posting = jadwal;
         item.jadwal = jadwal;
 
-        item.jam_posting = item.jam_posting || '09:00';
+        item.jam_posting = normalizeSheetTime(item.jam_posting);
     }
 
     // Update local cache first (Optimistic UI update)
@@ -732,6 +989,11 @@ function startRealtimePolling() {
         }
         // Skip jika sedang ada proses loading/sync aktif
         if (isLoading || isProcessingQueue) {
+            return;
+        }
+        // Auto refresh jangan mengganggu proses edit / input atau modal yang sedang aktif
+        if (typeof window.isUserEditingOrInputting === 'function' && window.isUserEditingOrInputting()) {
+            console.log('[RealTime] Input / edit sedang berlangsung, auto-polling ditunda.');
             return;
         }
         console.log('[RealTime] Auto-polling data dari server...');

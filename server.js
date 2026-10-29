@@ -45,8 +45,14 @@ const initialDb = {
   ],
   contentPlanner: [],
   brsSchedule: [],
-  protocol: [],
-  team: [],
+  team: [
+    { id: 1, nama: 'Azhari, S.Tr.Stat.', jabatan: 'Koordinator Tim Kehumasan & IPDS', seksi: 'Diseminasi & Humas', email: 'azhari@bps.go.id', kontak: '0812-3456-7890', status: 'Aktif' },
+    { id: 2, nama: 'Rina Marlina, S.Si.', jabatan: 'Staf Kehumasan & Media Publikasi', seksi: 'Publikasi & Komunikasi', email: 'rina.marlina@bps.go.id', kontak: '0813-4567-8901', status: 'Aktif' },
+    { id: 3, nama: 'Dedi Irawan, A.Md.', jabatan: 'Desainer Grafis & Infografis', seksi: 'Visual & Multimedia', email: 'dedi.irawan@bps.go.id', kontak: '0814-5678-9012', status: 'Aktif' },
+    { id: 4, nama: 'Sarah Salsabila, S.Stat.', jabatan: 'Pengelola Konten & Media Sosial', seksi: 'Digital & Media Sosial', email: 'sarah.s@bps.go.id', kontak: '0815-6789-0123', status: 'Aktif' },
+    { id: 5, nama: 'Wahyu Pratama, S.Tr.Stat.', jabatan: 'Protokoler & Dokumentasi Acara', seksi: 'Protokol & Hubungan Lembaga', email: 'wahyu.p@bps.go.id', kontak: '0816-7890-1234', status: 'Aktif' },
+    { id: 6, nama: 'Nurul Hidayah, S.E.', jabatan: 'Layanan Hubungan Masyarakat & BRS', seksi: 'Layanan Publik & BRS', email: 'nurul.h@bps.go.id', kontak: '0817-8901-2345', status: 'Aktif' }
+  ],
   tickets: [],
   assets: [],
   monitoring: [],
@@ -462,7 +468,9 @@ app.post('/api/monitoring/sync-drive', async (req, res) => {
     });
   } catch (err) {
     console.error('Error in /api/monitoring/sync-drive:', err);
-    res.status(500).json({ success: false, error: err.message });
+    const isAuthError = err.message && (err.message.includes('401') || err.message.includes('UNAUTHENTICATED') || err.message.includes('invalid authentication credentials'));
+    const status = isAuthError ? 401 : 500;
+    res.status(status).json({ success: false, error: err.message, isAuthError });
   }
 });
 

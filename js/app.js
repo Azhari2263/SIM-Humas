@@ -30,31 +30,48 @@ window.logActivity = logActivity;
 
 
 // UI Helper: Toast Notification
-function showToast(message, type = 'success') {
+function showToast(message, type = 'success', duration = 3500, onClick = null) {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
     const toast = document.createElement('div');
-    toast.className = 'toast flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 transition-all duration-300 transform translate-y-2 opacity-0 shrink-0 max-w-sm';
+    toast.className = 'toast flex items-start sm:items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 transition-all duration-300 transform translate-y-2 opacity-0 shrink-0 max-w-md';
+    if (onClick) {
+        toast.classList.add('cursor-pointer', 'hover:shadow-2xl', 'hover:scale-[1.01]');
+    }
 
     let icon = '';
     let borderColor = '';
     if (type === 'success') {
-        icon = '<i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>';
+        icon = '<i class="fa-solid fa-circle-check text-emerald-500 text-lg shrink-0 mt-0.5 sm:mt-0"></i>';
         borderColor = 'border-l-4 border-l-emerald-500';
     } else if (type === 'error') {
-        icon = '<i class="fa-solid fa-circle-exclamation text-rose-500 text-lg"></i>';
+        icon = '<i class="fa-solid fa-circle-exclamation text-rose-500 text-lg shrink-0 mt-0.5 sm:mt-0"></i>';
         borderColor = 'border-l-4 border-l-rose-500';
     } else if (type === 'warning') {
-        icon = '<i class="fa-solid fa-triangle-exclamation text-amber-500 text-lg"></i>';
+        icon = '<i class="fa-solid fa-bell text-amber-500 text-lg shrink-0 mt-0.5 sm:mt-0 animate-bounce"></i>';
         borderColor = 'border-l-4 border-l-amber-500';
     } else {
-        icon = '<i class="fa-solid fa-circle-info text-blue-500 text-lg"></i>';
+        icon = '<i class="fa-solid fa-circle-info text-blue-500 text-lg shrink-0 mt-0.5 sm:mt-0"></i>';
         borderColor = 'border-l-4 border-l-blue-500';
     }
 
     toast.className += ` ${borderColor}`;
-    toast.innerHTML = `${icon} <span class="text-xs font-semibold text-slate-800 dark:text-slate-200 flex-1">${message}</span>`;
+    toast.innerHTML = `
+        ${icon}
+        <div class="text-xs font-semibold text-slate-800 dark:text-slate-200 flex-1 leading-relaxed">${message}</div>
+        <button type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs ml-1.5 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shrink-0" onclick="event.stopPropagation(); this.closest('.toast')?.remove();" title="Tutup">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    `;
+
+    if (onClick) {
+        toast.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return;
+            onClick();
+        });
+    }
+
     container.appendChild(toast);
 
     // Trigger transition
@@ -63,11 +80,56 @@ function showToast(message, type = 'success') {
     }, 10);
 
     // Auto dismiss
-    setTimeout(() => {
+    const dismissTimer = setTimeout(() => {
         toast.classList.add('translate-y-[-10px]', 'opacity-0');
         setTimeout(() => toast.remove(), 300);
-    }, 3200);
+    }, duration);
+
+    toast.dataset.dismissTimer = dismissTimer;
 }
+
+// Centralized helper to get all team member names across database
+window.getCentralizedUserList = function() {
+    const namesSet = new Set();
+    if (typeof db !== 'undefined') {
+        if (db.team && Array.isArray(db.team)) {
+            db.team.forEach(m => {
+                if (m && m.nama && m.nama.trim()) namesSet.add(m.nama.trim());
+            });
+        }
+        if (db.users && Array.isArray(db.users)) {
+            db.users.filter(u => ['tim', 'koordinator', 'admin'].includes(u.role)).forEach(u => {
+                if (u && u.nama && u.nama.trim()) namesSet.add(u.nama.trim());
+            });
+        }
+        const allTasks = [
+            ...(db.assignments || []),
+            ...(db.contentPlanner || []),
+            ...(db.rekapRutin || []),
+            ...(db.adHoc || []),
+            ...(db.protokoler || []),
+            ...(db.mc || []),
+            ...(db.brsRilis || []),
+            ...(db.hariBesar || [])
+        ];
+        allTasks.forEach(t => {
+            const rawPic = t.pic || t.petugas || t['assign To'] || t.assignTo || t.assignedTo || t.assigned_to || t.pembuat_konten;
+            if (rawPic && typeof rawPic === 'string' && rawPic.trim() && rawPic !== '-' && rawPic !== 'Belum Ditugaskan') {
+                const parts = rawPic.split(/[,&\/]/).map(s => s.trim()).filter(Boolean);
+                parts.forEach(p => {
+                    const pLower = p.toLowerCase();
+                    if (p.length >= 3 && !['tim humas', 'staf humas', 'semua', 'pimpinan'].includes(pLower)) {
+                        namesSet.add(p);
+                    }
+                });
+            }
+        });
+    }
+    if (namesSet.size === 0) {
+        ['Azhari (Koordinator)', 'Staf Humas'].forEach(n => namesSet.add(n));
+    }
+    return Array.from(namesSet);
+};
 
 // UI Helper: Custom Confirmation Modal (menggantikan confirm() browser)
 function showConfirmModal(message, onConfirm, options = {}) {
@@ -200,8 +262,16 @@ function extractTimeComponents(timeStr) {
  * 4. Nama bulan Indonesia (e.g. "24 Juni 2026") → local midnight
  */
 function parseIndonesianDate(str) {
-    if (!str) return null;
+    if (!str && str !== 0) return null;
     if (str instanceof Date) return str;
+
+    // Dukung format serial number Excel (contoh: 46152 untuk tanggal di tahun 2026)
+    if (typeof str === 'number' || (typeof str === 'string' && /^\d{5}$/.test(str.trim()))) {
+        const serial = typeof str === 'number' ? str : parseInt(str.trim(), 10);
+        const d = new Date(Math.round((serial - 25569) * 86400 * 1000));
+        if (!isNaN(d.getTime())) return d;
+    }
+
     str = String(str).trim();
 
     // 1. Full ISO datetime dengan komponen waktu (YYYY-MM-DDTHH:MM:SS...)
@@ -342,18 +412,19 @@ function formatTime(timeStr) {
     let hours = '';
     let minutes = '';
     
-    // Check if it's an ISO datetime string (like 1899-12-30T01:22:48.000Z)
+    // Check if it's an ISO datetime string (like 1899-12-30T01:52:48.000Z from Google Sheets time cells)
     if (timeStr.includes('T')) {
         try {
             const d = new Date(timeStr);
             if (!isNaN(d.getTime())) {
-                if (timeStr.startsWith('1899-12-30')) {
-                    hours = String(d.getUTCHours()).padStart(2, '0');
-                    minutes = String(d.getUTCMinutes()).padStart(2, '0');
-                } else {
-                    hours = String(d.getHours()).padStart(2, '0');
-                    minutes = String(d.getMinutes()).padStart(2, '0');
-                }
+                const parts = new Intl.DateTimeFormat('en-GB', {
+                    timeZone: 'Asia/Jakarta',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                }).formatToParts(d);
+                hours = parts.find(p => p.type === 'hour')?.value || '';
+                minutes = parts.find(p => p.type === 'minute')?.value || '';
             }
         } catch (e) {
             // fallback
@@ -377,7 +448,7 @@ function formatTime(timeStr) {
 }
 
 function formatTimeInput(timeStr) {
-    if (!timeStr) return '08.30';
+    if (!timeStr) return '09:00';
     timeStr = String(timeStr).trim();
     
     let hours = '';
@@ -387,13 +458,14 @@ function formatTimeInput(timeStr) {
         try {
             const d = new Date(timeStr);
             if (!isNaN(d.getTime())) {
-                if (timeStr.startsWith('1899-12-30')) {
-                    hours = String(d.getUTCHours()).padStart(2, '0');
-                    minutes = String(d.getUTCMinutes()).padStart(2, '0');
-                } else {
-                    hours = String(d.getHours()).padStart(2, '0');
-                    minutes = String(d.getMinutes()).padStart(2, '0');
-                }
+                const parts = new Intl.DateTimeFormat('en-GB', {
+                    timeZone: 'Asia/Jakarta',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                }).formatToParts(d);
+                hours = parts.find(p => p.type === 'hour')?.value || '';
+                minutes = parts.find(p => p.type === 'minute')?.value || '';
             }
         } catch (e) {
             // fallback
@@ -409,10 +481,10 @@ function formatTimeInput(timeStr) {
     }
     
     if (hours && minutes) {
-        return `${hours}.${minutes}`;
+        return `${hours}:${minutes}`;
     }
     
-    return '08.30';
+    return '09:00';
 }
 
 /**
@@ -520,6 +592,32 @@ window.getIndonesianMonthName = function (dateStr) {
     const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     return monthNames[d.getMonth()];
 };
+
+window.getIndonesianDayName = function (dateVal) {
+    if (!dateVal) return '';
+    const indDays = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    try {
+        if (typeof dateVal === 'string') {
+            const m = dateVal.trim().match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+            if (m) {
+                const y = parseInt(m[1], 10);
+                const mo = parseInt(m[2], 10) - 1;
+                const d = parseInt(m[3], 10);
+                const dt = new Date(y, mo, d);
+                return indDays[dt.getDay()] || '';
+            }
+        }
+        const d = (typeof parseIndonesianDate === 'function' ? parseIndonesianDate(dateVal) : new Date(dateVal));
+        if (!d || isNaN(d.getTime())) return '';
+        return indDays[d.getDay()] || '';
+    } catch (e) {
+        return '';
+    }
+};
+
+function getIndonesianDayName(dateVal) {
+    return window.getIndonesianDayName(dateVal);
+}
 
 
 // Mobile Sidebar Operations
@@ -860,6 +958,96 @@ function updateMediaPostUI(list) {
     }
 }
 
+// Helper parsing daftar rubrikasi dari string terpisah koma atau array
+window.parseRubrikasiArray = function(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.map(s => String(s).trim()).filter(Boolean);
+    return String(val).split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+};
+
+// Handler multi-select Rubrikasi pada Formulir Penugasan / Kegiatan
+window.toggleRubrikasiOption = function(rubrikVal, inputId = 'rubrikasi') {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    let list = window.parseRubrikasiArray(input.value);
+    const idx = list.indexOf(rubrikVal);
+    if (idx > -1) {
+        list.splice(idx, 1);
+    } else {
+        list.push(rubrikVal);
+    }
+    input.value = list.join(', ');
+    window.updateRubrikasiPillUI(inputId);
+};
+
+window.setAllRubrikasiOptions = function(mode, inputId = 'rubrikasi') {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    if (mode === 'none') {
+        input.value = '';
+    } else if (mode === 'se2026') {
+        let list = window.parseRubrikasiArray(input.value);
+        if (!list.includes('#SE2026')) list.push('#SE2026');
+        input.value = list.join(', ');
+    } else if (mode === 'dtsen') {
+        let list = window.parseRubrikasiArray(input.value);
+        if (!list.includes('#DTSEN')) list.push('#DTSEN');
+        input.value = list.join(', ');
+    }
+    window.updateRubrikasiPillUI(inputId);
+};
+
+window.updateRubrikasiPillUI = function(inputId = 'rubrikasi') {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const list = window.parseRubrikasiArray(input.value);
+
+    const groupEl = document.getElementById(`${inputId}-pill-group`);
+    if (groupEl) {
+        groupEl.querySelectorAll('.rubrikasi-pill').forEach(btn => {
+            const id = btn.getAttribute('data-rubrik-id');
+            const isSel = list.includes(id);
+            const check = btn.querySelector('.pill-check');
+            const checkbox = btn.querySelector('.pill-checkbox');
+            if (checkbox) checkbox.checked = isSel;
+            if (isSel) {
+                btn.className = 'rubrikasi-pill flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all select-none cursor-pointer bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500 shadow-2xs';
+                if (check) check.classList.remove('hidden');
+            } else {
+                btn.className = 'rubrikasi-pill flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all select-none cursor-pointer bg-white dark:bg-slate-750 border-slate-205 dark:border-slate-700 text-slate-655 dark:text-slate-300 hover:border-slate-300';
+                if (check) check.classList.add('hidden');
+            }
+        });
+    }
+
+    const summaryEl = document.getElementById(`${inputId}-summary`);
+    if (summaryEl) {
+        if (list.length === 0) {
+            summaryEl.innerHTML = `
+                <span class="inline-flex items-center gap-1 font-semibold text-rose-500 text-[11px]">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Belum ada rubrikasi yang dipilih (Pilih minimal 1)
+                </span>
+            `;
+        } else {
+            summaryEl.innerHTML = `
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1">
+                        ${list.length} Rubrikasi Terpilih:
+                    </span>
+                    ${list.map(r => `
+                        <span class="inline-flex items-center gap-1 font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded-full text-[10.5px]">
+                            <span>${r}</span>
+                            <button type="button" onclick="event.stopPropagation(); window.toggleRubrikasiOption('${r}', '${inputId}')" class="text-indigo-400 hover:text-rose-500 ml-0.5 cursor-pointer">
+                                <i class="fa-solid fa-xmark text-[10px]"></i>
+                            </button>
+                        </span>
+                    `).join('')}
+                </div>
+            `;
+        }
+    }
+};
+
 // Handler otomatis progres Content Planner berdasarkan status
 window.handleContentStatusChange = function(status) {
     const progresInput = document.getElementById('progres');
@@ -887,7 +1075,8 @@ function getModalFieldsHTML(type, item) {
         const currentJam = item?.jam_posting || '09:00';
         let currentHour = '09';
         let currentMinute = '00';
-        const jamMatch = String(currentJam).match(/^(\d{1,2})[:.](\d{1,2})/);
+        const normalizedJam = formatTimeInput(currentJam);
+        const jamMatch = String(normalizedJam).match(/^(\d{1,2})[:.](\d{1,2})/);
         if (jamMatch) {
             currentHour = jamMatch[1].padStart(2, '0');
             currentMinute = jamMatch[2].padStart(2, '0');
@@ -1042,6 +1231,17 @@ function getModalFieldsHTML(type, item) {
             </div>
         `;
     } else if (type === 'assignment') {
+        const assignRubrikOptions = [
+            '#SE2026', '#DTSEN', '#haribesar/daerah/nasional/internasional', '#rilisbrs', '#infografisbrs', '#rilispublikasi',
+            '#SElasaSEnsus', '#promosistatistik', '#rripontianak',
+            '#zonaintegritas', '#SKD', '#ddakalbar', 'KLIK', 'Laporan'
+        ];
+        const selectedAssignRubriks = window.parseRubrikasiArray ? window.parseRubrikasiArray(item?.rubrikasi) : (item?.rubrikasi ? [item.rubrikasi] : []);
+        selectedAssignRubriks.forEach(r => {
+            if (r && !assignRubrikOptions.includes(r)) assignRubrikOptions.push(r);
+        });
+        const assignRubrikVal = selectedAssignRubriks.join(', ');
+
         return `
             <div class="space-y-4 text-slate-700 dark:text-slate-300">
                 <div>
@@ -1051,6 +1251,64 @@ function getModalFieldsHTML(type, item) {
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Deskripsi Detail <span class="text-rose-500">*</span></label>
                     <textarea id="deskripsi" rows="3" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="Deskripsikan detail penugasan..." required>${item?.deskripsi || ''}</textarea>
+                </div>
+                <!-- Multiple Select Rubrikasi Penugasan -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Rubrikasi Penugasan (Bisa Pilih Lebih Dari Satu)
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="setAllRubrikasiOptions('se2026', 'assignment_rubrikasi')" class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">+ #SE2026</button>
+                            <span class="text-slate-300 dark:text-slate-700">|</span>
+                            <button type="button" onclick="setAllRubrikasiOptions('dtsen', 'assignment_rubrikasi')" class="text-[10px] font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer">+ #DTSEN</button>
+                            <span class="text-slate-300 dark:text-slate-700">|</span>
+                            <button type="button" onclick="setAllRubrikasiOptions('none', 'assignment_rubrikasi')" class="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer">Reset</button>
+                        </div>
+                    </div>
+                    <div id="assignment_rubrikasi-pill-group" class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 max-h-44 overflow-y-auto p-1.5 bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-700">
+                        ${assignRubrikOptions.map(r => {
+                            const isChecked = selectedAssignRubriks.includes(r);
+                            return `
+                                <button type="button"
+                                        onclick="toggleRubrikasiOption('${r}', 'assignment_rubrikasi')"
+                                        data-rubrik-id="${r}"
+                                        class="rubrikasi-pill flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs transition-all select-none cursor-pointer ${
+                                            isChecked
+                                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500 font-bold shadow-2xs'
+                                            : 'bg-white dark:bg-slate-750 border-slate-205 dark:border-slate-700 text-slate-655 dark:text-slate-300 hover:border-slate-300 font-medium'
+                                        }">
+                                    <span class="inline-flex items-center gap-1.5 truncate">
+                                        <input type="checkbox" class="pill-checkbox rounded text-indigo-600 pointer-events-none" ${isChecked ? 'checked' : ''} tabindex="-1">
+                                        <span class="truncate">${r}</span>
+                                    </span>
+                                    <i class="fa-solid fa-circle-check pill-check text-indigo-600 dark:text-indigo-400 text-xs shrink-0 ${isChecked ? '' : 'hidden'}"></i>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                    <div id="assignment_rubrikasi-summary" class="mt-2 min-h-[22px]">
+                        ${selectedAssignRubriks.length === 0 ? `
+                            <span class="inline-flex items-center gap-1 text-slate-400 text-[11px]">
+                                <i class="fa-solid fa-info-circle"></i> Opsional: Pilih rubrikasi yang sesuai dengan penugasan ini
+                            </span>
+                        ` : `
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1">
+                                    ${selectedAssignRubriks.length} Rubrikasi Terpilih:
+                                </span>
+                                ${selectedAssignRubriks.map(r => `
+                                    <span class="inline-flex items-center gap-1 font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded-full text-[10.5px]">
+                                        <span>${r}</span>
+                                        <button type="button" onclick="event.stopPropagation(); window.toggleRubrikasiOption('${r}', 'assignment_rubrikasi')" class="text-indigo-400 hover:text-rose-500 ml-0.5 cursor-pointer">
+                                            <i class="fa-solid fa-xmark text-[10px]"></i>
+                                        </button>
+                                    </span>
+                                `).join('')}
+                            </div>
+                        `}
+                    </div>
+                    <input type="hidden" id="assignment_rubrikasi" value="${assignRubrikVal}">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -1101,46 +1359,80 @@ function getModalFieldsHTML(type, item) {
             </div>
         `;
     } else if (type === 'rekap_rutin') {
-        const currentRubrik = item?.rubrikasi || 'Publikasi & Medsos';
         const rubrikOptions = [
-            'Publikasi & Medsos',
-            'Liputan & Dokumentasi',
-            'Protokoler Pimpinan',
-            'Pelayanan Informasi Publik',
-            'Rilis Data Statistik (BRS)',
-            'Media Monitoring',
-            'Desain Grafis / Infografis',
-            'Lainnya'
+            '#SE2026', '#DTSEN', '#haribesar/daerah/nasional/internasional', '#rilisbrs', '#infografisbrs', '#rilispublikasi',
+            '#SElasaSEnsus', '#promosistatistik', '#rripontianak',
+            '#zonaintegritas', '#SKD', '#ddakalbar', 'KLIK', 'Laporan'
         ];
-        const memberList = [];
-        const seen = new Set();
-        (db.team && db.team.length > 0 ? db.team : db.users).forEach(m => {
-            if (m.nama && !seen.has(m.nama)) {
-                seen.add(m.nama);
-                memberList.push(m.nama);
+        // Parse seluruh rubrikasi tersimpan (mendukung multiple select terpisah koma)
+        const selectedRubriks = window.parseRubrikasiArray ? window.parseRubrikasiArray(item?.rubrikasi) : (item?.rubrikasi ? [item.rubrikasi] : []);
+        // Pastikan nilai kustom yang sudah ada sebelumnya tetap muncul di daftar opsi
+        selectedRubriks.forEach(r => {
+            if (r && !rubrikOptions.includes(r)) {
+                rubrikOptions.push(r);
             }
         });
+        // Default jika item baru belum punya pilihan: default ke #haribesar/daerah/nasional/internasional jika list kosong
+        if (!item && selectedRubriks.length === 0) {
+            selectedRubriks.push('#haribesar/daerah/nasional/internasional');
+        }
+        const rubrikInputValue = selectedRubriks.join(', ');
+
+        // Ambil daftar anggota tim dari db.team (Direktori Tim)
+        const teamMembers = [];
+        const seenNames = new Set();
+        (db.team && db.team.length > 0 ? db.team : []).forEach(m => {
+            if (m.nama) {
+                // Bersihkan nama dari embel-embel jabatan atau peran seperti (Humas dan Protokoler)
+                const cleanName = m.nama.replace(/\s*\([^)]*\)/g, '').trim();
+                if (cleanName && !seenNames.has(cleanName)) {
+                    seenNames.add(cleanName);
+                    teamMembers.push({
+                        nama: cleanName,
+                        originalNama: m.nama.trim()
+                    });
+                }
+            }
+        });
+        // Fallback ke db.users jika db.team kosong
+        if (teamMembers.length === 0 && db.users && db.users.length > 0) {
+            db.users.forEach(u => {
+                if (u.nama) {
+                    const cleanName = u.nama.replace(/\s*\([^)]*\)/g, '').trim();
+                    if (cleanName && !seenNames.has(cleanName)) {
+                        seenNames.add(cleanName);
+                        teamMembers.push({
+                            nama: cleanName,
+                            originalNama: u.nama.trim()
+                        });
+                    }
+                }
+            });
+        }
+
+        const currentPetugas = item?.petugas ? item.petugas.trim() : '';
+        const currentClean = currentPetugas.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+        const hasMatch = currentPetugas ? teamMembers.some(m => 
+            m.nama.toLowerCase() === currentPetugas.toLowerCase() ||
+            m.nama.toLowerCase() === currentClean ||
+            (m.originalNama && m.originalNama.toLowerCase() === currentPetugas.toLowerCase())
+        ) : true;
+
+        const dateVal = formatDateInput(item?.tanggal);
+        const autoHari = (dateVal ? getIndonesianDayName(dateVal) : '') || item?.hari || '';
 
         return `
             <div class="space-y-4 text-slate-700 dark:text-slate-300">
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Kegiatan <span class="text-rose-500">*</span></label>
-                        <input type="date" id="tanggal" value="${formatDateInput(item?.tanggal)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
+                        <input type="date" id="tanggal" value="${dateVal}" oninput="if (window.getIndonesianDayName) { const h = window.getIndonesianDayName(this.value); if (h) document.getElementById('hari').value = h; }" onchange="if (window.getIndonesianDayName) { const h = window.getIndonesianDayName(this.value); if (h) document.getElementById('hari').value = h; }" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Hari</label>
                         <select id="hari" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
                             <option value="">Pilih Hari...</option>
-                            ${['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map(h => `<option ${item?.hari === h ? 'selected' : ''} value="${h}">${h}</option>`).join('')}
-                        </select>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Rubrikasi Kehumasan <span class="text-rose-500">*</span></label>
-                        <select id="rubrikasi" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
-                            ${rubrikOptions.map(r => `<option ${currentRubrik === r ? 'selected' : ''} value="${r}">${r}</option>`).join('')}
+                            ${['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map(h => `<option ${autoHari === h ? 'selected' : ''} value="${h}">${h}</option>`).join('')}
                         </select>
                     </div>
                     <div>
@@ -1151,24 +1443,99 @@ function getModalFieldsHTML(type, item) {
                         </select>
                     </div>
                 </div>
+
+                <!-- Bagian Rubrikasi Multi-Select -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Rubrikasi Kegiatan <span class="text-rose-500">*</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="setAllRubrikasiOptions('none', 'rubrikasi')" class="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer">Reset</button>
+                        </div>
+                    </div>
+                    <div id="rubrikasi-pill-group" class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 max-h-52 overflow-y-auto p-1.5 bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-700">
+                        ${rubrikOptions.map(r => {
+                            const isChecked = selectedRubriks.includes(r);
+                            return `
+                                <button type="button"
+                                        onclick="toggleRubrikasiOption('${r}', 'rubrikasi')"
+                                        data-rubrik-id="${r}"
+                                        class="rubrikasi-pill flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs transition-all select-none cursor-pointer ${
+                                            isChecked
+                                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500 font-bold shadow-2xs'
+                                            : 'bg-white dark:bg-slate-750 border-slate-205 dark:border-slate-700 text-slate-655 dark:text-slate-300 hover:border-slate-300 font-medium'
+                                        }">
+                                    <span class="inline-flex items-center gap-1.5 truncate">
+                                        <input type="checkbox" class="pill-checkbox rounded text-indigo-600 pointer-events-none" ${isChecked ? 'checked' : ''} tabindex="-1">
+                                        <span class="truncate">${r}</span>
+                                    </span>
+                                    <i class="fa-solid fa-circle-check pill-check text-indigo-600 dark:text-indigo-400 text-xs shrink-0 ${isChecked ? '' : 'hidden'}"></i>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                    <div id="rubrikasi-summary" class="mt-2 min-h-[22px]">
+                        ${selectedRubriks.length === 0 ? `
+                            <span class="inline-flex items-center gap-1 font-semibold text-rose-500 text-[11px]">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Belum ada rubrikasi yang dipilih (Pilih minimal 1)
+                            </span>
+                        ` : `
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1">
+                                    ${selectedRubriks.length} Rubrikasi Terpilih:
+                                </span>
+                                ${selectedRubriks.map(r => `
+                                    <span class="inline-flex items-center gap-1 font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded-full text-[10.5px]">
+                                        <span>${r}</span>
+                                        <button type="button" onclick="event.stopPropagation(); window.toggleRubrikasiOption('${r}', 'rubrikasi')" class="text-indigo-400 hover:text-rose-500 ml-0.5 cursor-pointer">
+                                            <i class="fa-solid fa-xmark text-[10px]"></i>
+                                        </button>
+                                    </span>
+                                `).join('')}
+                            </div>
+                        `}
+                    </div>
+                    <input type="hidden" id="rubrikasi" value="${rubrikInputValue}" required>
+                </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama / Judul Kegiatan <span class="text-rose-500">*</span></label>
                     <input type="text" id="kegiatan" value="${item?.kegiatan || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-medium" placeholder="Contoh: Publikasi Fliers Inflasi Bulanan" required>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Petugas PIC</label>
-                        <input type="text" id="petugas" list="pic-list-rutin" value="${item?.petugas || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold" placeholder="Ketik atau pilih PIC...">
-                        <datalist id="pic-list-rutin">
-                            ${memberList.map(n => `<option value="${n}"></option>`).join('')}
-                        </datalist>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                            <span>Petugas PIC <span class="text-rose-500">*</span></span>
+                            <span class="text-[10px] text-slate-400 font-normal">Sesuai Direktori Tim</span>
+                        </label>
+                        <select id="petugas" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-700 rounded-lg text-xs font-bold" required>
+                            <option value="">-- Pilih Petugas PIC dari Direktori Tim --</option>
+                            ${!hasMatch && currentPetugas ? `
+                                <option value="${currentPetugas}" selected class="text-rose-600 font-bold bg-rose-50 dark:bg-rose-950/60">
+                                    ⚠️ ${currentPetugas} (Belum sesuai Direktori Tim - Silakan pilih pengganti)
+                                </option>
+                            ` : ''}
+                            ${teamMembers.map(m => {
+                                const isSelected = currentPetugas && (
+                                    m.nama.toLowerCase() === currentPetugas.toLowerCase() ||
+                                    m.nama.toLowerCase() === currentClean ||
+                                    (m.originalNama && m.originalNama.toLowerCase() === currentPetugas.toLowerCase())
+                                );
+                                return `<option value="${m.nama}" ${isSelected ? 'selected' : ''}>${m.nama}</option>`;
+                            }).join('')}
+                        </select>
+                        ${!hasMatch && currentPetugas ? `
+                            <p class="text-[10px] text-rose-500 font-medium mt-1 leading-tight">
+                                <i class="fa-solid fa-triangle-exclamation mr-1"></i> Nama "<strong>${currentPetugas}</strong>" dari berkas Excel tidak cocok dengan Direktori Tim. Silakan pilih nama petugas yang sesuai dari dropdown.
+                            </p>
+                        ` : ''}
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Status Pekerjaan</label>
                         <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
                             <option ${item?.status === 'Draft' ? 'selected' : ''} value="Draft">Draft</option>
                             <option ${item?.status === 'Sedang Dikerjakan' ? 'selected' : ''} value="Sedang Dikerjakan">Sedang Dikerjakan</option>
-                            <option ${item?.status === 'Ditugaskan' ? 'selected' : ''} value="Ditugaskan">Ditugaskan</option>
+                            <option ${item?.status === 'Ditugaskan' || !item ? 'selected' : ''} value="Ditugaskan">Ditugaskan</option>
                             <option ${item?.status === 'Selesai' ? 'selected' : ''} value="Selesai">Selesai</option>
                         </select>
                     </div>
@@ -1209,18 +1576,21 @@ function getModalFieldsHTML(type, item) {
             }
         });
 
+        const dateVal = formatDateInput(item?.tanggal);
+        const autoHari = (dateVal ? getIndonesianDayName(dateVal) : '') || item?.hari || '';
+
         return `
             <div class="space-y-4 text-slate-700 dark:text-slate-350">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Penugasan <span class="text-rose-500">*</span></label>
-                        <input type="date" id="tanggal" value="${formatDateInput(item?.tanggal)}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
+                        <input type="date" id="tanggal" value="${dateVal}" oninput="if (window.getIndonesianDayName) { const h = window.getIndonesianDayName(this.value); if (h) document.getElementById('hari').value = h; }" onchange="if (window.getIndonesianDayName) { const h = window.getIndonesianDayName(this.value); if (h) document.getElementById('hari').value = h; }" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" required>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Hari</label>
                         <select id="hari" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
                             <option value="">Pilih Hari...</option>
-                            ${['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map(h => `<option ${item?.hari === h ? 'selected' : ''} value="${h}">${h}</option>`).join('')}
+                            ${['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'].map(h => `<option ${autoHari === h ? 'selected' : ''} value="${h}">${h}</option>`).join('')}
                         </select>
                     </div>
                 </div>
@@ -1579,11 +1949,11 @@ function getModalFieldsHTML(type, item) {
             'Template',
             'Surat Masuk Humas',
             'Surat Keluar Humas',
-            'Daftar Kontak Media/Wartawan',
-            'Daftar Kontak Humas Instansi',
-            'Daftar Kontak Protokoler Instansi',
+            'Kontak Partner',
             'Dokumen lainnya'
         ];
+        // Jika sedang berada di dalam folder tertentu, otomatis jadikan kategori folder tersebut sebagai pilihan default
+        const activeCat = item?.kategori || (window.repoActiveFolder || 'Pedoman');
         return `
             <div class="space-y-4 text-slate-700 dark:text-slate-300">
                 <div>
@@ -1592,9 +1962,9 @@ function getModalFieldsHTML(type, item) {
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kategori Dokumen <span class="text-rose-500">*</span></label>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kategori Folder <span class="text-rose-500">*</span></label>
                         <select id="repo_kategori" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
-                            ${categories.map(c => `<option ${item?.kategori === c ? 'selected' : ''} value="${c}">${c}</option>`).join('')}
+                            ${categories.map(c => `<option ${activeCat === c ? 'selected' : ''} value="${c}">${c === 'Pedoman' ? 'Pedoman & Juknis' : (c === 'Template' ? 'Template Desain' : c)}</option>`).join('')}
                         </select>
                     </div>
                     <div>
@@ -1826,9 +2196,14 @@ window.renderExcelForm = function(type) {
 };
 
 window.downloadExcelTemplate = function(type) {
+    const defaultPicName = (db.team && db.team[0] && db.team[0].nama) ? db.team[0].nama : 'Azhari';
     const schemas = {
         'content': ["judul", "jenis_konten", "media_post", "assignTo", "tanggal_posting", "jam_posting", "konsep", "status", "progres"],
-        'rekap_rutin': ["tanggal", "hari", "rubrikasi", "kegiatan", "petugas", "status"],
+        'rekap_rutin': [
+            "tanggal", "hari", "rubrikasi", "sifat_kegiatan", "kegiatan", "petugas",
+            "status", "tautan_dokumentasi", "tautan_konten", "keterangan",
+            "hubungkan_content_planner", "hubungkan_kalender"
+        ],
         'ad_hoc': ["tanggal", "hari", "kegiatan", "jumlah_bertugas", "petugas", "keterangan", "status"],
         'protokoler': ["tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"],
         'mc': ["tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"],
@@ -1841,7 +2216,13 @@ window.downloadExcelTemplate = function(type) {
 
     const examples = {
         'content': ["Infografis Pertumbuhan Ekonomi Kalbar", "Carousel", "Instagram", "Azhari", "2026-06-25", "09:00", "5 slide carousel data ekonomi", "Draft", 0],
-        'rekap_rutin': ["2026-06-24", "Rabu", "Humas", "Rapat Koordinasi Mingguan", "Rian", "Selesai"],
+        'rekap_rutin': [
+            "2026-06-24", "Rabu", "#haribesar", "Rutin", "Publikasi Hari Besar Nasional",
+            defaultPicName, "Selesai",
+            "https://drive.google.com/drive/folders/dokumentasi-kegiatan",
+            "https://instagram.com/p/humas-bps-kalbar",
+            "Publikasi tepat waktu", "YA", "YA"
+        ],
         'ad_hoc': ["2026-06-24", "Rabu", "Peliputan Kunjungan Kerja Gubernur", 2, "Dian, Siska", "Mendokumentasikan acara di pendopo", "Selesai"],
         'protokoler': ["2026-06-24", "Juni", "Audiensi BPS dengan Kepala Dinas Kominfo", "Kantor Dinas Kominfo", "09.00", "Eksternal", "Formal", "Dian", "Membahas integrasi portal satu data", "Ditugaskan"],
         'mc': ["2026-06-24", "Juni", "Upacara Hari Lahir Pancasila", "Halaman Kantor Gubernur", "07.30", "Eksternal", "Super Formal", "Siska", "Membawa acara upacara bendera", "Ditugaskan"],
@@ -1869,10 +2250,16 @@ window.downloadExcelTemplate = function(type) {
             ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
             ["tanggal", "Wajib. Tanggal kegiatan (Format: YYYY-MM-DD).", "Contoh: 2026-06-24"],
             ["hari", "Opsional. Nama hari pelaksanaan.", "Senin, Selasa, Rabu, Kamis, Jumat, Sabtu, Minggu"],
-            ["rubrikasi", "Opsional. Kategori rubrikasi kegiatan.", "Bebas"],
-            ["kegiatan", "Wajib. Deskripsi kegiatan rutin.", "Bebas"],
-            ["petugas", "Opsional. Nama petugas pelaksana.", "Bebas"],
-            ["status", "Opsional. Status pelaksanaan.", "Ditugaskan, Selesai"]
+            ["rubrikasi", "Wajib. Kategori rubrikasi kegiatan (Pilihan sama dengan filter).", "#SE2026, #DTSEN, #haribesar/daerah/nasional/internasional, #rilisbrs, #infografisbrs, #rilispublikasi, #SElasaSEnsus, #promosistatistik, #rripontianak, #zonaintegritas, #SKD, #ddakalbar, KLIK, Laporan"],
+            ["sifat_kegiatan", "Opsional. Sifat kegiatan.", "Rutin, Ad Hoc"],
+            ["kegiatan", "Wajib. Nama atau judul kegiatan rutin.", "Bebas"],
+            ["petugas", "Wajib. Nama Petugas PIC sesuai Direktori Tim.", "Sesuai nama pada Direktori Tim (Contoh: " + defaultPicName + ")"],
+            ["status", "Opsional. Status pelaksanaan pekerjaan.", "Draft, Sedang Dikerjakan, Ditugaskan, Selesai"],
+            ["tautan_dokumentasi", "Opsional. Tautan Google Drive dokumentasi / foto kegiatan.", "Contoh: https://drive.google.com/..."],
+            ["tautan_konten", "Opsional. Tautan postingan konten publikasi/medsos.", "Contoh: https://instagram.com/p/..."],
+            ["keterangan", "Opsional. Catatan atau keterangan tambahan.", "Bebas"],
+            ["hubungkan_content_planner", "Opsional. Sinkronisasi ke modul Content Planner.", "YA / TIDAK"],
+            ["hubungkan_kalender", "Opsional. Tampilkan pada Kalender Kegiatan.", "YA / TIDAK"]
         ],
         'ad_hoc': [
             ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
@@ -1980,6 +2367,130 @@ window.downloadExcelTemplate = function(type) {
     }
 };
 
+// =====================================================
+// EXCEL IMPORT PROGRESS STATUS BAR POP-UP
+// =====================================================
+function showImportStatusBar(fileName, typeLabel, totalRows = 0) {
+    const existing = document.getElementById('excel-import-status-modal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'excel-import-status-modal';
+    overlay.className = 'fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in';
+    overlay.innerHTML = `
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl p-6 w-full max-w-md animate-scale-up">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <i class="fa-solid fa-file-excel text-lg"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-sm font-black text-slate-800 dark:text-white truncate">Import Berkas Excel</h3>
+                    <p class="text-[11px] text-slate-400 dark:text-slate-400 truncate">${fileName} • <span class="font-semibold text-slate-600 dark:text-slate-300">${typeLabel}</span></p>
+                </div>
+                <span id="import-status-badge" class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 shrink-0">
+                    Memproses
+                </span>
+            </div>
+
+            <!-- Progress Bar Container -->
+            <div class="space-y-2 mb-4">
+                <div class="flex justify-between items-center text-xs">
+                    <span id="import-status-phase" class="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-xs"></i>
+                        <span>Membaca data berkas...</span>
+                    </span>
+                    <span id="import-status-percentage" class="font-black text-indigo-600 dark:text-indigo-400 text-sm">0%</span>
+                </div>
+                
+                <div class="w-full bg-slate-100 dark:bg-slate-700 h-3 rounded-full overflow-hidden p-0.5 border border-slate-200 dark:border-slate-600">
+                    <div id="import-status-progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-full transition-all duration-200" style="width: 0%"></div>
+                </div>
+
+                <div class="flex justify-between items-center text-[10px] text-slate-400 dark:text-slate-500 font-semibold pt-0.5">
+                    <span id="import-status-detail">Memulai parsing sheet Excel...</span>
+                    <span id="import-status-count">0 / ${totalRows || '...'} baris</span>
+                </div>
+            </div>
+
+            <!-- Notice box -->
+            <div id="import-status-alert" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-750 border border-slate-150 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300">
+                <p class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-cloud-arrow-up text-indigo-500"></i>
+                    <span>Sedang memvalidasi dan menyinkronkan data ke sistem...</span>
+                </p>
+            </div>
+
+            <!-- Action buttons (revealed on completion or error) -->
+            <div id="import-status-actions" class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 hidden">
+                <button type="button" onclick="closeImportStatusBar(true)" class="btn-primary w-full py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check"></i> Selesai & Tutup
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+function updateImportStatusBar(progressPct, phaseText, detailText, currentCount, totalRows, isDone = false, errorMsg = '') {
+    const bar = document.getElementById('import-status-progress-bar');
+    const pct = document.getElementById('import-status-percentage');
+    const phase = document.getElementById('import-status-phase');
+    const detail = document.getElementById('import-status-detail');
+    const count = document.getElementById('import-status-count');
+    const badge = document.getElementById('import-status-badge');
+    const alertBox = document.getElementById('import-status-alert');
+    const actions = document.getElementById('import-status-actions');
+
+    const roundedPct = Math.min(100, Math.max(0, Math.round(progressPct)));
+
+    if (bar) bar.style.width = `${roundedPct}%`;
+    if (pct) pct.textContent = `${roundedPct}%`;
+    if (phase && phaseText) phase.innerHTML = phaseText;
+    if (detail && detailText) detail.textContent = detailText;
+    if (count && currentCount !== undefined) count.textContent = `${currentCount} / ${totalRows} baris`;
+
+    if (errorMsg) {
+        if (bar) bar.className = 'h-full bg-rose-500 rounded-full transition-all duration-200';
+        if (pct) { pct.textContent = '!'; pct.className = 'font-black text-rose-500 text-sm'; }
+        if (badge) {
+            badge.className = 'px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 shrink-0';
+            badge.textContent = 'Gagal';
+        }
+        if (alertBox) {
+            alertBox.className = 'p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-[11px] text-rose-700 dark:text-rose-300';
+            alertBox.innerHTML = `<p class="flex items-start gap-2"><i class="fa-solid fa-circle-xmark text-rose-500 mt-0.5 shrink-0"></i><span>${errorMsg}</span></p>`;
+        }
+        if (actions) actions.classList.remove('hidden');
+    } else if (isDone) {
+        if (bar) bar.className = 'h-full bg-emerald-500 rounded-full transition-all duration-200';
+        if (pct) { pct.textContent = '100%'; pct.className = 'font-black text-emerald-600 dark:text-emerald-400 text-sm'; }
+        if (badge) {
+            badge.className = 'px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 shrink-0';
+            badge.textContent = 'Sukses';
+        }
+        if (alertBox) {
+            alertBox.className = 'p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-700 dark:text-emerald-300';
+            alertBox.innerHTML = `
+                <p class="flex items-center gap-2 font-bold">
+                    <i class="fa-solid fa-circle-check text-emerald-500 text-sm"></i>
+                    <span>Import berhasil! Seluruh ${currentCount} data berhasil disimpan ke sistem.</span>
+                </p>
+            `;
+        }
+        if (actions) actions.classList.remove('hidden');
+    }
+}
+
+function closeImportStatusBar(shouldReload = false) {
+    const modal = document.getElementById('excel-import-status-modal');
+    if (modal) modal.remove();
+    if (shouldReload) {
+        closeModal();
+        if (typeof router === 'function') router(currentState);
+    }
+}
+window.closeImportStatusBar = closeImportStatusBar;
+
 window.handleExcelUpload = function(event, type) {
     const file = event.target.files[0];
     if (!file) return;
@@ -1989,21 +2500,44 @@ window.handleExcelUpload = function(event, type) {
         return;
     }
 
-    showToast('Sedang memproses berkas Excel...', 'info');
+    const typeNames = {
+        'content': 'Rencana Konten',
+        'rekap_rutin': 'Kegiatan Rutin',
+        'ad_hoc': 'Kegiatan Ad Hoc',
+        'protokoler': 'Agenda Protokol',
+        'mc': 'Agenda MC',
+        'brs_rilis': 'Kegiatan BRS',
+        'hari_besar': 'Kalender Ucapan',
+        'team': 'Direktori Tim',
+        'user_manager': 'Pengguna',
+        'assignment': 'Penugasan Tim'
+    };
+    const typeLabel = typeNames[type] || 'Data ' + type;
+
+    // Tampilkan pop-up status bar import
+    showImportStatusBar(file.name, typeLabel, 0);
 
     const reader = new FileReader();
     reader.onload = async function(e) {
         try {
+            updateImportStatusBar(10, '<i class="fa-solid fa-spinner fa-spin text-indigo-500 text-xs"></i> Membaca sheet Excel...', 'Memuat struktur berkas...', 0, 0);
+            await new Promise(r => setTimeout(r, 80));
+
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false, dateNF: 'yyyy-mm-dd' });
 
-            if (jsonData.length === 0) {
+            if (!jsonData || jsonData.length === 0) {
+                updateImportStatusBar(0, 'Berkas Kosong', '', 0, 0, false, 'Berkas Excel kosong atau format kolom tidak sesuai.');
                 showToast('Berkas Excel kosong atau format kolom salah.', 'error');
                 return;
             }
+
+            const totalRows = jsonData.length;
+            updateImportStatusBar(20, '<i class="fa-solid fa-spinner fa-spin text-indigo-500 text-xs"></i> Memvalidasi baris data...', `Terdeteksi ${totalRows} baris data`, 0, totalRows);
+            await new Promise(r => setTimeout(r, 100));
 
             const sheetMapping = {
                 'content': 'content_planner',
@@ -2023,7 +2557,11 @@ window.handleExcelUpload = function(event, type) {
             let successCount = 0;
             const schemas = {
                 'content': ["judul", "jenis_konten", "media_post", "assignTo", "assignedTo", "tanggal_posting", "jam_posting", "konsep", "status", "progres", "postType", "jadwal"],
-                'rekap_rutin': ["tanggal", "hari", "rubrikasi", "kegiatan", "petugas", "status"],
+                'rekap_rutin': [
+                    "tanggal", "hari", "rubrikasi", "sifat_kegiatan", "kegiatan", "petugas",
+                    "status", "tautan_dokumentasi", "tautan_konten", "keterangan",
+                    "hubungkan_content_planner", "hubungkan_kalender"
+                ],
                 'ad_hoc': ["tanggal", "hari", "kegiatan", "jumlah_bertugas", "petugas", "keterangan", "status"],
                 'protokoler': ["tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"],
                 'mc': ["tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"],
@@ -2035,17 +2573,41 @@ window.handleExcelUpload = function(event, type) {
             };
             const fields = schemas[type];
 
-            for (let row of jsonData) {
+            for (let i = 0; i < totalRows; i++) {
+                const row = jsonData[i];
                 const item = {};
                 fields.forEach(f => {
                     item[f] = row[f] !== undefined ? row[f] : "";
                 });
 
-                if (type === 'ad_hoc' && item.jumlah_bertugas !== "") {
-                    item.jumlah_bertugas = Number(item.jumlah_bertugas);
+                if (type === 'ad_hoc') {
+                    if (!item.hari && item.tanggal) {
+                        item.hari = getIndonesianDayName(item.tanggal);
+                    }
+                    if (item.jumlah_bertugas !== "") {
+                        item.jumlah_bertugas = Number(item.jumlah_bertugas);
+                    }
                 }
                 if ((type === 'content' || type === 'assignment') && item.progres !== "") {
                     item.progres = Number(item.progres);
+                }
+                if (type === 'rekap_rutin') {
+                    if (!item.hari && item.tanggal) {
+                        item.hari = getIndonesianDayName(item.tanggal);
+                    }
+                    item.sifat_kegiatan = row.sifat_kegiatan || 'Rutin';
+                    item.rubrikasi = row.rubrikasi || '#haribesar/daerah/nasional/internasional';
+                    item.status = row.status || 'Ditugaskan';
+                    item.tautan_dokumentasi = row.tautan_dokumentasi || '';
+                    item.tautan_konten = row.tautan_konten || '';
+                    item.keterangan = row.keterangan || '';
+                    const parseBool = (v, defVal) => {
+                        if (v === undefined || v === null || v === '') return defVal;
+                        const s = String(v).trim().toLowerCase();
+                        return s === 'ya' || s === 'yes' || s === 'true' || s === '1' || s === 'y';
+                    };
+                    item.hubungkan_content_planner = parseBool(row.hubungkan_content_planner, false);
+                    item.hubungkan_kalender = parseBool(row.hubungkan_kalender, true);
                 }
                 if (type === 'content') {
                     const pic = row.assignTo || row['assign To'] || row.assignedTo || row.pic || row.PIC || '';
@@ -2077,7 +2639,7 @@ window.handleExcelUpload = function(event, type) {
                 }
 
                 // Generate ID
-                const maxId = db[varName].reduce((max, i) => Math.max(max, Number(i.id) || 0), 0);
+                const maxId = db[varName].reduce((max, it) => Math.max(max, Number(it.id) || 0), 0);
                 item.id = maxId + 1;
 
                 if (type === 'user_manager') {
@@ -2086,15 +2648,44 @@ window.handleExcelUpload = function(event, type) {
 
                 // Simpan local & server
                 await sendDataToServer('add', sheetName, item);
+
+                // Otomatis sinkronisasi tugas Content Planner yang selesai ke Rekap Rutin
+                if (type === 'content' && typeof window.syncCompletedContentToRekapRutin === 'function') {
+                    window.syncCompletedContentToRekapRutin(db, item, true);
+                }
+
                 successCount++;
+
+                // Update status bar progress
+                const currentPct = 20 + Math.round(((i + 1) / totalRows) * 75);
+                const itemLabel = item.kegiatan || item.judul || item.tugas || item.nama || item.hari_besar || `Baris ${i + 1}`;
+                updateImportStatusBar(
+                    currentPct,
+                    `<i class="fa-solid fa-cloud-arrow-up text-indigo-500 text-xs"></i> Menyimpan baris ${i + 1} dari ${totalRows}...`,
+                    `Memproses: ${String(itemLabel).substring(0, 35)}`,
+                    i + 1,
+                    totalRows
+                );
+                // Beri jeda sejenak untuk rendering UI
+                if (totalRows > 1) {
+                    await new Promise(r => setTimeout(r, 15));
+                }
             }
 
-            closeModal();
+            updateImportStatusBar(100, '<i class="fa-solid fa-circle-check text-emerald-500 text-xs"></i> Selesai!', 'Seluruh data berhasil diimpor.', successCount, totalRows, true);
             showToast(`Berhasil mengimpor ${successCount} data dari Excel!`);
-            router(currentState);
+
+            // Auto-close setelah 1.5 detik jika tidak ditutup manual
+            setTimeout(() => {
+                const modal = document.getElementById('excel-import-status-modal');
+                if (modal) {
+                    closeImportStatusBar(true);
+                }
+            }, 1500);
 
         } catch (error) {
             console.error('Import error:', error);
+            updateImportStatusBar(0, 'Gagal Memproses Berkas', '', 0, 0, false, error.message || 'Gagal memproses file Excel. Pastikan format kolom sesuai template.');
             showToast('Gagal memproses file Excel. Pastikan format kolom sesuai template.', 'error');
         }
     };
@@ -2103,18 +2694,52 @@ window.handleExcelUpload = function(event, type) {
 
 
 
+// Helper untuk mendeteksi apakah pengguna sedang aktif mengedit/menginput atau membuka formulir/modal
+window.isUserEditingOrInputting = function() {
+    // 1. Cek apakah ada modal yang sedang terbuka / aktif di layar
+    if (document.getElementById('dynamic-modal')) return true;
+    if (document.getElementById('excel-import-status-modal')) return true;
+    if (document.getElementById('custom-confirm-modal')) return true;
+    if (document.getElementById('scraper-progress-modal')) return true;
+    const modalEl = document.querySelector('.modal:not(.hidden), [id$="-modal"]:not(.hidden)');
+    if (modalEl && modalEl.offsetParent !== null) return true;
+
+    // 2. Cek apakah pengguna sedang memfokuskan kursor pada input, textarea, atau select
+    const activeEl = document.activeElement;
+    if (activeEl) {
+        const tag = activeEl.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+            return true;
+        }
+        if (activeEl.isContentEditable) {
+            return true;
+        }
+    }
+
+    // 3. Status submit form sedang berjalan
+    if (typeof isSubmitting !== 'undefined' && isSubmitting) return true;
+
+    return false;
+};
+
 function closeModal() {
     const modal = document.getElementById('dynamic-modal');
     if (modal) modal.remove();
     currentEditItem = null;
     currentModalType = null;
     isSubmitting = false;
+
+    // Jika ada pembaruan view yang ditunda saat proses input/edit berlangsung, jalankan sekarang secara aman
+    if (window._pendingViewRefresh && typeof router === 'function' && typeof currentState !== 'undefined') {
+        window._pendingViewRefresh = false;
+        router(currentState);
+    }
 }
 
 // Form Validation helper
 function validateFormInput(type, data) {
     if (type === 'content' && (!data.judul || !data.jadwal || !(data.assignTo || data.assignedTo || data['assign To']))) return 'Kolom bertanda bintang (*) wajib diisi (Judul, PIC, Tanggal Posting).';
-    if (type === 'rekap_rutin' && (!data.tanggal || !data.kegiatan)) return 'Kolom bertanda bintang (*) wajib diisi.';
+    if (type === 'rekap_rutin' && (!data.tanggal || !data.kegiatan || !data.rubrikasi)) return 'Kolom bertanda bintang (*) wajib diisi (termasuk minimal 1 Rubrikasi).';
     if (type === 'ad_hoc' && (!data.tanggal || !data.kegiatan || !data.petugas)) return 'Kolom bertanda bintang (*) wajib diisi.';
     if (type === 'protokoler' && (!data.kegiatan || !data.tanggal || !data.lokasi || !data.jam_mulai)) return 'Kolom bertanda bintang (*) wajib diisi.';
     if (type === 'mc' && (!data.kegiatan || !data.tanggal || !data.lokasi || !data.jam_mulai)) return 'Kolom bertanda bintang (*) wajib diisi.';
@@ -2191,6 +2816,7 @@ async function saveData(event) {
     } else if (currentModalType === 'assignment') {
         item.tugas = document.getElementById('tugas').value;
         item.deskripsi = document.getElementById('deskripsi').value;
+        item.rubrikasi = document.getElementById('assignment_rubrikasi')?.value || '';
         item.prioritas = document.getElementById('prioritas').value;
         item.status = document.getElementById('status').value;
         item.tanggal_penugasan = document.getElementById('tanggal_penugasan').value;
@@ -2200,8 +2826,16 @@ async function saveData(event) {
         item.lampiran = document.getElementById('lampiran').value;
     } else if (currentModalType === 'rekap_rutin') {
         item.tanggal = document.getElementById('tanggal').value;
-        item.hari = document.getElementById('hari').value;
-        item.rubrikasi = document.getElementById('rubrikasi').value;
+        const autoHariFromDate = item.tanggal && typeof window.getIndonesianDayName === 'function' ? window.getIndonesianDayName(item.tanggal) : '';
+        item.hari = document.getElementById('hari')?.value || autoHariFromDate || '';
+        const rubrikVal = document.getElementById('rubrikasi')?.value || '';
+        if (!rubrikVal || rubrikVal.trim() === '') {
+            if (typeof showToast === 'function') {
+                showToast('Silakan pilih minimal 1 rubrikasi kegiatan!', 'warning');
+            }
+            return;
+        }
+        item.rubrikasi = rubrikVal;
         item.kegiatan = document.getElementById('kegiatan').value;
         item.sifat_kegiatan = document.getElementById('sifat_kegiatan')?.value || 'Rutin';
         item.petugas = document.getElementById('petugas').value;
@@ -2213,7 +2847,8 @@ async function saveData(event) {
         item.hubungkan_kalender = document.getElementById('hubungkan_kalender')?.checked !== false;
     } else if (currentModalType === 'ad_hoc') {
         item.tanggal = document.getElementById('tanggal').value;
-        item.hari = document.getElementById('hari').value;
+        const autoHariFromDate = item.tanggal && typeof window.getIndonesianDayName === 'function' ? window.getIndonesianDayName(item.tanggal) : '';
+        item.hari = document.getElementById('hari')?.value || autoHariFromDate || '';
         item.kegiatan = document.getElementById('kegiatan').value;
         item.jumlah_bertugas = Number(document.getElementById('jumlah_bertugas').value);
         item.petugas = document.getElementById('petugas').value;
@@ -2394,6 +3029,11 @@ async function saveData(event) {
     sendDataToServer(action, sheetName, item).catch(err => {
         console.error('Sync error:', err);
     });
+
+    // Otomatis sinkronisasi tugas Content Planner yang selesai ke Rekap Rutin
+    if (currentModalType === 'content' && typeof window.syncCompletedContentToRekapRutin === 'function') {
+        window.syncCompletedContentToRekapRutin(db, item, true);
+    }
 
     setSubmitLoading(false);
     closeModal();
@@ -2994,11 +3634,15 @@ function showDetail(type, item) {
             </div>
         `;
     } else if (type === 'rekap_rutin') {
+        const rubriks = window.parseRubrikasiArray ? window.parseRubrikasiArray(item.rubrikasi) : (item.rubrikasi ? [item.rubrikasi] : []);
+        const rubrikBadges = rubriks.length > 0
+            ? `<div class="flex flex-wrap gap-1 justify-end max-w-[260px]">${rubriks.map(r => `<span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-md font-bold text-[10px]">${r}</span>`).join('')}</div>`
+            : `<span class="font-bold text-slate-400">-</span>`;
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Kegiatan:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.kegiatan}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal & Hari:</strong><span class="font-bold">${formatDate(item.tanggal)} (${item.hari || '-'})</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Rubrikasi:</strong><span class="font-bold text-indigo-650 dark:text-indigo-400">${item.rubrikasi || '-'}</span></div>
+                <div class="flex items-center justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Rubrikasi:</strong>${rubrikBadges}</div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Petugas Humas:</strong><span class="font-bold text-slate-800 dark:text-white">${item.petugas || '-'}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || '-'}</span></div>
             </div>
@@ -3038,10 +3682,15 @@ function showDetail(type, item) {
             </div>
         `;
     } else if (type === 'assignment') {
+        const assignRubriks = window.parseRubrikasiArray ? window.parseRubrikasiArray(item.rubrikasi) : (item.rubrikasi ? [item.rubrikasi] : []);
+        const assignRubrikBadges = assignRubriks.length > 0
+            ? `<div class="flex flex-wrap gap-1 justify-end max-w-[260px]">${assignRubriks.map(r => `<span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-md font-bold text-[10px]">${r}</span>`).join('')}</div>`
+            : `<span class="font-bold text-slate-400">-</span>`;
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Tugas:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.tugas}</span></div>
                 <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deskripsi:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.deskripsi || 'Tidak ada deskripsi.'}</span></div>
+                <div class="flex items-center justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Rubrikasi:</strong>${assignRubrikBadges}</div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Prioritas:</strong><span class="font-bold">${item.prioritas || 'Sedang'}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || 'Belum Mulai'}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal Ditugaskan:</strong><span class="font-bold">${formatDate(item.tanggal_penugasan)}</span></div>
@@ -3314,6 +3963,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Periodically sync data in the background silently (every 5 minutes)
     setInterval(() => {
         if (currentUser) {
+            if (typeof window.isUserEditingOrInputting === 'function' && window.isUserEditingOrInputting()) {
+                console.log('[Sync] User sedang menginput/mengedit, background sync ditunda.');
+                return;
+            }
             if (typeof fetchDataFromSheets === 'function') {
                 fetchDataFromSheets(true);
             }

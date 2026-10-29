@@ -88,11 +88,35 @@ export function identifyMedia(rawSource = '', title = '', link = '') {
   if (combined.includes('sonora')) return 'Sonora';
   if (combined.includes('tribun') || combined.includes('tribunpontianak')) return 'Tribun Pontianak';
 
-  if (rawSource && rawSource.trim().length > 0) {
+  if (rawSource && rawSource.trim().length > 0 && rawSource.trim() !== 'Media Lainnya') {
     return rawSource.trim();
   }
 
-  return 'Media Lainnya';
+  // Extract media name from article link domain if available
+  if (link) {
+    try {
+      const urlObj = new URL(link);
+      let host = urlObj.hostname.replace(/^www\./i, '');
+      if (host && !host.includes('google.com')) {
+        const parts = host.split('.');
+        if (parts.length >= 2) {
+          const mainPart = parts[0];
+          return mainPart.charAt(0).toUpperCase() + mainPart.slice(1);
+        }
+        return host;
+      }
+    } catch (_) {}
+  }
+
+  if (title && title.includes(' - ')) {
+    const parts = title.split(' - ');
+    const lastPart = parts[parts.length - 1].trim();
+    if (lastPart && lastPart.length < 40 && !lastPart.toLowerCase().includes('bps')) {
+      return lastPart;
+    }
+  }
+
+  return 'Media Online';
 }
 
 /**
@@ -281,8 +305,18 @@ export async function generateMonitoringWorkbook(articles = [], year = 2026, sta
   });
 
   // Calculate monthly distributions
-  // Media map
-  const allMediaList = [...MEDIA_TARGET, 'Media Lainnya'];
+  // Media map (Dynamic: standard target media combined with all unique media from articles)
+  const articleMediaSet = new Set(
+    articles.map(a => (a.media || a.sumber || '').trim()).filter(m => m && m !== 'Media Lainnya')
+  );
+  const allMediaList = [...new Set([...MEDIA_TARGET, ...articleMediaSet])].sort((a, b) => {
+    const aTarget = MEDIA_TARGET.indexOf(a);
+    const bTarget = MEDIA_TARGET.indexOf(b);
+    if (aTarget !== -1 && bTarget !== -1) return aTarget - bTarget;
+    if (aTarget !== -1) return -1;
+    if (bTarget !== -1) return 1;
+    return a.localeCompare(b);
+  });
   const mediaMonthCounts = {};
   allMediaList.forEach(m => {
     mediaMonthCounts[m] = Array(12).fill(0);
@@ -300,8 +334,13 @@ export async function generateMonitoringWorkbook(articles = [], year = 2026, sta
     const artYear = d.getFullYear();
     const mIdx = d.getMonth(); // 0 - 11
     if (artYear === year && mIdx >= 0 && mIdx < 12) {
-      const med = MEDIA_TARGET.includes(art.media) ? art.media : 'Media Lainnya';
-      if (!mediaMonthCounts[med]) mediaMonthCounts[med] = Array(12).fill(0);
+      let rawMed = (art.media || art.sumber || '').trim();
+      if (!rawMed || rawMed === 'Media Lainnya') rawMed = 'Media Online';
+      const med = rawMed;
+      if (!mediaMonthCounts[med]) {
+        mediaMonthCounts[med] = Array(12).fill(0);
+        if (!allMediaList.includes(med)) allMediaList.push(med);
+      }
       mediaMonthCounts[med][mIdx]++;
 
       const normalizedTop = normalizeArticleTopic(art.topik);

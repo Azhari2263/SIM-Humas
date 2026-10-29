@@ -36,6 +36,10 @@
     <!-- SheetJS (Excel) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
+    <!-- jsPDF & jsPDF AutoTable (PDF Export) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -126,6 +130,43 @@
             to {
                 opacity: 1;
                 transform: translateY(0);
+            }
+        }
+
+        /* === PRINT MEDIA STYLING FOR OFFICIAL REPORTS === */
+        @media print {
+            aside, header, nav, #desktop-sidebar, #mobile-sidebar, #bottom-nav, #toast-container, .group-hover\:block, button[onclick*="exportRekap"], button[onclick*="printRekap"], button[onclick*="resetRekap"], button[onclick*="toggleMemberAccordion"], select, input {
+                display: none !important;
+            }
+            body, main, #main-content, #content {
+                background: #ffffff !important;
+                color: #0f172a !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                height: auto !important;
+            }
+            #rekap-kegiatan-root {
+                width: 100% !important;
+                padding: 0 !important;
+            }
+            [id^="member-tasks-table-"] {
+                display: block !important;
+            }
+            .dark {
+                color-scheme: light !important;
+            }
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                page-break-inside: auto;
+            }
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            thead {
+                display: table-header-group;
             }
         }
 
@@ -1067,7 +1108,7 @@
                 <button onclick="router('ad_hoc'); closeMobileSidebar();" id="mobile-nav-ad_hoc"
                     data-roles="admin,kepala,koordinator"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-business-time w-5 text-sm"></i> Ad Hoc 2026
+                    <i class="fa-solid fa-business-time w-5 text-sm"></i> Ad Hoc
                 </button>
                 <button onclick="router('protokoler_sep'); closeMobileSidebar();" id="mobile-nav-protokoler_sep"
                     data-roles="admin,kepala,koordinator"
@@ -1207,7 +1248,7 @@
                 </button>
                 <button onclick="router('ad_hoc')" id="nav-ad_hoc" data-roles="admin,kepala,koordinator"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
-                    <i class="fa-solid fa-business-time w-5 text-sm shrink-0"></i> <span class="sidebar-text">Ad Hoc 2026</span>
+                    <i class="fa-solid fa-business-time w-5 text-sm shrink-0"></i> <span class="sidebar-text">Ad Hoc</span>
                 </button>
                 <button onclick="router('protokoler_sep')" id="nav-protokoler_sep"
                     data-roles="admin,kepala,koordinator"

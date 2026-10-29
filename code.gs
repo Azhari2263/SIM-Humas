@@ -214,6 +214,70 @@ function doPost(e) {
       const rowData = currentHeaders.map(header => getCellValue(data.item, header));
       ws.appendRow(rowData);
     }
+
+    // Sinkronisasi otomatis ke lembar rekap_rutin jika tugas Content Planner selesai
+    if (normalizedSheetName === 'content_planner' && data.item) {
+      const isCompleted = data.item.status === 'Posted' || data.item.status === 'Done' || data.item.status === 'Selesai' || Number(data.item.progres) >= 100;
+      if (isCompleted) {
+        try {
+          const rutinHeaders = getHeadersForSheet('rekap_rutin');
+          const rutinWs = getOrCreateSheet(sheet, 'rekap_rutin', rutinHeaders);
+          const rutinRows = rutinWs.getDataRange().getValues();
+          const rutinHeaderRow = rutinRows[0];
+          const kegiatanIdx = rutinHeaderRow.indexOf('kegiatan');
+          const tanggalIdx = rutinHeaderRow.indexOf('tanggal');
+          const cTitle = String(data.item.judul || data.item.kegiatan || "").trim().toLowerCase();
+          const cDate = String(data.item.tanggal_posting || data.item.jadwal || "").split('T')[0];
+          
+          let found = false;
+          for (let r = 1; r < rutinRows.length; r++) {
+            const rowTitle = String(rutinRows[r][kegiatanIdx] || "").trim().toLowerCase();
+            const rowDate = String(rutinRows[r][tanggalIdx] || "").split('T')[0];
+            if (rowTitle === cTitle || (rowTitle.length >= 6 && cTitle.length >= 6 && (rowTitle.includes(cTitle) || cTitle.includes(rowTitle)))) {
+              if (rowDate === cDate || !rowDate || !cDate) {
+                found = true;
+                break;
+              }
+            }
+          }
+          
+          if (!found) {
+            const indDays = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const tglD = new Date(data.item.tanggal_posting || data.item.jadwal || new Date());
+            const hariName = (!isNaN(tglD.getTime())) ? indDays[tglD.getDay()] : 'Senin';
+            
+            let rubrik = 'Humas';
+            const tLower = cTitle.toLowerCase();
+            if (tLower.includes('se2026') || tLower.includes('se 2026') || tLower.includes('sensus ekonomi')) rubrik = '#SE2026';
+            else if (tLower.includes('dtsen') || tLower.includes('dts en')) rubrik = '#DTSEN';
+            else if (tLower.includes('klik')) rubrik = 'KLIK';
+            else if (tLower.includes('infografis') || tLower.includes('brs')) rubrik = '#infografisbrs';
+            else if (tLower.includes('publikasi')) rubrik = '#rilispublikasi';
+            else if (tLower.includes('hari') || tLower.includes('ucapan')) rubrik = '#haribesar/daerah/nasional/internasional';
+            
+            const newRutin = {
+              id: new Date().getTime(),
+              tanggal: data.item.tanggal_posting || data.item.jadwal || Utilities.formatDate(new Date(), "GMT+7", "yyyy-MM-dd"),
+              hari: hariName,
+              rubrikasi: rubrik,
+              kegiatan: data.item.judul || 'Publikasi Konten',
+              petugas: data.item.assignTo || data.item['assign To'] || data.item.assignedTo || data.item.pic || 'Belum Ditugaskan',
+              status: 'Selesai',
+              tautan_dokumentasi: data.item.tautan_cloud || data.item.link_cloud || '',
+              tautan_konten: data.item.link_konten || data.item.tautan_cloud || '',
+              keterangan: data.item.konsep || (data.item.media_post ? 'Media: ' + data.item.media_post : 'Otomatis dari Content Planner'),
+              hubungkan_content_planner: true,
+              hubungkan_kalender: true
+            };
+            const rowValues = rutinHeaderRow.map(h => getCellValue(newRutin, h));
+            rutinWs.appendRow(rowValues);
+          }
+        } catch (errSync) {
+          // Abaikan error background sync pada GAS
+        }
+      }
+    }
+
     return ContentService.createTextOutput(JSON.stringify({success: true, item: data.item}))
       .setMimeType(ContentService.MimeType.JSON);
     
