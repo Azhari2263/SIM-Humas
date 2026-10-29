@@ -1048,6 +1048,128 @@ window.updateRubrikasiPillUI = function(inputId = 'rubrikasi') {
     }
 };
 
+// =============================================================
+// HANDLERS MULTI-SELECT PETUGAS PIC UNTUK PENUGASAN AD HOC
+// Sumber personil: strictly dari sheet team (db.team)
+// =============================================================
+window.parseAdHocPicArray = function(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.map(s => String(s).trim()).filter(Boolean);
+    const str = String(val).trim();
+    if (!str) return [];
+
+    // Prioritaskan pencocokan nama lengkap personil dari db.team
+    const teamNames = (db.team || []).map(m => m && m.nama ? m.nama.trim() : '').filter(Boolean);
+    const selected = [];
+    let remaining = str;
+    teamNames.forEach(tName => {
+        if (remaining.includes(tName)) {
+            selected.push(tName);
+            remaining = remaining.replace(tName, '');
+        }
+    });
+
+    if (selected.length > 0) {
+        return selected;
+    }
+
+    // Fallback: split berdasarkan koma / titik koma / slash
+    return str.split(/[,;\/]+/).map(s => s.trim()).filter(Boolean);
+};
+
+window.toggleAdHocPic = function(encodedName) {
+    const name = decodeURIComponent(encodedName);
+    const input = document.getElementById('petugas');
+    if (!input) return;
+    let list = window.parseAdHocPicArray(input.value);
+    const idx = list.indexOf(name);
+    if (idx > -1) {
+        list.splice(idx, 1);
+    } else {
+        list.push(name);
+    }
+    input.value = list.join(', ');
+    window.updateAdHocPicUI();
+};
+
+window.setAllAdHocPics = function(mode) {
+    const input = document.getElementById('petugas');
+    if (!input) return;
+    if (mode === 'none') {
+        input.value = '';
+    } else if (mode === 'all') {
+        const allTeamNames = (db.team || []).map(m => m && m.nama ? m.nama.trim() : '').filter(Boolean);
+        input.value = allTeamNames.join(', ');
+    }
+    window.updateAdHocPicUI();
+};
+
+window.updateAdHocPicUI = function() {
+    const input = document.getElementById('petugas');
+    if (!input) return;
+    const list = window.parseAdHocPicArray(input.value);
+
+    // Otomatisasi Nilai JML BERTUGAS mengikuti jumlah petugas PIC yang dipilih
+    const jmlInput = document.getElementById('jumlah_bertugas');
+    if (jmlInput) {
+        jmlInput.value = list.length;
+    }
+
+    const groupEl = document.getElementById('adhoc-pic-pill-group');
+    if (groupEl) {
+        groupEl.querySelectorAll('.adhoc-pic-pill').forEach(btn => {
+            const picName = btn.getAttribute('data-pic-name');
+            const isSel = list.includes(picName);
+            const check = btn.querySelector('.pic-check');
+            const checkbox = btn.querySelector('.pic-checkbox');
+            if (checkbox) checkbox.checked = isSel;
+            if (isSel) {
+                btn.className = 'adhoc-pic-pill flex items-center justify-between px-3 py-2 rounded-xl border text-xs font-bold transition-all select-none cursor-pointer bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500 shadow-2xs';
+                if (check) check.classList.remove('hidden');
+            } else {
+                btn.className = 'adhoc-pic-pill flex items-center justify-between px-3 py-2 rounded-xl border text-xs font-medium transition-all select-none cursor-pointer bg-white dark:bg-slate-750 border-slate-205 dark:border-slate-700 text-slate-655 dark:text-slate-300 hover:border-slate-300';
+                if (check) check.classList.add('hidden');
+            }
+        });
+    }
+
+    const summaryEl = document.getElementById('adhoc-pic-summary');
+    if (summaryEl) {
+        if (list.length === 0) {
+            summaryEl.innerHTML = `
+                <div class="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-[11px] font-semibold flex items-center gap-1.5">
+                    <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+                    <span>Belum ada petugas PIC yang dipilih. Silakan pilih minimal 1 petugas dari daftar di atas.</span>
+                </div>
+            `;
+        } else {
+            summaryEl.innerHTML = `
+                <div class="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-150 dark:border-indigo-900 rounded-xl space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-black text-indigo-800 dark:text-indigo-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-users text-indigo-600"></i> ${list.length} Petugas PIC Terpilih:
+                        </span>
+                        <span class="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                            <i class="fa-solid fa-check-double mr-1"></i>Jml Bertugas: ${list.length} Orang
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        ${list.map(n => `
+                            <span class="inline-flex items-center gap-1.5 font-bold text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 px-2.5 py-1 rounded-lg text-[11px] shadow-2xs">
+                                <i class="fa-solid fa-user-check text-[10px] text-indigo-500"></i>
+                                <span>${n}</span>
+                                <button type="button" onclick="event.stopPropagation(); window.toggleAdHocPic('${encodeURIComponent(n)}')" class="text-slate-400 hover:text-rose-500 ml-1 cursor-pointer" title="Hapus ${n}">
+                                    <i class="fa-solid fa-xmark text-[10px]"></i>
+                                </button>
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+    }
+};
+
 // Handler otomatis progres Content Planner berdasarkan status
 window.handleContentStatusChange = function(status) {
     const progresInput = document.getElementById('progres');
@@ -1567,15 +1689,34 @@ function getModalFieldsHTML(type, item) {
             </div>
         `;
     } else if (type === 'ad_hoc') {
-        const memberList = [];
-        const seen = new Set();
-        (db.team && db.team.length > 0 ? db.team : db.users).forEach(m => {
-            if (m.nama && !seen.has(m.nama)) {
-                seen.add(m.nama);
-                memberList.push(m.nama);
+        // Ambil personil strictly dari sheet team (db.team)
+        const teamList = (db.team && db.team.length > 0) ? db.team : [];
+        const teamMembers = [];
+        const seenTeamNames = new Set();
+        teamList.forEach(m => {
+            if (m && m.nama && !seenTeamNames.has(m.nama.trim())) {
+                seenTeamNames.add(m.nama.trim());
+                teamMembers.push({
+                    nama: m.nama.trim(),
+                    jabatan: m.jabatan || m.tugas || 'Tim Humas'
+                });
             }
         });
 
+        // Parse petugas yang sudah tersimpan sebelumnya
+        const selectedPics = window.parseAdHocPicArray ? window.parseAdHocPicArray(item?.petugas) : [];
+        // Pastikan nama historis dari data lama tetap muncul agar tidak hilang
+        selectedPics.forEach(picName => {
+            if (picName && !seenTeamNames.has(picName)) {
+                seenTeamNames.add(picName);
+                teamMembers.push({
+                    nama: picName,
+                    jabatan: 'Penugasan Khusus'
+                });
+            }
+        });
+
+        const initialJml = selectedPics.length;
         const dateVal = formatDateInput(item?.tanggal);
         const autoHari = (dateVal ? getIndonesianDayName(dateVal) : '') || item?.hari || '';
 
@@ -1598,17 +1739,88 @@ function getModalFieldsHTML(type, item) {
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Agenda / Kegiatan Ad Hoc <span class="text-rose-500">*</span></label>
                     <input type="text" id="kegiatan" value="${item?.kegiatan || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-medium" placeholder="Contoh: Rapat Koordinasi Wilayah Humas BPS" required>
                 </div>
-                <div class="grid grid-cols-3 gap-3">
-                    <div class="col-span-2">
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Petugas PIC <span class="text-rose-500">*</span></label>
-                        <input type="text" id="petugas" list="pic-list-adhoc" value="${item?.petugas || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold" placeholder="Ketik atau pilih PIC..." required>
-                        <datalist id="pic-list-adhoc">
-                            ${memberList.map(n => `<option value="${n}"></option>`).join('')}
-                        </datalist>
+                <!-- Petugas PIC Multiple Select & Otomatisasi Jumlah Bertugas -->
+                <div class="space-y-3 p-3.5 bg-slate-50/70 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-users text-indigo-600"></i>
+                            <span>Petugas PIC <span class="text-rose-500">*</span></span>
+                            <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold lowercase bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">(pilih 1 atau lebih)</span>
+                        </label>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="setAllAdHocPics('all')" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 underline cursor-pointer">Pilih Semua</button>
+                            <span class="text-slate-300 dark:text-slate-600">|</span>
+                            <button type="button" onclick="setAllAdHocPics('none')" class="text-[10px] font-bold text-rose-500 hover:text-rose-700 underline cursor-pointer">Reset</button>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Jml Bertugas</label>
-                        <input type="number" id="jumlah_bertugas" value="${item?.jumlah_bertugas || 1}" min="1" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs">
+
+                    <div id="adhoc-pic-pill-group" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto p-1.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                        ${teamMembers.map(m => {
+                            const isChecked = selectedPics.includes(m.nama);
+                            return `
+                                <button type="button"
+                                        onclick="toggleAdHocPic('${encodeURIComponent(m.nama)}')"
+                                        data-pic-name="${m.nama.replace(/"/g, '&quot;')}"
+                                        class="adhoc-pic-pill flex items-center justify-between px-3 py-2 rounded-xl border text-xs transition-all select-none cursor-pointer ${
+                                            isChecked
+                                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500 font-bold shadow-2xs'
+                                            : 'bg-white dark:bg-slate-750 border-slate-205 dark:border-slate-700 text-slate-655 dark:text-slate-300 hover:border-slate-300 font-medium'
+                                        }">
+                                    <span class="inline-flex items-center gap-2 truncate text-left">
+                                        <input type="checkbox" class="pic-checkbox rounded text-indigo-600 pointer-events-none" ${isChecked ? 'checked' : ''} tabindex="-1">
+                                        <span class="truncate font-semibold">${m.nama}</span>
+                                    </span>
+                                    <i class="fa-solid fa-circle-check pic-check text-indigo-600 dark:text-indigo-400 text-xs shrink-0 ${isChecked ? '' : 'hidden'}"></i>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <!-- Ringkasan Petugas PIC Terpilih -->
+                    <div id="adhoc-pic-summary" class="min-h-[24px]">
+                        ${selectedPics.length === 0 ? `
+                            <div class="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-[11px] font-semibold flex items-center gap-1.5">
+                                <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+                                <span>Belum ada petugas PIC yang dipilih. Silakan pilih minimal 1 petugas dari daftar di atas.</span>
+                            </div>
+                        ` : `
+                            <div class="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-150 dark:border-indigo-900 rounded-xl space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] font-black text-indigo-800 dark:text-indigo-300 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-users text-indigo-600"></i> ${selectedPics.length} Petugas PIC Terpilih:
+                                    </span>
+                                    <span class="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                                        <i class="fa-solid fa-check-double mr-1"></i>Jml Bertugas: ${selectedPics.length} Orang
+                                    </span>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    ${selectedPics.map(n => `
+                                        <span class="inline-flex items-center gap-1.5 font-bold text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 px-2.5 py-1 rounded-lg text-[11px] shadow-2xs">
+                                            <i class="fa-solid fa-user-check text-[10px] text-indigo-500"></i>
+                                            <span>${n}</span>
+                                            <button type="button" onclick="event.stopPropagation(); window.toggleAdHocPic('${encodeURIComponent(n)}')" class="text-slate-400 hover:text-rose-500 ml-1 cursor-pointer" title="Hapus ${n}">
+                                                <i class="fa-solid fa-xmark text-[10px]"></i>
+                                            </button>
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `}
+                    </div>
+                    <input type="hidden" id="petugas" value="${selectedPics.join(', ')}" required>
+
+                    <!-- JML BERTUGAS: Terisi otomatis, tidak manual -->
+                    <div class="pt-2 border-t border-slate-200 dark:border-slate-700">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                JML BERTUGAS <span class="text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">(Otomatis)</span>
+                            </label>
+                            <span class="text-[10px] text-slate-400">Dihitung otomatis dari banyaknya PIC terpilih</span>
+                        </div>
+                        <div class="mt-1 relative">
+                            <input type="number" id="jumlah_bertugas" value="${initialJml}" readonly class="w-full px-4 py-2 bg-slate-100 dark:bg-slate-750 border border-slate-205 dark:border-slate-700 rounded-lg text-xs font-black text-indigo-650 dark:text-indigo-300 cursor-not-allowed">
+                            <span class="absolute inset-y-0 right-0 pr-3 flex items-center text-xs font-bold text-slate-400">Orang</span>
+                        </div>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
@@ -1617,7 +1829,7 @@ function getModalFieldsHTML(type, item) {
                         <select id="status" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-bold">
                             <option ${item?.status === 'Draft' ? 'selected' : ''} value="Draft">Draft</option>
                             <option ${item?.status === 'Sedang Dikerjakan' ? 'selected' : ''} value="Sedang Dikerjakan">Sedang Dikerjakan</option>
-                            <option ${item?.status === 'Ditugaskan' ? 'selected' : ''} value="Ditugaskan">Ditugaskan</option>
+                            <option ${item?.status === 'Ditugaskan' || !item ? 'selected' : ''} value="Ditugaskan">Ditugaskan</option>
                             <option ${item?.status === 'Selesai' ? 'selected' : ''} value="Selesai">Selesai</option>
                         </select>
                     </div>
@@ -2117,6 +2329,10 @@ function openModal(type, item = null) {
 
     document.body.appendChild(modal);
 
+    if (type === 'ad_hoc' && typeof window.updateAdHocPicUI === 'function') {
+        window.updateAdHocPicUI();
+    }
+
     // Enforce RBAC constraints for Tim Humas role on editing
     if (item !== null && currentUser && currentUser.role === 'tim') {
         const modalInputs = modal.querySelectorAll('input, select, textarea');
@@ -2151,6 +2367,10 @@ window.renderManualForm = function(type) {
             </div>
         </form>
     `;
+
+    if (type === 'ad_hoc' && typeof window.updateAdHocPicUI === 'function') {
+        window.updateAdHocPicUI();
+    }
 
     // Enforce Tim Humas restrictions if they click manual form
     if (currentUser && currentUser.role === 'tim') {
@@ -2740,7 +2960,7 @@ function closeModal() {
 function validateFormInput(type, data) {
     if (type === 'content' && (!data.judul || !data.jadwal || !(data.assignTo || data.assignedTo || data['assign To']))) return 'Kolom bertanda bintang (*) wajib diisi (Judul, PIC, Tanggal Posting).';
     if (type === 'rekap_rutin' && (!data.tanggal || !data.kegiatan || !data.rubrikasi)) return 'Kolom bertanda bintang (*) wajib diisi (termasuk minimal 1 Rubrikasi).';
-    if (type === 'ad_hoc' && (!data.tanggal || !data.kegiatan || !data.petugas)) return 'Kolom bertanda bintang (*) wajib diisi.';
+    if (type === 'ad_hoc' && (!data.tanggal || !data.kegiatan || !data.petugas)) return 'Kolom bertanda bintang (*) wajib diisi (Termasuk minimal 1 Petugas PIC).';
     if (type === 'protokoler' && (!data.kegiatan || !data.tanggal || !data.lokasi || !data.jam_mulai)) return 'Kolom bertanda bintang (*) wajib diisi.';
     if (type === 'mc' && (!data.kegiatan || !data.tanggal || !data.lokasi || !data.jam_mulai)) return 'Kolom bertanda bintang (*) wajib diisi.';
     if (type === 'brs_rilis' && (!data.judul || !data.tanggal_rilis)) return 'Kolom bertanda bintang (*) wajib diisi.';
@@ -2850,8 +3070,13 @@ async function saveData(event) {
         const autoHariFromDate = item.tanggal && typeof window.getIndonesianDayName === 'function' ? window.getIndonesianDayName(item.tanggal) : '';
         item.hari = document.getElementById('hari')?.value || autoHariFromDate || '';
         item.kegiatan = document.getElementById('kegiatan').value;
-        item.jumlah_bertugas = Number(document.getElementById('jumlah_bertugas').value);
-        item.petugas = document.getElementById('petugas').value;
+        const rawPetugas = document.getElementById('petugas').value;
+        const picArray = typeof window.parseAdHocPicArray === 'function' 
+            ? window.parseAdHocPicArray(rawPetugas) 
+            : rawPetugas.split(/[,;\/]+/).map(s => s.trim()).filter(Boolean);
+        item.petugas = picArray.join(', ');
+        // Jumlah bertugas wajib terisi otomatis sesuai banyaknya PIC yang dipilih
+        item.jumlah_bertugas = picArray.length;
         item.keterangan = document.getElementById('keterangan').value;
         item.status = document.getElementById('status').value;
         item.tautan_dokumentasi = document.getElementById('tautan_dokumentasi')?.value || '';
@@ -2873,24 +3098,46 @@ async function saveData(event) {
         item.hubungkan_kalender = document.getElementById('hubungkan_kalender')?.checked !== false;
     } else if (currentModalType === 'brs_rilis') {
         item.judul = document.getElementById('judul').value;
+        item.kegiatan = item.judul; // dual-key compatibility untuk Google Sheets
         item.tanggal_rilis = document.getElementById('tanggal_rilis').value;
-        item.pic_poster_info = document.getElementById('pic_poster_info').value;
-        item.pic_doc_ruang = document.getElementById('pic_doc_ruang').value;
-        item.pic_doc_yt_zoom = document.getElementById('pic_doc_yt_zoom').value;
-        item.highlight = document.getElementById('highlight').value;
+        item.tanggal = item.tanggal_rilis; // dual-key compatibility untuk Google Sheets
+        item.jadwal = item.tanggal_rilis;
+        item.pic_poster_info = document.getElementById('pic_poster_info')?.value || '';
+        item.pic_doc_ruang = document.getElementById('pic_doc_ruang')?.value || '';
+        item.pic_doc_yt_zoom = document.getElementById('pic_doc_yt_zoom')?.value || '';
+        item.pic_poster = item.pic_poster_info;
+        item.pic_info = item.pic_poster_info;
+        item.pic_doc = item.pic_doc_ruang;
+        item.pic_high = item.pic_doc_yt_zoom;
+        const brsPics = [item.pic_poster_info, item.pic_doc_ruang, item.pic_doc_yt_zoom].filter(Boolean);
+        item.petugas = brsPics.join(', ');
+        item.pic = item.petugas;
+        item.highlight = document.getElementById('highlight')?.value || '';
+        item.link_cloud = item.highlight;
+        item.tautan_dokumentasi = item.highlight;
+        item.status = item.highlight ? 'Rilis' : (item.status || 'Terjadwal');
+        // Otomatisasi rubrikasi #rilisbrs untuk menu BRS Rilis
+        item.rubrikasi = '#rilisbrs';
         item.hubungkan_content_planner = document.getElementById('hubungkan_content_planner')?.checked || false;
         item.hubungkan_kalender = document.getElementById('hubungkan_kalender')?.checked !== false;
     } else if (currentModalType === 'hari_besar') {
         item.hari_besar = document.getElementById('hari_besar').value;
+        item.judul = item.hari_besar; // dual-key compatibility
+        item.kegiatan = item.hari_besar; // dual-key compatibility
         item.tanggal = document.getElementById('tanggal').value;
         item.kategori = document.getElementById('kategori')?.value || 'Medsos Instansi';
         item.jenis_media = document.getElementById('jenis_media')?.value || 'Instagram';
         item.pembuat_konten = document.getElementById('pembuat_konten').value;
+        item.petugas = item.pembuat_konten;
+        item.pic = item.pembuat_konten;
+        item.assignedTo = item.pembuat_konten;
         item.status = document.getElementById('status').value;
         item.tautan_konten = document.getElementById('tautan_konten')?.value || '';
         item.data_pendukung = document.getElementById('data_pendukung')?.value || '';
         item.link_cloud = item.data_pendukung;
         item.keterangan = document.getElementById('keterangan')?.value || '';
+        // Otomatisasi rubrikasi #haribesar untuk menu Ucapan Hari Besar
+        item.rubrikasi = '#haribesar';
         item.hubungkan_content_planner = document.getElementById('hubungkan_content_planner')?.checked || false;
         item.hubungkan_kalender = document.getElementById('hubungkan_kalender')?.checked !== false;
     } else if (currentModalType === 'team') {
@@ -2950,9 +3197,11 @@ async function saveData(event) {
             (p.judul && p.judul === itemTitle)
         );
         if (!existingPlanner) {
+            const autoRubrikasi = currentModalType === 'hari_besar' ? '#haribesar' : (currentModalType === 'brs_rilis' ? '#rilisbrs' : (item.rubrikasi || ''));
             const newPlanner = {
                 id: Date.now() + Math.floor(Math.random() * 1000),
                 judul: itemTitle,
+                rubrikasi: autoRubrikasi,
                 jenis_konten: currentModalType === 'hari_besar' ? 'Single Image' : (item.rubrikasi?.includes('video') ? 'Video' : 'Carousel'),
                 postType: currentModalType === 'hari_besar' ? 'Single Image' : (item.rubrikasi?.includes('video') ? 'Video' : 'Carousel'),
                 media_post: item.jenis_media || item.media_post || 'Instagram',

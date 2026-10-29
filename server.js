@@ -161,11 +161,13 @@ const SHEET_TO_PROP = {
   'rekap_rutin': 'rekapRutin',
   'rekapRutin': 'rekapRutin',
   'ad_hoc_2026': 'adHoc',
+  'ad_hoc': 'adHoc',
   'adHoc': 'adHoc',
   'protokoler': 'protokoler',
   'mc': 'mc',
   'brs_rilis': 'brsRilis',
   'brsRilis': 'brsRilis',
+  'brs': 'brsRilis',
   'hari_besar': 'hariBesar',
   'hariBesar': 'hariBesar',
   'rekap_kegiatan': 'rekapKegiatan',
@@ -240,7 +242,30 @@ app.post(['/api/sheets', '/sheets'], (req, res) => {
       }
     }
 
+    if (collectionName === 'brsRilis' && item) {
+      item.rubrikasi = item.rubrikasi || '#rilisbrs';
+      if (!item.tanggal_rilis && item.tanggal) item.tanggal_rilis = item.tanggal;
+      if (!item.tanggal && item.tanggal_rilis) item.tanggal = item.tanggal_rilis;
+      if (!item.judul && item.kegiatan) item.judul = item.kegiatan;
+      if (!item.kegiatan && item.judul) item.kegiatan = item.judul;
+      if (!item.petugas && (item.pic_poster_info || item.pic_doc_ruang || item.pic_doc_yt_zoom)) {
+        item.petugas = [item.pic_poster_info, item.pic_doc_ruang, item.pic_doc_yt_zoom].filter(Boolean).join(', ');
+      }
+      item.status = item.status || (item.highlight ? 'Rilis' : 'Terjadwal');
+    }
+
+    if (collectionName === 'adHoc' && item) {
+      if (typeof item.petugas === 'string' && item.petugas.trim()) {
+        const parts = item.petugas.split(/[,;\/]+/).map(s => s.trim()).filter(Boolean);
+        item.jumlah_bertugas = parts.length;
+      }
+    }
+
     if (collectionName === 'hariBesar' && item) {
+      item.rubrikasi = item.rubrikasi || '#haribesar';
+      if (!item.hari_besar && item.judul) item.hari_besar = item.judul;
+      if (!item.judul && item.hari_besar) item.judul = item.hari_besar;
+      if (!item.kegiatan && item.hari_besar) item.kegiatan = item.hari_besar;
       item.kategori = item.kategori || 'Medsos Instansi';
       item.jenis_media = item.jenis_media || item.media || 'Instagram';
       item.data_pendukung = item.data_pendukung || item.link_cloud || '';

@@ -116,8 +116,35 @@ function doPost(e) {
     let val = item[header];
     if (val !== undefined && val !== null && val !== "") return val;
     const h = String(header).trim().toLowerCase();
-    if (h === 'assignto' || h === 'assign to' || h === 'assignedto' || h === 'pic') {
-      return item['assign To'] || item.assignTo || item.assignedTo || item.pic || "";
+    if (h === 'assignto' || h === 'assign to' || h === 'assignedto' || h === 'pic' || h === 'petugas') {
+      return item['assign To'] || item.assignTo || item.assignedTo || item.pic || item.petugas || item.pembuat_konten || "";
+    }
+    if (h === 'tanggal_rilis' || h === 'tanggal_rilis_resmi' || h === 'tanggal' || h === 'jadwal') {
+      return item.tanggal_rilis || item.tanggal || item.jadwal || "";
+    }
+    if (h === 'judul' || h === 'kegiatan' || h === 'nama_kegiatan' || h === 'hari_besar') {
+      return item.judul || item.kegiatan || item.nama_kegiatan || item.hari_besar || "";
+    }
+    if (h === 'rubrikasi') {
+      return item.rubrikasi || "";
+    }
+    if (h === 'jumlah_bertugas') {
+      return item.jumlah_bertugas || 1;
+    }
+    if (h === 'pic_poster_info' || h === 'pic_poster' || h === 'pic_info') {
+      return item.pic_poster_info || item.pic_poster || item.pic_info || "";
+    }
+    if (h === 'pic_doc_ruang' || h === 'pic_doc') {
+      return item.pic_doc_ruang || item.pic_doc || "";
+    }
+    if (h === 'pic_doc_yt_zoom' || h === 'pic_high' || h === 'pic_yt_zoom') {
+      return item.pic_doc_yt_zoom || item.pic_high || item.pic_yt_zoom || "";
+    }
+    if (h === 'highlight' || h === 'tautan_highlight') {
+      return item.highlight || item.tautan_highlight || item.link_cloud || "";
+    }
+    if (h === 'status') {
+      return item.status || (item.highlight ? "Rilis" : "Terjadwal");
     }
     if (h === 'media_post' || h === 'media' || h === 'mediapost') {
       return item.media_post || item.media || "";
@@ -125,14 +152,14 @@ function doPost(e) {
     if (h === 'jenis_konten' || h === 'posttype' || h === 'jenis') {
       return item.jenis_konten || item.postType || item.jenis || "";
     }
-    if (h === 'tanggal_posting' || h === 'jadwal') {
-      return item.tanggal_posting || item.jadwal || "";
+    if (h === 'tanggal_posting') {
+      return item.tanggal_posting || item.jadwal || item.tanggal || "";
     }
     if (h === 'jam_posting') {
       return item.jam_posting || "09:00";
     }
     if (h === 'link_konten' || h === 'link' || h === 'tautan' || h === 'link_cloud' || h === 'tautan_cloud' || h === 'cloud_storage') {
-      return item.tautan_cloud || item.link_cloud || item.link_konten || item.link || item.cloud_storage || "";
+      return item.tautan_cloud || item.link_cloud || item.link_konten || item.link || item.cloud_storage || item.highlight || "";
     }
     if (h === 'kategori') {
       return item.kategori || "";
@@ -147,7 +174,7 @@ function doPost(e) {
       return item.data_pendukung || item.link_cloud || "";
     }
     if (h === 'tautan_dokumentasi') {
-      return item.tautan_dokumentasi || "";
+      return item.tautan_dokumentasi || item.link_cloud || item.highlight || "";
     }
     if (h === 'keterangan') {
       return item.keterangan || "";

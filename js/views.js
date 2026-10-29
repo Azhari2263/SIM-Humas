@@ -1088,7 +1088,7 @@ window.renderTeamWorkloadChart = function(targetMonthParam) {
     const assignInMonth = (db.assignments || []).filter(isTaskInSelectedMonth);
     const ticketsInMonth = (db.tickets || []).filter(t => t.status === 'Approved').filter(isTaskInSelectedMonth);
 
-    // List of team members: Gabungkan db.team, db.users, dan seluruh PIC unik dari tugas yang diagendakan pada bulan terkait
+    // List of team members: HANYA pegawai yang terdaftar pada sheet team di database (db.team)
     const memberMap = new Map();
 
     const addMemberIfValid = (rawName, role = 'tim') => {
@@ -1107,54 +1107,12 @@ window.renderTeamWorkloadChart = function(targetMonthParam) {
         }
     };
 
-    // 1. Dari direktori tim (db.team)
-    (db.team || []).forEach(m => m && addMemberIfValid(m.nama, m.jabatan || 'tim'));
-
-    // 2. Dari daftar user tim/koordinator (db.users)
-    (db.users || []).filter(u => u.role === 'tim' || u.role === 'koordinator').forEach(u => addMemberIfValid(u.nama, u.role));
-
-    // 3. Ekstraksi otomatis dari seluruh PIC tugas yang diagendakan pada bulan terkait
-    const monthTasks = [
-        ...rutinInMonth,
-        ...adHocInMonth,
-        ...protoInMonth,
-        ...mcInMonth,
-        ...brsInMonth,
-        ...hbInMonth,
-        ...plannerInMonth,
-        ...assignInMonth,
-        ...ticketsInMonth
-    ];
-
-    monthTasks.forEach(task => {
-        const picFields = [
-            task.petugas,
-            task.pic,
-            task['assign To'],
-            task.assignTo,
-            task.assignedTo,
-            task.assigned_to,
-            task.pembuat_konten,
-            task.pic_poster_info,
-            task.pic_doc_ruang,
-            task.pic_doc_yt_zoom
-        ].filter(Boolean);
-
-        picFields.forEach(fieldVal => {
-            const valStr = String(fieldVal).trim();
-            if (valStr.includes(',') || valStr.includes('&') || valStr.includes('/')) {
-                valStr.split(/[,&\/]/).forEach(s => addMemberIfValid(s));
-            } else {
-                addMemberIfValid(valStr);
-            }
-        });
+    // Sumber daftar pegawai strictly hanya dari sheet team (db.team)
+    (db.team || []).forEach(m => {
+        if (m && m.nama) {
+            addMemberIfValid(m.nama, m.jabatan || m.role || 'tim');
+        }
     });
-
-    // Fallback jika tidak ada anggota sama sekali
-    if (memberMap.size === 0) {
-        addMemberIfValid('Azhari (Koordinator)', 'koordinator');
-        addMemberIfValid('Staf Humas', 'tim');
-    }
 
     const teamSource = Array.from(memberMap.values());
 
@@ -2956,7 +2914,7 @@ function renderAdHoc(container) {
     container.innerHTML = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 animate-fade-in">
             <div>
-                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Kegiatan Ad Hoc 2026</h2>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Kegiatan Ad Hoc</h2>
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola monitoring penugasan dinamis (multi-person), beban kerja, dan tim satuan tugas khusus.</p>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -3051,7 +3009,7 @@ function drawAdHocTable() {
 
     if (filtered.length === 0) {
         body.innerHTML = `
-            <tr><td colspan="${isKepala ? 7 : 8}" class="py-16 text-center text-slate-400 dark:text-slate-550"><i class="fa-solid fa-users-slash text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Tidak ada penugasan ad hoc ditemukan.</p></td></tr>
+            <tr><td colspan="${isKepala ? 7 : 8}" class="py-16 text-center text-slate-400 dark:text-slate-555"><i class="fa-solid fa-users-slash text-3xl mb-2 text-slate-350 dark:text-slate-750"></i><p class="text-xs font-bold">Tidak ada penugasan ad hoc ditemukan.</p></td></tr>
         `;
         const pagEl = document.getElementById('adhoc-pagination');
         if (pagEl) pagEl.innerHTML = '';
@@ -3069,8 +3027,10 @@ function drawAdHocTable() {
     const paginated = filtered.slice(startIndex, endIndex);
 
     body.innerHTML = paginated.map(item => {
-        const staffList = item.petugas ? item.petugas.split(',') : [];
-        const staffBadges = staffList.map(st => `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900 rounded font-bold text-[9px]">${st.trim()}</span>`).join(' ');
+        const staffList = typeof window.parseAdHocPicArray === 'function'
+            ? window.parseAdHocPicArray(item.petugas)
+            : (item.petugas ? item.petugas.split(',').map(s=>s.trim()).filter(Boolean) : []);
+        const staffBadges = staffList.map(st => `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900 rounded font-bold text-[9px]"><i class="fa-solid fa-user-check text-[8px] text-indigo-500"></i> ${st.trim()}</span>`).join(' ');
 
         let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
 
@@ -3116,7 +3076,9 @@ function drawAdHocTable() {
     const mobileBody = document.getElementById('adhoc-mobile-body');
     if (mobileBody) {
         mobileBody.innerHTML = paginated.map(item => {
-            const staffList2 = item.petugas ? item.petugas.split(',') : [];
+            const staffList2 = typeof window.parseAdHocPicArray === 'function'
+                ? window.parseAdHocPicArray(item.petugas)
+                : (item.petugas ? item.petugas.split(',').map(s=>s.trim()).filter(Boolean) : []);
             const statusCls = item.status === 'Selesai' ? 'badge badge-selesai' : 'badge badge-progress';
             const mobileActs = !isKepala ? `
                 <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
