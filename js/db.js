@@ -112,7 +112,7 @@ let errorMessage = '';
                 'Azhari, S.Tr.Stat.'
             ];
             TABLES.forEach(tb => {
-                if (tb !== 'users') {
+                if (tb !== 'users' && tb !== 'monitoring') {
                     const stored = localStorage.getItem('sim_humas_db_' + tb);
                     if (stored) {
                         const hasDummy = dummyIdentifiers.some(idStr => stored.includes(idStr));
@@ -452,6 +452,20 @@ async function fetchDataFromSheets(silent = false) {
 
         // Normalisasi Media Monitoring (Topik, Jenis Berita, dsb)
         if (tempDb.monitoring && Array.isArray(tempDb.monitoring) && tempDb.monitoring.length > 0) {
+            // JANGAN menghapus riwayat artikel monitoring lengkap jika data Sheets hanya mengembalikan sebagian
+            if (db.monitoring && db.monitoring.length > tempDb.monitoring.length) {
+                const sheetUrls = new Set(tempDb.monitoring.map(m => (m.url || '').trim().toLowerCase()).filter(Boolean));
+                const sheetTitles = new Set(tempDb.monitoring.map(m => `${(m.judul || '').trim().toLowerCase()}_${m.tanggal || ''}`));
+                const merged = [...tempDb.monitoring];
+                db.monitoring.forEach(existing => {
+                    const eUrl = (existing.url || '').trim().toLowerCase();
+                    const eKey = `${(existing.judul || '').trim().toLowerCase()}_${existing.tanggal || ''}`;
+                    if ((eUrl && !sheetUrls.has(eUrl)) || (!eUrl && !sheetTitles.has(eKey))) {
+                        merged.push(existing);
+                    }
+                });
+                tempDb.monitoring = merged;
+            }
             tempDb.monitoring.forEach(item => {
                 item.topik = item.topik || 'Umum / Statistik';
                 item.jenis_berita = item.jenis_berita || 'Media Online';
@@ -553,24 +567,71 @@ async function fetchDataFromSheets(silent = false) {
     }
 }
 
-// Fetch authoritative monitoring data from server
+// Fetch authoritative monitoring data from server with static and CDN fallbacks
 async function syncMonitoringDataFromServer() {
     try {
-        const resp = await fetch('/api/monitoring/data');
-        if (resp.ok) {
-            const res = await resp.json();
-            if (res.success && Array.isArray(res.articles) && res.articles.length > 0) {
-                db.monitoring = res.articles.map(item => ({
-                    ...item,
-                    topik: (item.topik === 'Rilis BRS' || item.topik === 'Sensus Ekonomi 2026' || item.topik === 'SE2026' || item.topik === 'Sensus Ekonomi' || item.topik === 'Sensus Ekonomi 2026 (SE2026)') ? 'Sensus Ekonomi 2026' : (item.topik || 'Sektoral')
-                }));
-                saveLocalFallback('monitoring');
-                if (typeof currentState !== 'undefined' && currentState === 'monitoring') {
-                    if (typeof updateMonitoringKpiCards === 'function') updateMonitoringKpiCards();
-                    if (typeof drawMonitoringCurrentView === 'function') drawMonitoringCurrentView();
+        let articles = null;
+        try {
+            const resp = await fetch('/api/monitoring/data');
+            if (resp.ok) {
+                const contentType = resp.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const res = await resp.json();
+                    if (res && res.success && Array.isArray(res.articles) && res.articles.length > 0) {
+                        articles = res.articles;
+                    }
                 }
-                return res.articles;
             }
+        } catch (apiErr) {
+            console.warn('[Sync] /api/monitoring/data unavailable:', apiErr.message);
+        }
+
+        // Static fallback to /data/monitoring.json if API returned empty/failed (especially on serverless/CDN)
+        if (!articles || articles.length === 0) {
+            try {
+                const staticResp = await fetch('/data/monitoring.json');
+                if (staticResp.ok) {
+                    const contentType = staticResp.headers.get('content-type') || '';
+                    if (contentType.includes('application/json')) {
+                        const staticData = await staticResp.json();
+                        if (Array.isArray(staticData) && staticData.length > 0) {
+                            articles = staticData;
+                        }
+                    }
+                }
+            } catch (_) {}
+        }
+
+        if (articles && Array.isArray(articles) && articles.length > 0) {
+            const currentList = Array.isArray(db.monitoring) ? db.monitoring : [];
+            const existingUrls = new Set(currentList.map(m => (m.url || '').trim().toLowerCase()).filter(Boolean));
+            const existingTitles = new Set(currentList.map(m => `${(m.judul || '').trim().toLowerCase()}_${m.tanggal || ''}`));
+
+            const normalizedNew = articles.map(item => ({
+                ...item,
+                topik: (item.topik === 'Rilis BRS' || item.topik === 'Sensus Ekonomi 2026' || item.topik === 'SE2026' || item.topik === 'Sensus Ekonomi' || item.topik === 'Sensus Ekonomi 2026 (SE2026)') ? 'Sensus Ekonomi 2026' : (item.topik || 'Sektoral')
+            }));
+
+            if (currentList.length < normalizedNew.length) {
+                db.monitoring = normalizedNew;
+            } else {
+                normalizedNew.forEach(item => {
+                    const url = (item.url || '').trim().toLowerCase();
+                    const key = `${(item.judul || '').trim().toLowerCase()}_${item.tanggal || ''}`;
+                    if ((url && !existingUrls.has(url)) || (!url && !existingTitles.has(key))) {
+                        db.monitoring.unshift(item);
+                        if (url) existingUrls.add(url);
+                        existingTitles.add(key);
+                    }
+                });
+            }
+
+            saveLocalFallback('monitoring');
+            if (typeof currentState !== 'undefined' && currentState === 'monitoring') {
+                if (typeof updateMonitoringKpiCards === 'function') updateMonitoringKpiCards();
+                if (typeof drawMonitoringCurrentView === 'function') drawMonitoringCurrentView();
+            }
+            return db.monitoring;
         }
     } catch (e) {
         console.warn('[Sync] Could not fetch monitoring data from server:', e);
@@ -1112,3 +1173,6 @@ function updateLoadingStateUI(loading) {
 
 // Seed initial system data if first time
 loadLocalFallbacks();
+if (typeof syncMonitoringDataFromServer === 'function') {
+    syncMonitoringDataFromServer();
+}

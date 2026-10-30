@@ -64,6 +64,22 @@ if (hasErrors) {
   process.exit(1);
 }
 
+// 3. Ensure static asset directory has monitoring.json for CDN delivery
+const publicDataDir = path.join(rootDir, 'public', 'data');
+if (!fs.existsSync(publicDataDir)) {
+  try { fs.mkdirSync(publicDataDir, { recursive: true }); } catch (_) {}
+}
+const srcMonitoring = path.join(rootDir, 'data', 'monitoring.json');
+const destMonitoring = path.join(publicDataDir, 'monitoring.json');
+if (fs.existsSync(srcMonitoring)) {
+  try {
+    fs.copyFileSync(srcMonitoring, destMonitoring);
+    console.log('[sim-humas] Synchronized public/data/monitoring.json for static CDN delivery.');
+  } catch (copyErr) {
+    console.warn('[sim-humas BUILD WARNING] Could not copy monitoring.json:', copyErr.message);
+  }
+}
+
 console.log('[sim-humas] All core scripts and templates validated successfully.');
 console.log('[sim-humas] Production build ready.');
 process.exit(0);

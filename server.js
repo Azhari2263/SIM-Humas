@@ -11,6 +11,7 @@ import {
   DRIVE_FOLDER_URL,
   MONTH_NAMES
 } from './scripts/monitoringEngine.js';
+import bundledMonitoringData from './data/monitoring.json' with { type: 'json' };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +35,20 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '10mb', type: ['application/json', 'text/plain'] }));
 app.use(express.urlencoded({ extended: true }));
 
+// Handle CORS and Vercel internal rewrite path restoration
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-matched-path');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  if (req.headers && req.headers['x-matched-path'] && (req.url === '/api' || req.url === '/api/index' || req.url === '/')) {
+    req.url = req.headers['x-matched-path'];
+  }
+  next();
+});
+
 // Clean Seed Data for SIM Humas & Protokol BPS Kalbar (No dummy data)
 const initialDb = {
   users: [
@@ -56,7 +71,10 @@ const initialDb = {
   ],
   tickets: [],
   assets: [],
-  monitoring: [],
+  monitoring: Array.isArray(bundledMonitoringData) ? bundledMonitoringData.map(item => ({
+    ...item,
+    topik: normalizeArticleTopic(item.topik)
+  })) : [],
   rekapRutin: [],
   adHoc: [],
   protokoler: [],
@@ -108,7 +126,7 @@ const initialDb = {
 // In-Memory Database store with disk persistence for monitoring
 let database = JSON.parse(JSON.stringify(initialDb));
 
-// Load existing monitoring data from persistent or tmp storage
+// Load existing monitoring data from persistent or tmp storage if larger
 const candidateMonitoringFile = fs.existsSync(TMP_MONITORING_FILE)
   ? TMP_MONITORING_FILE
   : (fs.existsSync(MONITORING_FILE) ? MONITORING_FILE : null);
@@ -118,11 +136,23 @@ if (candidateMonitoringFile) {
     const raw = fs.readFileSync(candidateMonitoringFile, 'utf8');
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      database.monitoring = parsed.map(item => ({
-        ...item,
-        topik: normalizeArticleTopic(item.topik)
-      }));
-      console.log(`[DB] Restored ${parsed.length} monitoring articles from disk storage (${candidateMonitoringFile}).`);
+      const existingUrls = new Set(database.monitoring.map(m => (m.url || '').trim().toLowerCase()).filter(Boolean));
+      const existingTitles = new Set(database.monitoring.map(m => `${(m.judul || '').trim().toLowerCase()}_${m.tanggal || ''}`));
+      let addedFromCandidate = 0;
+      parsed.forEach(item => {
+        const u = (item.url || '').trim().toLowerCase();
+        const k = `${(item.judul || '').trim().toLowerCase()}_${item.tanggal || ''}`;
+        if ((u && !existingUrls.has(u)) || (!u && !existingTitles.has(k))) {
+          database.monitoring.push({
+            ...item,
+            topik: normalizeArticleTopic(item.topik)
+          });
+          if (u) existingUrls.add(u);
+          existingTitles.add(k);
+          addedFromCandidate++;
+        }
+      });
+      console.log(`[DB] Restored monitoring data (${candidateMonitoringFile}). Total articles: ${database.monitoring.length} (+${addedFromCandidate} new).`);
     }
   } catch (e) {
     console.warn('[DB] Could not load monitoring.json:', e.message);
@@ -514,7 +544,10 @@ app.post(['/api/monitoring/sync-drive', '/monitoring/sync-drive'], async (req, r
   }
 });
 
-// Serve static frontend assets
+// Serve static frontend assets and data files
+app.use('/data', express.static(DATA_DIR));
+app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
 // Single Page Application Fallback

@@ -3058,10 +3058,7 @@ function drawAdHocTable() {
                 <td class="px-6 py-4 font-bold whitespace-nowrap ${isDone ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}">${formatDate(item.tanggal)}</td>
                 <td class="px-6 py-4 font-semibold text-slate-500 whitespace-nowrap">${item.hari || '-'}</td>
                 <td class="px-6 py-4 font-extrabold text-slate-855 dark:text-slate-255 leading-snug">
-                    <div class="flex items-center gap-2">
-                        <span>${item.kegiatan}</span>
-                        ${isDone ? '<span class="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded shrink-0"><i class="fa-solid fa-check text-[8px]"></i> Selesai</span>' : ''}
-                    </div>
+                    <span>${item.kegiatan}</span>
                 </td>
                 <td class="px-6 py-4 text-center font-bold text-slate-800 dark:text-slate-100">${item.jumlah_bertugas || staffList.length} orang</td>
                 <td class="px-6 py-4 whitespace-normal"><div class="flex flex-wrap gap-1.5">${staffBadges || '-'}</div></td>
@@ -3336,10 +3333,7 @@ function drawProtokolerTable() {
                         <i class="fa-solid fa-crown text-lg"></i>
                     </div>
                     <div>
-                        <div class="flex items-center gap-2">
-                            <h4 class="font-extrabold text-slate-850 dark:text-slate-200 text-sm leading-snug hover:text-indigo-650 transition-colors">${item.kegiatan}</h4>
-                            ${isDone ? '<span class="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded shrink-0"><i class="fa-solid fa-check text-[8px]"></i> Selesai</span>' : ''}
-                        </div>
+                        <h4 class="font-extrabold text-slate-850 dark:text-slate-200 text-sm leading-snug hover:text-indigo-650 transition-colors">${item.kegiatan}</h4>
                         <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-y-1 gap-x-4 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                             <p class="flex items-center gap-1.5"><i class="fa-regular fa-calendar text-slate-400"></i> ${formatDate(item.tanggal)}</p>
                             <p class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-slate-400"></i> Lokasi: ${item.lokasi}</p>
@@ -3586,10 +3580,7 @@ function drawMcTable() {
                         <i class="fa-solid fa-microphone-lines text-lg"></i>
                     </div>
                     <div>
-                        <div class="flex items-center gap-2">
-                            <h4 class="font-extrabold text-slate-855 dark:text-slate-200 text-sm leading-snug hover:text-indigo-650 transition-colors">${item.kegiatan}</h4>
-                            ${isDone ? '<span class="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded shrink-0"><i class="fa-solid fa-check text-[8px]"></i> Selesai</span>' : ''}
-                        </div>
+                        <h4 class="font-extrabold text-slate-855 dark:text-slate-200 text-sm leading-snug hover:text-indigo-650 transition-colors">${item.kegiatan}</h4>
                         <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-y-1 gap-x-4 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                             <p class="flex items-center gap-1.5"><i class="fa-regular fa-calendar text-slate-400"></i> ${formatDate(item.tanggal)}</p>
                             <p class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-slate-400"></i> Lokasi: ${item.lokasi}</p>
@@ -4068,10 +4059,7 @@ function drawHariBesarTable() {
             <tr class="${rowBg} transition-colors">
                 <td class="px-6 py-4 font-bold whitespace-nowrap ${isDone ? 'text-emerald-900 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}">${formatDate(item.tanggal)}</td>
                 <td class="px-6 py-4 font-extrabold ${isDone ? 'text-emerald-950 dark:text-emerald-200' : 'text-slate-855 dark:text-slate-200'} leading-snug">
-                    <div class="flex items-center gap-2">
-                        <span>${item.hari_besar}</span>
-                        ${isDone ? '<span class="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded shrink-0"><i class="fa-solid fa-check text-[8px]"></i> Selesai</span>' : ''}
-                    </div>
+                    <span>${item.hari_besar}</span>
                 </td>
                 <td class="px-6 py-4 font-bold ${isDone ? 'text-emerald-700 dark:text-emerald-400' : 'text-indigo-655 dark:text-indigo-400'} whitespace-nowrap">${item.pembuat_konten || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap"><span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span></td>
@@ -4099,10 +4087,7 @@ function drawHariBesarTable() {
             return `
                 <div class="${mobileCardCls}">
                     <div class="flex items-start justify-between gap-2 mb-1.5">
-                        <div class="flex items-center gap-2 flex-1 min-w-0">
-                            <p class="font-extrabold text-xs ${isDone ? 'text-emerald-950 dark:text-emerald-200' : 'text-slate-800 dark:text-slate-100'} leading-snug">${item.hari_besar}</p>
-                            ${isDone ? '<span class="inline-flex items-center gap-1 text-[8px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1 py-0.5 rounded shrink-0"><i class="fa-solid fa-check text-[7px]"></i> Selesai</span>' : ''}
-                        </div>
+                        <p class="font-extrabold text-xs ${isDone ? 'text-emerald-950 dark:text-emerald-200' : 'text-slate-800 dark:text-slate-100'} leading-snug flex-1 min-w-0">${item.hari_besar}</p>
                         <span class="${statusCls} shrink-0">${item.status || 'Ditugaskan'}</span>
                     </div>
                     <div class="flex items-center justify-between">
@@ -8249,10 +8234,7 @@ function drawTicketsGrid() {
                         <span class="px-2.5 py-0.5 ${isDone ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border-emerald-200' : 'bg-slate-100 dark:bg-slate-700 text-slate-650 dark:text-slate-300 border-slate-150 dark:border-slate-650'} border rounded-full text-[9px] uppercase font-bold tracking-wider">${t.jenis}</span>
                         ${statusBadge}
                     </div>
-                    <div class="flex items-center gap-2 mt-3">
-                        <h4 class="font-extrabold ${isDone ? 'text-emerald-950 dark:text-emerald-100' : 'text-slate-850 dark:text-slate-100'} text-sm leading-snug">${t.judul}</h4>
-                        ${isDone ? '<span class="inline-flex items-center gap-1 text-[8px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1 py-0.5 rounded shrink-0"><i class="fa-solid fa-check text-[7px]"></i> Selesai</span>' : ''}
-                    </div>
+                    <h4 class="font-extrabold ${isDone ? 'text-emerald-950 dark:text-emerald-100' : 'text-slate-850 dark:text-slate-100'} text-sm leading-snug mt-3">${t.judul}</h4>
                     <p class="text-[10px] ${isDone ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'} mt-2 font-bold uppercase tracking-wider flex items-center gap-1.5"><i class="fa-regular fa-building text-slate-400"></i> ${t.pengaju} (${t.bidang})</p>
                     <p class="text-xs ${isDone ? 'text-slate-700 dark:text-slate-300' : 'text-slate-655 dark:text-slate-350'} mt-2.5 leading-relaxed whitespace-pre-line">${t.detail}</p>
                 </div>
@@ -10123,10 +10105,7 @@ window.drawAssignmentTable = function() {
             <tr class="${rowBg} transition-colors">
                 <td class="py-3.5 px-4 text-center font-bold ${isDone ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400'}">${index + 1}</td>
                 <td class="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 min-w-[150px] max-w-[250px]">
-                    <div class="flex items-center gap-2">
-                        <span onclick="showDetailById('${item.originalType}', ${item.originalId})" class="hover:text-indigo-655 dark:hover:text-indigo-400 transition-colors cursor-pointer block truncate" title="${item.tugas}">${item.tugas}</span>
-                        ${isDone ? '<span class="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded shrink-0"><i class="fa-solid fa-check text-[8px]"></i> Selesai</span>' : ''}
-                    </div>
+                    <span onclick="showDetailById('${item.originalType}', ${item.originalId})" class="hover:text-indigo-655 dark:hover:text-indigo-400 transition-colors cursor-pointer block truncate" title="${item.tugas}">${item.tugas}</span>
                 </td>
                 <td class="py-3.5 px-4 text-slate-550 dark:text-slate-405 min-w-[200px] max-w-[300px]">
                     <p class="line-clamp-2 leading-relaxed" title="${item.deskripsi || ''}">${item.deskripsi || '-'}</p>
@@ -10175,10 +10154,7 @@ window.drawAssignmentTable = function() {
                 return `
                     <div class="${isDone2 ? 'mobile-data-card cursor-pointer bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800 border-l-4 border-l-emerald-500' : 'mobile-data-card cursor-pointer'}" onclick="showDetailById('${item.originalType}', ${item.originalId})">
                         <div class="flex items-start justify-between gap-2 mb-2">
-                            <div class="flex items-center gap-2 flex-1 min-w-0">
-                                <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 leading-snug truncate">${item.tugas}</p>
-                                ${isDone2 ? '<span class="inline-flex items-center gap-1 text-[8px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1 py-0.2 rounded shrink-0"><i class="fa-solid fa-check text-[7px]"></i> Selesai</span>' : ''}
-                            </div>
+                            <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 leading-snug truncate flex-1 min-w-0">${item.tugas}</p>
                             <span class="${statusCls} shrink-0">${item.status || '-'}</span>
                         </div>
                         <p class="text-[10px] text-slate-500 mb-2 line-clamp-2">${item.deskripsi || '-'}</p>
