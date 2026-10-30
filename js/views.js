@@ -1,5 +1,16 @@
 // Views rendering engine for SIM Humas & Protokol BPS Kalbar
 
+// Global XSS Sanitization Helper for defensive HTML rendering
+var escapeHtml = window.escapeHtml = window.escapeHtml || function(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+};
+
 // Helper: Check if logged-in user is Admin or Ketua Tim Humas
 function isUserAdminOrKetua() {
     return currentUser && (currentUser.role === 'admin' || currentUser.role === 'koordinator');
@@ -2504,7 +2515,7 @@ window.drawPlannerBoard = function() {
                 <td class="py-3.5 px-4 text-center font-bold ${isDone ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400'}">${startIndex + index + 1}</td>
                 <td class="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 min-w-[200px]">
                     <div class="flex items-center gap-2">
-                        <span onclick="showDetailById('content', ${item.id})" class="hover:text-indigo-650 transition-colors cursor-pointer block" title="${item.judul}">${item.judul}</span>
+                        <span onclick="showDetailById('content', ${item.id})" class="hover:text-indigo-650 transition-colors cursor-pointer block" title="${escapeHtml(item.judul)}">${escapeHtml(item.judul)}</span>
                         ${isDone ? '<span class="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded shrink-0"><i class="fa-solid fa-check text-[8px]"></i> Selesai</span>' : ''}
                     </div>
                 </td>
@@ -2516,8 +2527,8 @@ window.drawPlannerBoard = function() {
                 </td>
                 <td class="py-3.5 px-4">
                     <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold border border-slate-200 shadow-xs ${avatarBg}" title="${picVal}">${initials}</div>
-                        <span class="font-bold text-[10px] text-slate-600 dark:text-slate-400 truncate max-w-[100px]">${picVal}</span>
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold border border-slate-200 shadow-xs ${avatarBg}" title="${escapeHtml(picVal)}">${initials}</div>
+                        <span class="font-bold text-[10px] text-slate-600 dark:text-slate-400 truncate max-w-[100px]">${escapeHtml(picVal)}</span>
                     </div>
                 </td>
                 <td class="py-3.5 px-4 font-bold ${isDone ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-450'} whitespace-nowrap">
@@ -2553,7 +2564,7 @@ window.drawPlannerBoard = function() {
                 <div class="${isDone2 ? 'mobile-data-card cursor-pointer bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800 border-l-4 border-l-emerald-500' : 'mobile-data-card cursor-pointer'}" onclick="showDetailById('content', ${item.id})">
                     <div class="flex items-start justify-between gap-2 mb-2">
                         <div class="flex items-center gap-2 flex-1 min-w-0">
-                            <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 leading-snug truncate">${item.judul}</p>
+                            <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 leading-snug truncate">${escapeHtml(item.judul)}</p>
                             ${isDone2 ? '<span class="inline-flex items-center gap-1 text-[8px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1 py-0.2 rounded shrink-0"><i class="fa-solid fa-check text-[7px]"></i> Selesai</span>' : ''}
                         </div>
                         <div class="shrink-0">${jenisBadge2}</div>
@@ -2565,7 +2576,7 @@ window.drawPlannerBoard = function() {
                     <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
                         <div class="flex items-center gap-2">
                             <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${avatarBg2}">${initials2}</div>
-                            <span class="text-[10px] font-bold text-slate-600 dark:text-slate-400">${picVal2}</span>
+                            <span class="text-[10px] font-bold text-slate-600 dark:text-slate-400">${escapeHtml(picVal2)}</span>
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-[10px] font-bold ${isDone2 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}"><i class="fa-regular fa-calendar-check mr-1"></i>${tanggalStr2}</span>
@@ -2832,19 +2843,19 @@ function drawRutinTable() {
 
         const rubrikList = (item.rubrikasi ? String(item.rubrikasi).split(/[,;]+/).map(s => s.trim()).filter(Boolean) : []);
         const rubrikPillsHtml = rubrikList.length > 0
-            ? `<div class="flex flex-wrap gap-1 max-w-[220px]">${rubrikList.map(r => `<span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-705 text-slate-650 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-md font-bold text-[9.5px]">${r}</span>`).join('')}</div>`
+            ? `<div class="flex flex-wrap gap-1 max-w-[220px]">${rubrikList.map(r => `<span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-705 text-slate-650 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-md font-bold text-[9.5px]">${escapeHtml(r)}</span>`).join('')}</div>`
             : `<span class="text-slate-400 font-bold text-[10px]">-</span>`;
 
         return `
             <tr class="${rowBg} transition-colors">
                 <td class="px-6 py-4 font-bold whitespace-nowrap ${isDone ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}">${formatDate(item.tanggal)}</td>
-                <td class="px-6 py-4 font-semibold text-slate-500 whitespace-nowrap">${item.hari || '-'}</td>
+                <td class="px-6 py-4 font-semibold text-slate-500 whitespace-nowrap">${escapeHtml(item.hari || '-')}</td>
                 <td class="px-6 py-4">${rubrikPillsHtml}</td>
                 <td class="px-6 py-4 font-extrabold text-slate-850 dark:text-slate-250 leading-snug">
-                    <span>${item.kegiatan}</span>
+                    <span>${escapeHtml(item.kegiatan)}</span>
                 </td>
-                <td class="px-6 py-4 font-bold text-indigo-650 dark:text-indigo-400 whitespace-nowrap">${item.petugas || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-center"><span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span></td>
+                <td class="px-6 py-4 font-bold text-indigo-650 dark:text-indigo-400 whitespace-nowrap">${escapeHtml(item.petugas || '-')}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-center"><span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${escapeHtml(item.status || 'Ditugaskan')}</span></td>
                 ${actionButtons}
             </tr>
         `;
@@ -2864,18 +2875,18 @@ function drawRutinTable() {
             return `
                 <div class="mobile-data-card">
                     <div class="flex items-start justify-between gap-2 mb-1.5">
-                        <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 flex-1 min-w-0 leading-snug">${item.kegiatan}</p>
-                        <span class="${statusCls} shrink-0">${item.status || 'Ditugaskan'}</span>
+                        <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 flex-1 min-w-0 leading-snug">${escapeHtml(item.kegiatan)}</p>
+                        <span class="${statusCls} shrink-0">${escapeHtml(item.status || 'Ditugaskan')}</span>
                     </div>
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-[10px] text-slate-500 font-semibold">${formatDate(item.tanggal)} (${item.hari || '-'})</p>
+                            <p class="text-[10px] text-slate-500 font-semibold">${formatDate(item.tanggal)} (${escapeHtml(item.hari || '-')})</p>
                             <div class="flex flex-wrap gap-1 mt-1">
-                                ${mobRubrikList.map(r => `<span class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded text-[9px] font-bold">${r}</span>`).join('') || '<span class="text-slate-400 font-bold text-[9px]">-</span>'}
+                                ${mobRubrikList.map(r => `<span class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded text-[9px] font-bold">${escapeHtml(r)}</span>`).join('') || '<span class="text-slate-400 font-bold text-[9px]">-</span>'}
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">${item.petugas || '-'}</span>
+                            <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">${escapeHtml(item.petugas || '-')}</span>
                             ${mobileActs}
                         </div>
                     </div>
@@ -3030,7 +3041,7 @@ function drawAdHocTable() {
         const staffList = typeof window.parseAdHocPicArray === 'function'
             ? window.parseAdHocPicArray(item.petugas)
             : (item.petugas ? item.petugas.split(',').map(s=>s.trim()).filter(Boolean) : []);
-        const staffBadges = staffList.map(st => `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900 rounded font-bold text-[9px]"><i class="fa-solid fa-user-check text-[8px] text-indigo-500"></i> ${st.trim()}</span>`).join(' ');
+        const staffBadges = staffList.map(st => `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900 rounded font-bold text-[9px]"><i class="fa-solid fa-user-check text-[8px] text-indigo-500"></i> ${escapeHtml(st.trim())}</span>`).join(' ');
 
         let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
 
@@ -3056,14 +3067,14 @@ function drawAdHocTable() {
         return `
             <tr class="${rowBg} transition-colors">
                 <td class="px-6 py-4 font-bold whitespace-nowrap ${isDone ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}">${formatDate(item.tanggal)}</td>
-                <td class="px-6 py-4 font-semibold text-slate-500 whitespace-nowrap">${item.hari || '-'}</td>
+                <td class="px-6 py-4 font-semibold text-slate-500 whitespace-nowrap">${escapeHtml(item.hari || '-')}</td>
                 <td class="px-6 py-4 font-extrabold text-slate-855 dark:text-slate-255 leading-snug">
-                    <span>${item.kegiatan}</span>
+                    <span>${escapeHtml(item.kegiatan)}</span>
                 </td>
-                <td class="px-6 py-4 text-center font-bold text-slate-800 dark:text-slate-100">${item.jumlah_bertugas || staffList.length} orang</td>
+                <td class="px-6 py-4 text-center font-bold text-slate-800 dark:text-slate-100">${escapeHtml(item.jumlah_bertugas || staffList.length)} orang</td>
                 <td class="px-6 py-4 whitespace-normal"><div class="flex flex-wrap gap-1.5">${staffBadges || '-'}</div></td>
-                <td class="px-6 py-4 text-slate-500 max-w-xs truncate font-medium">${item.keterangan || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-center"><span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span></td>
+                <td class="px-6 py-4 text-slate-500 max-w-xs truncate font-medium">${escapeHtml(item.keterangan || '-')}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-center"><span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${escapeHtml(item.status || 'Ditugaskan')}</span></td>
                 ${actionButtons}
             </tr>
         `;
@@ -3085,15 +3096,15 @@ function drawAdHocTable() {
             return `
                 <div class="mobile-data-card">
                     <div class="flex items-start justify-between gap-2 mb-1.5">
-                        <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 flex-1 min-w-0 leading-snug">${item.kegiatan}</p>
-                        <span class="${statusCls} shrink-0">${item.status || 'Ditugaskan'}</span>
+                        <p class="font-extrabold text-xs text-slate-800 dark:text-slate-100 flex-1 min-w-0 leading-snug">${escapeHtml(item.kegiatan)}</p>
+                        <span class="${statusCls} shrink-0">${escapeHtml(item.status || 'Ditugaskan')}</span>
                     </div>
-                    <p class="text-[10px] text-slate-500 font-semibold mb-2">${formatDate(item.tanggal)} (${item.hari || '-'})</p>
+                    <p class="text-[10px] text-slate-500 font-semibold mb-2">${formatDate(item.tanggal)} (${escapeHtml(item.hari || '-')})</p>
                     <div class="flex flex-wrap gap-1 mb-3">
-                        ${staffList2.map(s => `<span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded text-[9px] font-bold">${s.trim()}</span>`).join('')}
+                        ${staffList2.map(s => `<span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded text-[9px] font-bold">${escapeHtml(s.trim())}</span>`).join('')}
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="text-[10px] text-slate-500 font-medium truncate max-w-[60%]">${item.keterangan || '-'}</span>
+                        <span class="text-[10px] text-slate-500 font-medium truncate max-w-[60%]">${escapeHtml(item.keterangan || '-')}</span>
                         ${mobileActs}
                     </div>
                 </div>`;
@@ -8892,12 +8903,6 @@ function escapeMonitoringHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-}
-if (typeof window !== 'undefined') {
-    window.escapeMonitoringHtml = escapeMonitoringHtml;
-    if (typeof window.escapeHtml !== 'function') {
-        window.escapeHtml = escapeMonitoringHtml;
-    }
 }
 
 function drawMonitoringLampiranTable(content) {

@@ -959,7 +959,7 @@ function updateMediaPostUI(list) {
 }
 
 // Global XSS Sanitization Helper for defensive HTML rendering
-window.escapeHtml = window.escapeHtml || function(str) {
+var escapeHtml = window.escapeHtml = window.escapeHtml || function(str) {
     if (str === null || str === undefined) return '';
     return String(str)
         .replace(/&/g, '&amp;')
@@ -968,7 +968,6 @@ window.escapeHtml = window.escapeHtml || function(str) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 };
-const escapeHtml = window.escapeHtml;
 
 // Helper parsing daftar rubrikasi dari string terpisah koma atau array
 window.parseRubrikasiArray = function(val) {
