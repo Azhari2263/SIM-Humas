@@ -97,6 +97,16 @@ if (fs.existsSync(srcMonitoring)) {
   }
 }
 
+// Ensure firebase-applet-config.json is mirrored into public/ for static hosting
+const srcFirebaseConfig = path.join(rootDir, 'firebase-applet-config.json');
+const destFirebaseConfig = path.join(rootDir, 'public', 'firebase-applet-config.json');
+if (fs.existsSync(srcFirebaseConfig)) {
+  try {
+    fs.copyFileSync(srcFirebaseConfig, destFirebaseConfig);
+    console.log('[sim-humas] Mirrored firebase-applet-config.json to public directory.');
+  } catch (_) {}
+}
+
 console.log('[sim-humas] All core scripts and templates validated successfully.');
 console.log('[sim-humas] Production build ready.');
 process.exit(0);

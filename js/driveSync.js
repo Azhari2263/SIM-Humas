@@ -25,7 +25,9 @@
         try {
             const resp = await fetch('/firebase-applet-config.json');
             if (!resp.ok) return null;
-            const config = await resp.json();
+            const text = await resp.text();
+            const config = text ? JSON.parse(text) : null;
+            if (!config) return null;
             cachedConfig = config;
 
             const { initializeApp, getApps, getApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');

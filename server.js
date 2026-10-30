@@ -564,6 +564,12 @@ app.use(express.static(__dirname));
 
 // Single Page Application Fallback
 app.use((req, res) => {
+  if (req.path.startsWith('/api') || req.url.startsWith('/api')) {
+    return res.status(404).json({
+      success: false,
+      error: `Endpoint API '${req.method} ${req.originalUrl || req.url}' tidak ditemukan.`
+    });
+  }
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
