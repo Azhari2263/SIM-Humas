@@ -174,6 +174,12 @@ function loadLocalFallbacks() {
         }
     });
 
+    const initialDataset = (typeof window !== 'undefined' && Array.isArray(window.INITIAL_MONITORING_DATA)) ? window.INITIAL_MONITORING_DATA : [];
+    if (!db.monitoring || !Array.isArray(db.monitoring) || db.monitoring.length < initialDataset.length) {
+        db.monitoring = JSON.parse(JSON.stringify(initialDataset));
+        saveLocalFallback('monitoring');
+    }
+
     if (db.monitoring && Array.isArray(db.monitoring)) {
         db.monitoring = db.monitoring.map(item => ({
             ...item,
@@ -451,13 +457,16 @@ async function fetchDataFromSheets(silent = false) {
         }
 
         // Normalisasi Media Monitoring (Topik, Jenis Berita, dsb)
+        const initialMonitoring = (typeof window !== 'undefined' && Array.isArray(window.INITIAL_MONITORING_DATA)) ? window.INITIAL_MONITORING_DATA : [];
         if (tempDb.monitoring && Array.isArray(tempDb.monitoring) && tempDb.monitoring.length > 0) {
             // JANGAN menghapus riwayat artikel monitoring lengkap jika data Sheets hanya mengembalikan sebagian
-            if (db.monitoring && db.monitoring.length > tempDb.monitoring.length) {
+            const minAuthoritative = Math.max(db.monitoring ? db.monitoring.length : 0, initialMonitoring.length);
+            if (minAuthoritative > tempDb.monitoring.length) {
                 const sheetUrls = new Set(tempDb.monitoring.map(m => (m.url || '').trim().toLowerCase()).filter(Boolean));
                 const sheetTitles = new Set(tempDb.monitoring.map(m => `${(m.judul || '').trim().toLowerCase()}_${m.tanggal || ''}`));
+                const sourceList = (db.monitoring && db.monitoring.length >= minAuthoritative) ? db.monitoring : initialMonitoring;
                 const merged = [...tempDb.monitoring];
-                db.monitoring.forEach(existing => {
+                sourceList.forEach(existing => {
                     const eUrl = (existing.url || '').trim().toLowerCase();
                     const eKey = `${(existing.judul || '').trim().toLowerCase()}_${existing.tanggal || ''}`;
                     if ((eUrl && !sheetUrls.has(eUrl)) || (!eUrl && !sheetTitles.has(eKey))) {
@@ -474,6 +483,8 @@ async function fetchDataFromSheets(silent = false) {
         } else if (db.monitoring && db.monitoring.length > 0) {
             // Preserve existing monitoring data if remote sheets returned empty
             tempDb.monitoring = JSON.parse(JSON.stringify(db.monitoring));
+        } else if (initialMonitoring.length > 0) {
+            tempDb.monitoring = JSON.parse(JSON.stringify(initialMonitoring));
         }
 
         // Normalisasi Permintaan Layanan Humas (Tiket)

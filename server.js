@@ -11,7 +11,6 @@ import {
   DRIVE_FOLDER_URL,
   MONTH_NAMES
 } from './scripts/monitoringEngine.js';
-import bundledMonitoringData from './data/monitoring.json' with { type: 'json' };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,6 +18,18 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR = path.join(__dirname, 'data');
 const MONITORING_FILE = path.join(DATA_DIR, 'monitoring.json');
 const TMP_MONITORING_FILE = path.join('/tmp', 'monitoring.json');
+
+// Safe cross-version JSON loading (compatible with Node 18, 20, 22+)
+let bundledMonitoringData = [];
+try {
+  if (fs.existsSync(MONITORING_FILE)) {
+    bundledMonitoringData = JSON.parse(fs.readFileSync(MONITORING_FILE, 'utf8'));
+  } else if (fs.existsSync(TMP_MONITORING_FILE)) {
+    bundledMonitoringData = JSON.parse(fs.readFileSync(TMP_MONITORING_FILE, 'utf8'));
+  }
+} catch (loadErr) {
+  console.warn('[Server] Could not load monitoring.json from disk:', loadErr.message);
+}
 
 // Memory cache for Google Drive access token across requests
 let serverCachedDriveToken = process.env.GOOGLE_DRIVE_ACCESS_TOKEN || null;

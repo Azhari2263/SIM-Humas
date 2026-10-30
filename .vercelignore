@@ -3,7 +3,6 @@ node_modules
 
 # Environments & Local Data
 .env*
-data/monitoring.json
 
 # External scripts / artifacts
 code.gs

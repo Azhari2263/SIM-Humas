@@ -64,19 +64,31 @@ if (hasErrors) {
   process.exit(1);
 }
 
-// 3. Ensure static asset directory has monitoring.json for CDN delivery
+// 3. Ensure static asset directory has monitoring.json and monitoringData.js for CDN and direct browser delivery
 const publicDataDir = path.join(rootDir, 'public', 'data');
+const publicJsDir = path.join(rootDir, 'public', 'js');
 if (!fs.existsSync(publicDataDir)) {
   try { fs.mkdirSync(publicDataDir, { recursive: true }); } catch (_) {}
 }
+if (!fs.existsSync(publicJsDir)) {
+  try { fs.mkdirSync(publicJsDir, { recursive: true }); } catch (_) {}
+}
+
 const srcMonitoring = path.join(rootDir, 'data', 'monitoring.json');
 const destMonitoring = path.join(publicDataDir, 'monitoring.json');
+const jsMonitoringFile = path.join(rootDir, 'js', 'monitoringData.js');
+const publicJsMonitoringFile = path.join(publicJsDir, 'monitoringData.js');
+
 if (fs.existsSync(srcMonitoring)) {
   try {
+    const rawData = fs.readFileSync(srcMonitoring, 'utf8');
     fs.copyFileSync(srcMonitoring, destMonitoring);
-    console.log('[sim-humas] Synchronized public/data/monitoring.json for static CDN delivery.');
+    const jsContent = '// Auto-generated bundled monitoring dataset for instant offline & zero-latency loading\nwindow.INITIAL_MONITORING_DATA = ' + rawData.trim() + ';\n';
+    fs.writeFileSync(jsMonitoringFile, jsContent, 'utf8');
+    fs.writeFileSync(publicJsMonitoringFile, jsContent, 'utf8');
+    console.log('[sim-humas] Synchronized static JSON and bundled js/monitoringData.js for zero-latency client delivery.');
   } catch (copyErr) {
-    console.warn('[sim-humas BUILD WARNING] Could not copy monitoring.json:', copyErr.message);
+    console.warn('[sim-humas BUILD WARNING] Could not copy monitoring files:', copyErr.message);
   }
 }
 
