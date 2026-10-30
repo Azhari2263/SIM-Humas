@@ -189,12 +189,41 @@ function loadLocalFallbacks() {
 
     if (!db.users || db.users.length === 0) {
         db.users = [
-            { id: 1, username: 'admin', password: 'password', nama: 'Super Admin', role: 'admin', bidang: 'IPDS' },
-            { id: 2, username: 'koordinator', password: 'password', nama: 'Azhari (Koordinator)', role: 'koordinator', bidang: 'Humas' },
-            { id: 3, username: 'kepala', password: 'password', nama: 'Kepala BPS Kalbar', role: 'kepala', bidang: 'Pimpinan' },
-            { id: 4, username: 'tim', password: 'password', nama: 'Staf Humas', role: 'tim', bidang: 'Humas' },
-            { id: 5, username: 'pemohon', password: 'password', nama: 'User Bidang', role: 'pemohon', bidang: 'Sosial' },
-            { id: 6, username: 'kabkot', password: 'password', nama: 'BPS Kab. Kubu Raya', role: 'kabkot', bidang: 'BPS Kab/Kota' }
+            { id: 1, username: 'Azhari', password: 'azday22', nama: 'Azhari', role: 'admin', bidang: 'TU Bawah' },
+            { id: 2, username: 'Dara', password: 'dara123', nama: 'Dara Septika Natalia Anggraeni, SST, M.Sos.', role: 'koordinator', bidang: 'Produksi' },
+            { id: 3, username: 'admin', password: 'admin123', nama: 'Admin Humas', role: 'admin', bidang: 'Humas & Protokol' },
+            { id: 4, username: 'Diva', password: '', nama: 'Diah Nadiva Soetedjo', role: 'tim', bidang: 'Tim Umum dan Humas' },
+            { id: 5, username: 'Desa', password: '', nama: 'Desa Ayu Natalia', role: 'tim', bidang: 'Sosial' },
+            { id: 6, username: 'Risky', password: '', nama: 'Risky', role: 'tim', bidang: 'Sosial' },
+            { id: 7, username: 'Sitha', password: '', nama: 'Sithadewi Islami', role: 'tim', bidang: 'Produksi' },
+            { id: 8, username: 'Erina', password: 'Erina123', nama: 'Erina Herwindalita', role: 'tim', bidang: 'Produksi' },
+            { id: 9, username: 'Yunita', password: '', nama: 'Yunita Wulandari', role: 'tim', bidang: 'Distribusi' },
+            { id: 10, username: 'Kiky', password: '', nama: 'Rizky Fajariani', role: 'tim', bidang: 'Distribusi' },
+            { id: 11, username: 'Anis', password: '', nama: 'Anis Fakhrunnisa', role: 'tim', bidang: 'NWAS' },
+            { id: 12, username: 'Arif', password: '', nama: 'Arif Rahman', role: 'tim', bidang: 'NWAS' },
+            { id: 13, username: 'Irza', password: '', nama: 'Irza Faikar', role: 'tim', bidang: 'IPDS' },
+            { id: 14, username: 'Handika', password: '', nama: 'Handika Ramadhan', role: 'tim', bidang: 'IPDS' },
+            { id: 15, username: 'Aulia', password: '', nama: 'Aulia Minati Salsabila', role: 'tim', bidang: 'IPDS' },
+            { id: 16, username: 'Tefi', password: '', nama: 'Jeberta Tefilah Modes', role: 'tim', bidang: 'Tim Umum dan Humas' },
+            { id: 17, username: 'Amanda', password: '', nama: 'Amanda Putri', role: 'tim', bidang: 'Tim Umum dan Humas' },
+            { id: 18, username: 'Fifi', password: '', nama: 'Alfiana Ayuni', role: 'tim', bidang: 'Tim Umum dan Humas' },
+            { id: 19, username: 'Rania', password: '', nama: 'Rania Naila Husna', role: 'tim', bidang: 'Tim Umum dan Humas' },
+            { id: 20, username: 'Riska', password: '', nama: 'Riska Miwanti', role: 'tim', bidang: 'TU Atas' },
+            { id: 21, username: 'Budi', password: '', nama: 'Nasip Budi Waluyo', role: 'tim', bidang: 'TU Atas' },
+            { id: 22, username: 'Cencen', password: '', nama: 'Yostryan Chenata', role: 'tim', bidang: 'Distribusi' },
+            { id: 23, username: 'Ardi', password: '', nama: 'Ardi Atmaja', role: 'tim', bidang: 'NWAS' },
+            { id: 24, username: 'Romulus', password: '', nama: 'Romulus Arjuna Nugraha Tambunan', role: 'tim', bidang: 'Sosial' },
+            { id: 25, username: 'Andre', password: '', nama: 'Andre Ridho Perdana Hutapea', role: 'tim', bidang: 'Distribusi' },
+            { id: 26, username: 'Adji', password: '', nama: 'Adji Hasfiar', role: 'tim', bidang: 'Produksi' },
+            { id: 27, username: 'Levi', password: '', nama: 'Levi Alvaro Sarnosir', role: 'tim', bidang: 'TU Atas' },
+            { id: 29, username: 'Ibrahim', password: '', nama: 'Ibrahim', role: 'tim', bidang: 'TU Atas' },
+            { id: 30, username: 'Zaky', password: '', nama: 'Muhammad Muzaky Ali Fikri', role: 'tim', bidang: 'TU Atas' },
+            { id: 31, username: 'Mawardi', password: '', nama: 'Mawardi', role: 'tim', bidang: 'Tim Umum dan Humas' },
+            { id: 32, username: 'koordinator', password: 'password', nama: 'Azhari (Koordinator)', role: 'koordinator', bidang: 'Humas' },
+            { id: 33, username: 'kepala', password: 'password', nama: 'Kepala BPS Kalbar', role: 'kepala', bidang: 'Pimpinan' },
+            { id: 34, username: 'tim', password: 'password', nama: 'Staf Humas', role: 'tim', bidang: 'Humas' },
+            { id: 35, username: 'pemohon', password: 'password', nama: 'User Bidang', role: 'pemohon', bidang: 'Sosial' },
+            { id: 36, username: 'kabkot', password: 'password', nama: 'BPS Kab. Kubu Raya', role: 'kabkot', bidang: 'BPS Kab/Kota' }
         ];
     }
 
