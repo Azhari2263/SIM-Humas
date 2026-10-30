@@ -46,11 +46,39 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '10mb', type: ['application/json', 'text/plain'] }));
 app.use(express.urlencoded({ extended: true }));
 
-// Handle CORS and Vercel internal rewrite path restoration
+// Allowed origins for CORS (production, preview, and local development)
+const ALLOWED_ORIGINS = [
+  'https://sim-humas.vercel.app',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://0.0.0.0:3000'
+];
+
+// Handle CORS, Security Headers, and Vercel internal rewrite path restoration
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  if (origin) {
+    if (
+      ALLOWED_ORIGINS.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      origin.endsWith('.run.app') ||
+      origin.includes('localhost')
+    ) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-matched-path, x-forwarded-uri');
+  
+  // Standard Web Security Headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -222,12 +250,47 @@ const SHEET_TO_PROP = {
   'repository': 'repository'
 };
 
-// API endpoint matching code.gs doGet()
-app.get(['/api/sheets', '/sheets'], (req, res) => {
-  res.json(database);
+// Secure server-side authentication endpoint
+app.post(['/api/auth/login', '/auth/login'], (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: 'Nama pengguna dan kata sandi wajib diisi.' });
+    }
+    const cleanUser = String(username).toLowerCase().trim();
+    const user = (database.users || []).find(u => u.username && u.username.toLowerCase().trim() === cleanUser);
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Nama pengguna tidak terdaftar dalam database.' });
+    }
+    const expectedPassword = String(user.password !== undefined && user.password !== null && user.password !== '' ? user.password : 'password');
+    if (String(password) !== expectedPassword) {
+      return res.status(401).json({ success: false, error: 'Kata sandi tidak sesuai. Silakan periksa kembali.' });
+    }
+    // Return sanitized profile without password
+    const safeUser = {
+      id: user.id,
+      username: user.username,
+      role: String(user.role || '').toLowerCase().trim(),
+      name: user.nama || user.username,
+      bidang: user.bidang || ''
+    };
+    return res.json({ success: true, user: safeUser });
+  } catch (err) {
+    console.error('[Auth Error]:', err);
+    return res.status(500).json({ success: false, error: 'Terjadi kesalahan sistem saat proses login.' });
+  }
 });
 
-// API endpoint matching code.gs doPost()
+// API endpoint matching code.gs doGet() with user credentials sanitized
+app.get(['/api/sheets', '/sheets'], (req, res) => {
+  const safeDatabase = { ...database };
+  if (Array.isArray(safeDatabase.users)) {
+    safeDatabase.users = safeDatabase.users.map(({ password, ...u }) => u);
+  }
+  res.json(safeDatabase);
+});
+
+// API endpoint matching code.gs doPost() with payload sanitization & validation
 app.post(['/api/sheets', '/sheets'], (req, res) => {
   try {
     let body = req.body;
@@ -240,11 +303,32 @@ app.post(['/api/sheets', '/sheets'], (req, res) => {
     }
 
     const { action, sheet, item } = body || {};
-    if (!sheet) {
+    if (!sheet || typeof sheet !== 'string') {
       return res.status(400).json({ success: false, error: 'Sheet name is required' });
     }
 
     const collectionName = SHEET_TO_PROP[sheet] || sheet;
+    if (!SHEET_TO_PROP[sheet] && !database[collectionName]) {
+      return res.status(400).json({ success: false, error: `Invalid sheet target: ${sheet}` });
+    }
+
+    const allowedActions = ['add', 'update', 'delete', 'batch_update', 'sync'];
+    if (action && !allowedActions.includes(action)) {
+      return res.status(400).json({ success: false, error: `Invalid action: ${action}` });
+    }
+
+    // Defensive prototype pollution & oversized payload guard
+    if (item && typeof item === 'object') {
+      delete item.__proto__;
+      delete item.constructor;
+      delete item.prototype;
+      for (const k of Object.keys(item)) {
+        if (typeof item[k] === 'string' && item[k].length > 10000) {
+          item[k] = item[k].substring(0, 10000);
+        }
+      }
+    }
+
     if (!database[collectionName]) {
       database[collectionName] = [];
     }
@@ -395,9 +479,23 @@ app.get(['/api/monitoring/data', '/monitoring/data'], (req, res) => {
   });
 });
 
+// Cooldown guard to prevent scraping denial-of-service and rate limit bans
+let lastScraperRunTime = 0;
+const SCRAPER_COOLDOWN_MS = 10000; // 10 seconds cooldown between executions
+
 // 1. Run Scraper Pipeline
 app.post(['/api/monitoring/run-scraper', '/monitoring/run-scraper'], async (req, res) => {
   try {
+    const now = Date.now();
+    if (now - lastScraperRunTime < SCRAPER_COOLDOWN_MS) {
+      const waitSec = Math.ceil((SCRAPER_COOLDOWN_MS - (now - lastScraperRunTime)) / 1000);
+      return res.status(429).json({
+        success: false,
+        error: `Proses penarikan berita sedang berlangsung atau baru saja dieksekusi. Mohon tunggu ${waitSec} detik lagi.`
+      });
+    }
+    lastScraperRunTime = now;
+
     const authHeader = req.headers.authorization;
     let accessToken = null;
     if (authHeader && authHeader.startsWith('Bearer ')) {

@@ -746,8 +746,10 @@ export async function syncExcelToGoogleDrive(accessToken, fileBuffer, fileName) 
     throw new Error(`Failed to search existing file on Google Drive: ${errText}`);
   }
 
-  const searchData = await searchResp.json();
-  const existingFiles = searchData.files || [];
+  const rawSearchText = await searchResp.text();
+  let searchData = null;
+  try { searchData = rawSearchText ? JSON.parse(rawSearchText) : null; } catch (_) {}
+  const existingFiles = (searchData && searchData.files) || [];
 
   // 2. Delete existing files if found (replace / overwrite requirement)
   for (const f of existingFiles) {
@@ -803,7 +805,12 @@ export async function syncExcelToGoogleDrive(accessToken, fileBuffer, fileName) 
     throw new Error(`Failed to upload file to Google Drive: ${errText}`);
   }
 
-  const uploadResult = await uploadResp.json();
+  const rawUploadText = await uploadResp.text();
+  let uploadResult = null;
+  try { uploadResult = rawUploadText ? JSON.parse(rawUploadText) : null; } catch (_) {}
+  if (!uploadResult || !uploadResult.id) {
+    throw new Error(`Respons Google Drive tidak memiliki ID berkas yang valid: ${rawUploadText}`);
+  }
   return {
     success: true,
     fileId: uploadResult.id,

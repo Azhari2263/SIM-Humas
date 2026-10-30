@@ -958,6 +958,18 @@ function updateMediaPostUI(list) {
     }
 }
 
+// Global XSS Sanitization Helper for defensive HTML rendering
+window.escapeHtml = window.escapeHtml || function(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+};
+const escapeHtml = window.escapeHtml;
+
 // Helper parsing daftar rubrikasi dari string terpisah koma atau array
 window.parseRubrikasiArray = function(val) {
     if (!val) return [];
@@ -3847,74 +3859,74 @@ function showDetail(type, item) {
     if (type === 'content') {
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Judul:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.judul}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jenis Konten:</strong><span class="font-bold">${item.jenis_konten || item.postType || item.jenis || 'Carousel'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Media Post:</strong><span class="font-bold">${item.media_post || item.media || 'Instagram'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC:</strong><span class="font-bold text-slate-800 dark:text-white">${item['assign To'] || item.assignTo || item.assignedTo || item.pic || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Judul:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${escapeHtml(item.judul)}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jenis Konten:</strong><span class="font-bold">${escapeHtml(item.jenis_konten || item.postType || item.jenis || 'Carousel')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Media Post:</strong><span class="font-bold">${escapeHtml(item.media_post || item.media || 'Instagram')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC:</strong><span class="font-bold text-slate-800 dark:text-white">${escapeHtml(item['assign To'] || item.assignTo || item.assignedTo || item.pic || '-')}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal Posting:</strong><span class="font-bold text-rose-600">${formatDate(item.jadwal || item.tanggal_posting)}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jam Posting:</strong><span class="font-bold">${formatTime(item.jam_posting || '09:00')}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || 'Draft'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Progres:</strong><span class="font-black text-indigo-650">${item.progres || 0}%</span></div>
-                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deskripsi Konsep / Catatan:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.konsep || 'Tidak ada catatan khusus.'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${escapeHtml(item.status || 'Draft')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Progres:</strong><span class="font-black text-indigo-650">${escapeHtml(item.progres || 0)}%</span></div>
+                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deskripsi Konsep / Catatan:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${escapeHtml(item.konsep || 'Tidak ada catatan khusus.')}</span></div>
             </div>
         `;
     } else if (type === 'protokoler' || type === 'mc') {
         const isProto = type === 'protokoler';
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Agenda:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.kegiatan}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Agenda:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${escapeHtml(item.kegiatan)}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal & Waktu:</strong><span class="font-bold">${formatDate(item.tanggal)} - ${formatTime(item.jam_mulai || '08:30')}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Lokasi Acara:</strong><span class="font-bold">${item.lokasi || '-'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jenis Agenda:</strong><span class="font-bold">${item.jenis || 'Internal'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Level Keprotokolan:</strong><span class="font-bold">${item.level || 'Formal'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Petugas ${isProto ? 'Protokol' : 'MC'}:</strong><span class="font-extrabold text-indigo-650 dark:text-indigo-400">${item.petugas || '-'}</span></div>
-                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Keterangan Acara:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.keterangan || 'Tidak ada keterangan tambahan.'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Lokasi Acara:</strong><span class="font-bold">${escapeHtml(item.lokasi || '-')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jenis Agenda:</strong><span class="font-bold">${escapeHtml(item.jenis || 'Internal')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Level Keprotokolan:</strong><span class="font-bold">${escapeHtml(item.level || 'Formal')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Petugas ${isProto ? 'Protokol' : 'MC'}:</strong><span class="font-extrabold text-indigo-650 dark:text-indigo-400">${escapeHtml(item.petugas || '-')}</span></div>
+                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Keterangan Acara:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${escapeHtml(item.keterangan || 'Tidak ada keterangan tambahan.')}</span></div>
             </div>
         `;
     } else if (type === 'brs_rilis') {
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Judul Kegiatan Rilis:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.judul}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Judul Kegiatan Rilis:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${escapeHtml(item.judul)}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal Rilis:</strong><span class="font-bold">${formatDate(item.tanggal_rilis)}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC Poster & Infografis:</strong><span class="font-bold text-slate-800 dark:text-white">${item.pic_poster_info || '-'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC Dokumentasi Ruang:</strong><span class="font-bold text-slate-800 dark:text-white">${item.pic_doc_ruang || '-'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC Dok. YouTube & Zoom:</strong><span class="font-bold text-slate-800 dark:text-white">${item.pic_doc_yt_zoom || '-'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Highlight Data:</strong><span class="font-bold">${item.highlight ? `<a href="${item.highlight}" target="_blank" class="text-indigo-650 hover:underline">Lihat PDF</a>` : '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC Poster & Infografis:</strong><span class="font-bold text-slate-800 dark:text-white">${escapeHtml(item.pic_poster_info || '-')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC Dokumentasi Ruang:</strong><span class="font-bold text-slate-800 dark:text-white">${escapeHtml(item.pic_doc_ruang || '-')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>PIC Dok. YouTube & Zoom:</strong><span class="font-bold text-slate-800 dark:text-white">${escapeHtml(item.pic_doc_yt_zoom || '-')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Highlight Data:</strong><span class="font-bold">${item.highlight ? `<a href="${escapeHtml(item.highlight)}" target="_blank" class="text-indigo-650 hover:underline">Lihat PDF</a>` : '-'}</span></div>
             </div>
         `;
     } else if (type === 'rekap_rutin') {
         const rubriks = window.parseRubrikasiArray ? window.parseRubrikasiArray(item.rubrikasi) : (item.rubrikasi ? [item.rubrikasi] : []);
         const rubrikBadges = rubriks.length > 0
-            ? `<div class="flex flex-wrap gap-1 justify-end max-w-[260px]">${rubriks.map(r => `<span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-md font-bold text-[10px]">${r}</span>`).join('')}</div>`
+            ? `<div class="flex flex-wrap gap-1 justify-end max-w-[260px]">${rubriks.map(r => `<span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-md font-bold text-[10px]">${escapeHtml(r)}</span>`).join('')}</div>`
             : `<span class="font-bold text-slate-400">-</span>`;
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Kegiatan:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.kegiatan}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal & Hari:</strong><span class="font-bold">${formatDate(item.tanggal)} (${item.hari || '-'})</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Kegiatan:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${escapeHtml(item.kegiatan)}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal & Hari:</strong><span class="font-bold">${formatDate(item.tanggal)} (${escapeHtml(item.hari || '-')})</span></div>
                 <div class="flex items-center justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Rubrikasi:</strong>${rubrikBadges}</div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Petugas Humas:</strong><span class="font-bold text-slate-800 dark:text-white">${item.petugas || '-'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Petugas Humas:</strong><span class="font-bold text-slate-800 dark:text-white">${escapeHtml(item.petugas || '-')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${escapeHtml(item.status || '-')}</span></div>
             </div>
         `;
     } else if (type === 'ad_hoc') {
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Kegiatan:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.kegiatan}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal & Hari:</strong><span class="font-bold">${formatDate(item.tanggal)} (${item.hari || '-'})</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jumlah Bertugas:</strong><span class="font-bold">${item.jumlah_bertugas || 1} orang</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Petugas:</strong><span class="font-bold text-slate-800 dark:text-white">${item.petugas || '-'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || '-'}</span></div>
-                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Keterangan:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.keterangan || 'Tidak ada keterangan tambahan.'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Kegiatan:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${escapeHtml(item.kegiatan)}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal & Hari:</strong><span class="font-bold">${formatDate(item.tanggal)} (${escapeHtml(item.hari || '-')})</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Jumlah Bertugas:</strong><span class="font-bold">${escapeHtml(item.jumlah_bertugas || 1)} orang</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Petugas:</strong><span class="font-bold text-slate-800 dark:text-white">${escapeHtml(item.petugas || '-')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${escapeHtml(item.status || '-')}</span></div>
+                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Keterangan:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${escapeHtml(item.keterangan || 'Tidak ada keterangan tambahan.')}</span></div>
             </div>
         `;
     } else if (type === 'hari_besar') {
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Ucapan Hari Besar:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.hari_besar}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Ucapan Hari Besar:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${escapeHtml(item.hari_besar)}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal:</strong><span class="font-bold">${formatDate(item.tanggal)}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Pembuat Konten (PIC):</strong><span class="font-bold text-slate-800 dark:text-white">${item.pembuat_konten || '-'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status Konten:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || '-'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Aset Pendukung:</strong><span class="font-bold">${item.data_pendukung ? `<a href="${item.data_pendukung}" target="_blank" class="text-indigo-650 hover:underline">Buka Link Aset</a>` : '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Pembuat Konten (PIC):</strong><span class="font-bold text-slate-800 dark:text-white">${escapeHtml(item.pembuat_konten || '-')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status Konten:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${escapeHtml(item.status || '-')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Aset Pendukung:</strong><span class="font-bold">${item.data_pendukung ? `<a href="${escapeHtml(item.data_pendukung)}" target="_blank" class="text-indigo-650 hover:underline">Buka Link Aset</a>` : '-'}</span></div>
             </div>
         `;
     } else if (type === 'team') {
@@ -3922,37 +3934,37 @@ function showDetail(type, item) {
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
                 <div class="text-center pb-4">
                     <div class="w-16 h-16 rounded-full border-4 border-slate-100 dark:border-slate-700 ${getAvatarBg(item.nama)} mx-auto flex items-center justify-center font-black text-lg shadow-sm">${getPicInitials(item.nama)}</div>
-                    <h4 class="font-extrabold text-slate-800 dark:text-white text-sm mt-3">${item.nama}</h4>
-                    <p class="text-[10px] font-bold text-indigo-650 dark:text-indigo-400 uppercase tracking-widest mt-1">${item.jabatan}</p>
+                    <h4 class="font-extrabold text-slate-800 dark:text-white text-sm mt-3">${escapeHtml(item.nama)}</h4>
+                    <p class="text-[10px] font-bold text-indigo-650 dark:text-indigo-400 uppercase tracking-widest mt-1">${escapeHtml(item.jabatan)}</p>
                 </div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Bidang Kerja:</strong><span class="font-semibold">${item.bidang}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>No. Kontak WA:</strong><span class="font-bold text-slate-700 dark:text-slate-300">${item.kontak}</span></div>
-                <div class="flex flex-col gap-1"><strong>Tugas Utama Kehumasan:</strong><p class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px] mt-1">${item.tugas || '-'}</p></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Bidang Kerja:</strong><span class="font-semibold">${escapeHtml(item.bidang)}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>No. Kontak WA:</strong><span class="font-bold text-slate-700 dark:text-slate-300">${escapeHtml(item.kontak)}</span></div>
+                <div class="flex flex-col gap-1"><strong>Tugas Utama Kehumasan:</strong><p class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px] mt-1">${escapeHtml(item.tugas || '-')}</p></div>
             </div>
         `;
     } else if (type === 'assignment') {
         const assignRubriks = window.parseRubrikasiArray ? window.parseRubrikasiArray(item.rubrikasi) : (item.rubrikasi ? [item.rubrikasi] : []);
         const assignRubrikBadges = assignRubriks.length > 0
-            ? `<div class="flex flex-wrap gap-1 justify-end max-w-[260px]">${assignRubriks.map(r => `<span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-md font-bold text-[10px]">${r}</span>`).join('')}</div>`
+            ? `<div class="flex flex-wrap gap-1 justify-end max-w-[260px]">${assignRubriks.map(r => `<span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-md font-bold text-[10px]">${escapeHtml(r)}</span>`).join('')}</div>`
             : `<span class="font-bold text-slate-400">-</span>`;
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Tugas:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.tugas}</span></div>
-                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deskripsi:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${item.deskripsi || 'Tidak ada deskripsi.'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Tugas:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${escapeHtml(item.tugas)}</span></div>
+                <div class="flex flex-col gap-1 border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deskripsi:</strong><span class="leading-relaxed bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl text-[11px]">${escapeHtml(item.deskripsi || 'Tidak ada deskripsi.')}</span></div>
                 <div class="flex items-center justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Rubrikasi:</strong>${assignRubrikBadges}</div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Prioritas:</strong><span class="font-bold">${item.prioritas || 'Sedang'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${item.status || 'Belum Mulai'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Prioritas:</strong><span class="font-bold">${escapeHtml(item.prioritas || 'Sedang')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Status:</strong><span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-bold uppercase tracking-wider text-[9px]">${escapeHtml(item.status || 'Belum Mulai')}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal Ditugaskan:</strong><span class="font-bold">${formatDate(item.tanggal_penugasan)}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Deadline:</strong><span class="font-bold text-rose-600">${formatDate(item.deadline)}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Progres Kerja:</strong><span class="font-black text-indigo-650">${item.progres || 0}%</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Diberikan Kepada:</strong><span class="font-bold text-slate-800 dark:text-white">${item.assigned_to || '-'}</span></div>
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Lampiran:</strong><span class="font-bold">${item.lampiran ? `<a href="${item.lampiran}" target="_blank" class="text-indigo-650 dark:text-indigo-400 hover:underline">Buka Tautan</a>` : '-'}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Progres Kerja:</strong><span class="font-black text-indigo-650">${escapeHtml(item.progres || 0)}%</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Diberikan Kepada:</strong><span class="font-bold text-slate-800 dark:text-white">${escapeHtml(item.assigned_to || '-')}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Lampiran:</strong><span class="font-bold">${item.lampiran ? `<a href="${escapeHtml(item.lampiran)}" target="_blank" class="text-indigo-650 dark:text-indigo-400 hover:underline">Buka Tautan</a>` : '-'}</span></div>
             </div>
         `;
     } else if (type === 'repository') {
         content = `
             <div class="space-y-4 text-xs text-slate-655 dark:text-slate-300 font-sans">
-                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Dokumen:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${item.nama_dokumen}</span></div>
+                <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Nama Dokumen:</strong><span class="font-extrabold text-slate-800 dark:text-white max-w-[200px] text-right">${escapeHtml(item.nama_dokumen)}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Kategori:</strong><span class="px-2 py-0.5 bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 rounded font-bold uppercase tracking-wider text-[9px] border border-amber-200 dark:border-amber-800">${item.kategori || '-'}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Versi / Edisi:</strong><span class="font-bold">${item.versi || 'v1.0'}</span></div>
                 <div class="flex justify-between border-b pb-2.5 border-slate-100 dark:border-slate-700"><strong>Tanggal Pembaruan:</strong><span class="font-bold">${formatDate(item.tanggal)}</span></div>

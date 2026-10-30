@@ -310,7 +310,9 @@ async function fetchDataFromSheets(silent = false) {
             cache: 'no-cache'
         });
         if (response.ok) {
-            const json = await response.json();
+            const rawText = await response.text();
+            let json = null;
+            try { json = rawText ? JSON.parse(rawText) : null; } catch (_) {}
             if (json && typeof json === 'object') {
                 data = json;
             }
@@ -326,7 +328,9 @@ async function fetchDataFromSheets(silent = false) {
         try {
             const fallbackResp = await fetch('/api/sheets');
             if (fallbackResp.ok) {
-                const json = await fallbackResp.json();
+                const rawText = await fallbackResp.text();
+                let json = null;
+                try { json = rawText ? JSON.parse(rawText) : null; } catch (_) {}
                 if (json && typeof json === 'object') {
                     data = json;
                     console.log('[Sync] Connected to local database cache successfully.');
@@ -585,12 +589,11 @@ async function syncMonitoringDataFromServer() {
         try {
             const resp = await fetch('/api/monitoring/data');
             if (resp.ok) {
-                const contentType = resp.headers.get('content-type') || '';
-                if (contentType.includes('application/json')) {
-                    const res = await resp.json();
-                    if (res && res.success && Array.isArray(res.articles) && res.articles.length > 0) {
-                        articles = res.articles;
-                    }
+                const rawText = await resp.text();
+                let res = null;
+                try { res = rawText ? JSON.parse(rawText) : null; } catch (_) {}
+                if (res && res.success && Array.isArray(res.articles) && res.articles.length > 0) {
+                    articles = res.articles;
                 }
             }
         } catch (apiErr) {
@@ -602,12 +605,11 @@ async function syncMonitoringDataFromServer() {
             try {
                 const staticResp = await fetch('/data/monitoring.json');
                 if (staticResp.ok) {
-                    const contentType = staticResp.headers.get('content-type') || '';
-                    if (contentType.includes('application/json')) {
-                        const staticData = await staticResp.json();
-                        if (Array.isArray(staticData) && staticData.length > 0) {
-                            articles = staticData;
-                        }
+                    const rawText = await staticResp.text();
+                    let staticData = null;
+                    try { staticData = rawText ? JSON.parse(rawText) : null; } catch (_) {}
+                    if (Array.isArray(staticData) && staticData.length > 0) {
+                        articles = staticData;
                     }
                 }
             } catch (_) {}
@@ -1020,8 +1022,10 @@ async function processSyncQueue() {
 
             if (!response || !response.ok) throw new Error('HTTP Status ' + (response ? response.status : 'offline'));
 
-            const result = await response.json();
-            if (!result.success) throw new Error(result.error || 'Server error');
+            const rawText = await response.text();
+            let result = null;
+            try { result = rawText ? JSON.parse(rawText) : null; } catch (_) {}
+            if (!result || !result.success) throw new Error((result && result.error) || 'Server error');
 
             // Remove successfully processed task
             syncQueue.shift();

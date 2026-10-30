@@ -41,6 +41,7 @@ const jsFilesToLint = [
   'server.js',
   'api/index.js',
   'api/sheets.js',
+  'api/auth/login.js',
   'api/monitoring/sync-drive.js',
   'api/monitoring/run-scraper.js',
   'api/monitoring/data.js',

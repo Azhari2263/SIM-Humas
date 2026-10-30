@@ -9,7 +9,7 @@
     "start": "node server.js",
     "build": "node scripts/build.js",
     "kosong": "node scripts/build.js",
-    "lint": "node --check server.js api/index.js api/sheets.js api/monitoring/sync-drive.js api/monitoring/run-scraper.js api/monitoring/data.js api/monitoring/export-excel.js scripts/monitoringEngine.js js/app.js js/auth.js js/db.js js/views.js js/driveSync.js js/pwa.js sw.js"
+    "lint": "node --check server.js api/index.js api/sheets.js api/auth/login.js api/monitoring/sync-drive.js api/monitoring/run-scraper.js api/monitoring/data.js api/monitoring/export-excel.js scripts/monitoringEngine.js js/app.js js/auth.js js/db.js js/views.js js/driveSync.js js/pwa.js sw.js"
   },
   "bin": {
     "kosong": "./bin/kosong"

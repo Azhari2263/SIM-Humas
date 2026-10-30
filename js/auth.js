@@ -370,7 +370,7 @@ window.toggleLoginPassword = function() {
     }
 };
 
-function handleLogin(event) {
+async function handleLogin(event) {
     event.preventDefault();
     const usernameInput = document.getElementById('login-username');
     const passwordInput = document.getElementById('login-password');
@@ -383,37 +383,73 @@ function handleLogin(event) {
         return;
     }
 
-    // Pastikan data users termuat dari database atau cache lokal
-    if (!db.users || !Array.isArray(db.users) || db.users.length === 0) {
-        if (typeof loadLocalFallbacks === 'function') {
-            loadLocalFallbacks();
+    let authenticatedUser = null;
+    let serverAttempted = false;
+
+    // 1. Prioritize secure server-side authentication
+    try {
+        const resp = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        serverAttempted = true;
+        const data = await resp.json().catch(() => null);
+
+        if (resp.ok && data && data.success && data.user) {
+            authenticatedUser = data.user;
+        } else if (resp.status === 401 || (data && data.success === false)) {
+            showToast((data && data.error) || 'Nama pengguna atau kata sandi tidak sesuai!', 'error');
+            return;
         }
+    } catch (netErr) {
+        console.warn('[Auth] Server login endpoint unavailable (network/offline):', netErr.message);
     }
-    
-    const userList = (db.users && Array.isArray(db.users)) ? db.users : [];
-    const lowerUsername = username.toLowerCase();
-    const user = userList.find(u => u.username && u.username.toLowerCase().trim() === lowerUsername);
-    
-    if (!user) {
-        showToast(`Nama pengguna "${username}" tidak terdaftar dalam database!`, 'error');
+
+    // 2. Offline fallback for PWA when network is completely offline
+    if (!authenticatedUser && !serverAttempted) {
+        if (!db.users || !Array.isArray(db.users) || db.users.length === 0) {
+            if (typeof loadLocalFallbacks === 'function') {
+                loadLocalFallbacks();
+            }
+        }
+        const userList = (db.users && Array.isArray(db.users)) ? db.users : [];
+        const lowerUsername = username.toLowerCase();
+        const user = userList.find(u => u.username && u.username.toLowerCase().trim() === lowerUsername);
+        
+        if (!user) {
+            showToast(`Nama pengguna "${username}" tidak terdaftar!`, 'error');
+            return;
+        }
+        
+        const expectedPassword = String(user.password !== undefined && user.password !== null && user.password !== '' ? user.password : 'password');
+        if (String(password) !== expectedPassword) {
+            showToast('Kata sandi tidak sesuai! Silakan periksa kembali.', 'error');
+            return;
+        }
+
+        authenticatedUser = {
+            username: user.username,
+            role: String(user.role || '').toLowerCase().trim(),
+            name: user.nama || user.username,
+            bidang: user.bidang || ''
+        };
+    }
+
+    if (!authenticatedUser) {
+        showToast('Gagal memverifikasi akun pengguna. Silakan periksa kembali jaringan atau kredensial Anda.', 'error');
         return;
     }
-    
-    const expectedPassword = String(user.password !== undefined && user.password !== null && user.password !== '' ? user.password : 'password');
-    if (String(password) !== expectedPassword) {
-        showToast('Kata sandi tidak sesuai! Silakan periksa kembali.', 'error');
-        return;
-    }
-    
+
     currentUser = { 
-        username: user.username, 
-        role: String(user.role || '').toLowerCase().trim(), 
-        name: user.nama || user.username,
-        bidang: user.bidang || '' 
+        username: authenticatedUser.username, 
+        role: String(authenticatedUser.role || '').toLowerCase().trim(), 
+        name: authenticatedUser.name || authenticatedUser.nama || authenticatedUser.username,
+        bidang: authenticatedUser.bidang || '' 
     };
     
     localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
-    showToast('Selamat datang, ' + (user.nama || user.username) + '!');
+    showToast('Selamat datang, ' + (currentUser.name || currentUser.username) + '!');
     
     if (window.logActivity) {
         logActivity('Login', `User ${currentUser.name} masuk sebagai ${getRoleLabel(currentUser.role)}.`);
