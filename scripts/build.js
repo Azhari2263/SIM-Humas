@@ -40,6 +40,11 @@ for (const file of requiredFiles) {
 const jsFilesToLint = [
   'server.js',
   'api/index.js',
+  'api/sheets.js',
+  'api/monitoring/sync-drive.js',
+  'api/monitoring/run-scraper.js',
+  'api/monitoring/data.js',
+  'api/monitoring/export-excel.js',
   'scripts/monitoringEngine.js',
   'js/app.js',
   'js/auth.js',

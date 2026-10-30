@@ -1,18 +1,9 @@
 import app from '../server.js';
 
 export default function handler(req, res) {
-  const possibleUrls = [
-    req.headers && req.headers['x-forwarded-uri'],
-    req.headers && req.headers['x-matched-path'],
-    req.headers && req.headers['x-invoke-path'],
-    req.originalUrl
-  ];
-  for (const candidate of possibleUrls) {
-    if (candidate && candidate.startsWith('/api') && candidate !== '/api') {
-      req.url = candidate;
-      break;
-    }
+  const forwardedUri = req.headers && req.headers['x-forwarded-uri'];
+  if (forwardedUri && forwardedUri.startsWith('/api') && !forwardedUri.startsWith('/api/index')) {
+    req.url = forwardedUri;
   }
   return app(req, res);
 }
-

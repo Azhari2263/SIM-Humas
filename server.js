@@ -50,12 +50,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-matched-path');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-matched-path, x-forwarded-uri');
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-  if (req.headers && req.headers['x-matched-path'] && (req.url === '/api' || req.url === '/api/index' || req.url === '/')) {
-    req.url = req.headers['x-matched-path'];
+  const forwardedUri = req.headers && req.headers['x-forwarded-uri'];
+  if (forwardedUri && forwardedUri.startsWith('/api') && !forwardedUri.startsWith('/api/index')) {
+    req.url = forwardedUri;
   }
   next();
 });
