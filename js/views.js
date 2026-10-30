@@ -9545,7 +9545,13 @@ window.syncMonitoringToDriveUI = async function () {
         if (window.driveSync && typeof window.driveSync.clearToken === 'function') {
             window.driveSync.clearToken();
         }
-        if (e.message && (e.message.includes('401') || e.message.includes('UNAUTHENTICATED') || e.message.includes('invalid authentication credentials'))) {
+        if (e.message && (e.message.includes('auth/unauthorized-domain') || e.code === 'auth/unauthorized-domain')) {
+            if (window.driveSync && typeof window.driveSync.showUnauthorizedDomainModal === 'function') {
+                window.driveSync.showUnauthorizedDomainModal();
+            } else {
+                showToast('Sinkronisasi Drive gagal: Domain belum diotorisasi di Firebase (auth/unauthorized-domain).', 'error');
+            }
+        } else if (e.message && (e.message.includes('401') || e.message.includes('UNAUTHENTICATED') || e.message.includes('invalid authentication credentials'))) {
             showToast('Sesi otorisasi Google telah kedaluwarsa. Silakan klik tombol Sinkronisasi sekali lagi untuk login akun Google.', 'error');
         } else {
             showToast(`Sinkronisasi Drive gagal: ${e.message}`, 'error');
