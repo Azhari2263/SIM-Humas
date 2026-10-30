@@ -1,14 +1,17 @@
 // Service Worker for SIM Humas BPS Kalbar (PWA)
-const CACHE_NAME = 'sim-humas-v1.2.0';
+const CACHE_NAME = 'sim-humas-v1.2.1';
 
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/js/app.js',
-  '/js/auth.js',
+  '/js/monitoringData.js',
   '/js/db.js',
+  '/js/auth.js',
+  '/js/driveSync.js',
   '/js/views.js',
+  '/js/pwa.js',
+  '/js/app.js',
   '/icon.svg',
   '/apple-touch-icon.png',
   '/pwa-192x192.png',
@@ -42,6 +45,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', key);
             return caches.delete(key);
           }
         })
@@ -59,7 +63,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 1. Navigation requests (HTML documents) -> Stale-While-Revalidate with index.html fallback
+  // 1. Navigation requests (HTML documents) -> Network first, fallback to cached index.html
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
@@ -79,7 +83,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. API requests (/api/sheets) -> Network first, fallback to cached JSON
+  // 2. API requests (/api/sheets, /api/monitoring/*) -> Network first, fallback to cached JSON
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(req)
@@ -95,20 +99,43 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Static local assets or allowed CDN assets -> Stale-While-Revalidate / Cache first
   const isCdn = EXTERNAL_ORIGINS.some(origin => url.hostname.includes(origin));
   const isSameOrigin = url.origin === self.location.origin;
 
-  if (isSameOrigin || isCdn) {
+  // 3. Same-origin application assets (JS, CSS, JSON) -> Network-first to always run latest fixes, fallback to cache
+  if (isSameOrigin) {
+    event.respondWith(
+      fetch(req)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(req).then((cached) => {
+            if (cached) return cached;
+            return new Response('Offline resource unavailable', {
+              status: 503,
+              statusText: 'Service Unavailable'
+            });
+          });
+        })
+    );
+    return;
+  }
+
+  // 4. External CDN assets -> Cache-first with background revalidation
+  if (isCdn) {
     event.respondWith(
       caches.match(req).then((cached) => {
         if (cached) {
-          // Fetch update in background
           fetch(req).then((networkRes) => {
             if (networkRes && networkRes.status === 200) {
               caches.open(CACHE_NAME).then((cache) => cache.put(req, networkRes));
             }
-          }).catch(() => {/* ignore background fetch failure */});
+          }).catch(() => {});
           return cached;
         }
 
@@ -118,8 +145,7 @@ self.addEventListener('fetch', (event) => {
             caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
           }
           return networkResponse;
-        }).catch((err) => {
-          // If offline and request is an image, fallback or propagate
+        }).catch(() => {
           return new Response('Offline resource unavailable', {
             status: 503,
             statusText: 'Service Unavailable'
