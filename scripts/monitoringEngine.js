@@ -236,14 +236,31 @@ export async function scrapeGoogleNewsBpsKalbar(year = 2026) {
     const pubDateStr = item.pubDate;
     let pubDate = new Date(pubDateStr);
     if (isNaN(pubDate.getTime())) {
-      pubDate = new Date();
+      continue;
     }
 
-    // Ensure within year 2026 or current context
     const itemYear = pubDate.getFullYear();
-    if (itemYear !== year && itemYear !== 2026) {
-      // If feed didn't have 2026, normalize to current 2026 context
-      pubDate.setFullYear(2026);
+    const targetYear = parseInt(year, 10) || 2026;
+
+    // Pastikan HANYA berita yang tahun terbit aslinya sama dengan targetYear yang dimasukkan
+    // Tidak boleh memasukkan berita tahun sebelumnya atau mengubah tahun berita lama
+    if (itemYear !== targetYear) {
+      continue;
+    }
+
+    // Pastikan tidak ada berita dengan tanggal di masa depan (melebihi hari ini)
+    const nowLimit = new Date();
+    nowLimit.setDate(nowLimit.getDate() + 1); // Toleransi 1 hari untuk perbedaan timezone feed GMT vs WIB (+7 jam)
+    if (pubDate > nowLimit) {
+      continue;
+    }
+
+    // Filter jika judul secara eksplisit merujuk pada sensus/laporan/data lampau dari tahun sebelumnya
+    if (rawTitle.match(/(?:Triwulan\s+[IVX0-9\-]+\s*|SP|Regsosek\s+|Sensus\s+Pertanian\s+|Februari\s+|November\s+)(201[5-9]|202[0-5])/i)) {
+      continue;
+    }
+    if (rawTitle.includes('2018 - 2024') || rawTitle.includes('triwulan III 2021')) {
+      continue;
     }
 
     const yyyy = pubDate.getFullYear();
@@ -278,7 +295,7 @@ export async function scrapeGoogleNewsBpsKalbar(year = 2026) {
  * - Monthly Sheets ("Januari" s/d "Oktober")
  * - Navy Blue (#1F4E79), soft blue (#D9E1F2), zebra striping (#F2F4F7)
  */
-export async function generateMonitoringWorkbook(articles = [], year = 2026, startMonth = 1, endMonth = 10) {
+export async function generateMonitoringWorkbook(articles = [], year = 2026, startMonth = 1, endMonth = (new Date().getMonth() + 1)) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'SIM Humas BPS Provinsi Kalimantan Barat';
   workbook.created = new Date();

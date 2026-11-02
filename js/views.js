@@ -8373,9 +8373,10 @@ const ALL_MONITORING_MONTHS = [
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
-let monitoringYear = 2026;
+const currentMonitoringNow = typeof getNowWIB === 'function' ? getNowWIB() : new Date();
+let monitoringYear = currentMonitoringNow.getFullYear() || 2026;
 let monitoringStartMonth = 1; // 1 = Januari
-let monitoringEndMonth = 10; // Dapat disesuaikan sampai rentang bulan manapun (1..12)
+let monitoringEndMonth = Math.max(1, Math.min(12, currentMonitoringNow.getMonth() + 1)); // Dinamis mengikuti bulan saat ini (misal November = 11)
 
 function getActiveMonitoringMonths() {
     return ALL_MONITORING_MONTHS.slice(monitoringStartMonth - 1, monitoringEndMonth);
@@ -8487,14 +8488,11 @@ function renderMonitoring(container) {
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-[11px] text-slate-400 font-bold">Pilihan Cepat:</span>
-                <button onclick="setQuickMonitoringPeriod(1, 10)" class="text-[11px] font-bold px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all ${monitoringStartMonth === 1 && monitoringEndMonth === 10 ? 'bg-indigo-50 dark:bg-indigo-950/80 border-indigo-400 text-indigo-700 dark:text-indigo-300 font-black' : ''}">
-                    Jan - Okt
+                <button onclick="setQuickMonitoringPeriod(1, Math.min(12, (typeof getNowWIB === 'function' ? getNowWIB() : new Date()).getMonth() + 1))" class="text-[11px] font-bold px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all ${monitoringStartMonth === 1 && monitoringEndMonth === Math.min(12, (typeof getNowWIB === 'function' ? getNowWIB() : new Date()).getMonth() + 1) ? 'bg-indigo-50 dark:bg-indigo-950/80 border-indigo-400 text-indigo-700 dark:text-indigo-300 font-black' : ''}">
+                    Jan - ${ALL_MONITORING_MONTHS[Math.min(11, (typeof getNowWIB === 'function' ? getNowWIB() : new Date()).getMonth())].slice(0, 3)} (Bulan Berjalan)
                 </button>
                 <button onclick="setQuickMonitoringPeriod(1, 12)" class="text-[11px] font-bold px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all ${monitoringStartMonth === 1 && monitoringEndMonth === 12 ? 'bg-indigo-50 dark:bg-indigo-950/80 border-indigo-400 text-indigo-700 dark:text-indigo-300 font-black' : ''}">
                     1 Tahun Penuh (Jan - Des)
-                </button>
-                <button onclick="setQuickMonitoringPeriod(1, Math.min(12, new Date().getMonth() + 1))" class="text-[11px] font-bold px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all">
-                    Bulan Berjalan
                 </button>
             </div>
         </div>
@@ -8537,9 +8535,10 @@ window.changeMonitoringPeriod = function () {
     const yEl = document.getElementById('monitoring-year-select');
     const sEl = document.getElementById('monitoring-start-month-select');
     const eEl = document.getElementById('monitoring-end-month-select');
+    const curMonth = (typeof getNowWIB === 'function' ? getNowWIB() : new Date()).getMonth() + 1;
     if (yEl) monitoringYear = parseInt(yEl.value, 10) || 2026;
     if (sEl) monitoringStartMonth = Math.max(1, Math.min(12, parseInt(sEl.value, 10) || 1));
-    if (eEl) monitoringEndMonth = Math.max(1, Math.min(12, parseInt(eEl.value, 10) || 10));
+    if (eEl) monitoringEndMonth = Math.max(1, Math.min(12, parseInt(eEl.value, 10) || curMonth));
 
     if (monitoringStartMonth > monitoringEndMonth) {
         monitoringEndMonth = monitoringStartMonth;
@@ -8586,10 +8585,15 @@ function updateMonitoringKpiCards() {
     
     // Filter articles within current year and active month range
     const activeArticles = allArticles.filter(a => {
+        if (!a) return false;
         const d = new Date(a.tanggal || a.tanggal_rilis || `${monitoringYear}-01-01`);
         const y = d.getFullYear();
         const m = d.getMonth() + 1;
-        return y === monitoringYear && m >= monitoringStartMonth && m <= monitoringEndMonth;
+        if (y !== monitoringYear || m < monitoringStartMonth || m > monitoringEndMonth) return false;
+        const maxToday = typeof getNowWIB === 'function' ? getNowWIB() : new Date();
+        maxToday.setHours(23, 59, 59, 999);
+        if (d > maxToday) return false;
+        return true;
     });
 
     const periodTotal = activeArticles.length;
@@ -9012,10 +9016,15 @@ function updateMonitoringLampiranTableData() {
 
     // 1. Filter base articles by active year and active month range
     let filtered = (db.monitoring || []).filter(item => {
+        if (!item) return false;
         const d = new Date(item.tanggal || item.tanggal_rilis || `${monitoringYear}-01-01`);
         const y = d.getFullYear();
         const m = d.getMonth() + 1;
-        return y === monitoringYear && m >= monitoringStartMonth && m <= monitoringEndMonth;
+        if (y !== monitoringYear || m < monitoringStartMonth || m > monitoringEndMonth) return false;
+        const maxToday = typeof getNowWIB === 'function' ? getNowWIB() : new Date();
+        maxToday.setHours(23, 59, 59, 999);
+        if (d > maxToday) return false;
+        return true;
     });
 
     // 2. Multi-keyword search across title, media, topic, excerpt, and URL
@@ -9215,10 +9224,15 @@ window.resetMonitoringFilters = function () {
 function drawMonitoringSentimenView(content) {
     const allArticles = db.monitoring || [];
     const articles = allArticles.filter(item => {
+        if (!item) return false;
         const d = new Date(item.tanggal || item.tanggal_rilis || `${monitoringYear}-01-01`);
         const y = d.getFullYear();
         const m = d.getMonth() + 1;
-        return y === monitoringYear && m >= monitoringStartMonth && m <= monitoringEndMonth;
+        if (y !== monitoringYear || m < monitoringStartMonth || m > monitoringEndMonth) return false;
+        const maxToday = typeof getNowWIB === 'function' ? getNowWIB() : new Date();
+        maxToday.setHours(23, 59, 59, 999);
+        if (d > maxToday) return false;
+        return true;
     });
 
     const totalCount = articles.length;

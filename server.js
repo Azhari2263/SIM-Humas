@@ -143,10 +143,22 @@ const initialDb = {
   ],
   tickets: [],
   assets: [],
-  monitoring: Array.isArray(bundledMonitoringData) ? bundledMonitoringData.map(item => ({
-    ...item,
-    topik: normalizeArticleTopic(item.topik)
-  })) : [],
+  monitoring: Array.isArray(bundledMonitoringData) ? bundledMonitoringData
+    .filter(item => {
+      if (!item || !item.tanggal) return false;
+      const d = new Date((item.tanggal || item.tanggal_rilis) + 'T00:00:00Z');
+      if (d.getUTCFullYear() !== 2026) return false;
+      const maxDate = new Date();
+      maxDate.setHours(23, 59, 59, 999);
+      if (d > maxDate) return false;
+      if (item.judul && item.judul.match(/(?:Triwulan\s+[IVX0-9\-]+\s*|SP|Regsosek\s+|Sensus\s+Pertanian\s+|Februari\s+|November\s+)(201[5-9]|202[0-5])/i)) return false;
+      if (item.judul && (item.judul.includes('2018 - 2024') || item.judul.includes('triwulan III 2021'))) return false;
+      return true;
+    })
+    .map(item => ({
+      ...item,
+      topik: normalizeArticleTopic(item.topik)
+    })) : [],
   rekapRutin: [],
   adHoc: [],
   protokoler: [],
@@ -705,9 +717,10 @@ app.post(['/api/monitoring/run-scraper', '/monitoring/run-scraper'], async (req,
       accessToken = serverCachedDriveToken;
     }
 
-    const year = parseInt(req.body.year, 10) || 2026;
+    const currentServerMonth = (new Date()).getMonth() + 1;
+    const year = parseInt(req.body.year, 10) || (new Date()).getFullYear();
     const startMonth = Math.max(1, Math.min(12, parseInt(req.body.startMonth, 10) || 1));
-    const endMonth = Math.max(1, Math.min(12, parseInt(req.body.endMonth, 10) || 10));
+    const endMonth = Math.max(1, Math.min(12, parseInt(req.body.endMonth, 10) || currentServerMonth));
 
     console.log(`[Scraper] Starting BPS Kalbar media monitoring scrape pipeline for ${year} (bulan ${startMonth} s/d ${endMonth})...`);
     const scrapedArticles = await scrapeGoogleNewsBpsKalbar(year);
@@ -785,9 +798,10 @@ app.post(['/api/monitoring/run-scraper', '/monitoring/run-scraper'], async (req,
 // 2. Export / Download Styled Excel
 app.get(['/api/monitoring/export-excel', '/monitoring/export-excel'], async (req, res) => {
   try {
-    const year = parseInt(req.query.year, 10) || 2026;
+    const currentServerMonth = (new Date()).getMonth() + 1;
+    const year = parseInt(req.query.year, 10) || (new Date()).getFullYear();
     const startMonth = Math.max(1, Math.min(12, parseInt(req.query.startMonth, 10) || 1));
-    const endMonth = Math.max(1, Math.min(12, parseInt(req.query.endMonth, 10) || 10));
+    const endMonth = Math.max(1, Math.min(12, parseInt(req.query.endMonth, 10) || currentServerMonth));
 
     const fileName = getMonitoringReportFileName(year, startMonth, endMonth);
     const articles = database.monitoring || [];
@@ -824,9 +838,10 @@ app.post(['/api/monitoring/sync-drive', '/monitoring/sync-drive'], async (req, r
 
     serverCachedDriveToken = accessToken;
 
-    const year = parseInt(req.body.year, 10) || 2026;
+    const currentServerMonth = (new Date()).getMonth() + 1;
+    const year = parseInt(req.body.year, 10) || (new Date()).getFullYear();
     const startMonth = Math.max(1, Math.min(12, parseInt(req.body.startMonth, 10) || 1));
-    const endMonth = Math.max(1, Math.min(12, parseInt(req.body.endMonth, 10) || 10));
+    const endMonth = Math.max(1, Math.min(12, parseInt(req.body.endMonth, 10) || currentServerMonth));
 
     const fileName = getMonitoringReportFileName(year, startMonth, endMonth);
     const articles = database.monitoring || [];
