@@ -42,8 +42,21 @@ function doPost(e) {
     return ContentService.createTextOutput(JSON.stringify({success: false, error: "Invalid JSON: " + err.message}))
       .setMimeType(ContentService.MimeType.JSON);
   }
+  
+  // 1. Dapatkan Script Lock untuk mencegah race condition saat multi-user melakukan mutasi bersamaan
+  const lock = LockService.getScriptLock();
+  try {
+    // Tunggu maksimal 30 detik untuk mendapatkan giliran penulisan
+    lock.waitLock(30000);
+  } catch (lockErr) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: "Spreadsheet sedang sibuk memproses transaksi pengguna lain. Silakan coba beberapa saat lagi (Lock Timeout)."
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet();
   
   // Normalisasi nama sheet (mendukung camelCase maupun snake_case)
   const normalizedSheetName = resolveSheetName(data.sheet);
@@ -329,8 +342,19 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
   
-  return ContentService.createTextOutput(JSON.stringify({success: false, error: "Unknown action: " + data.action}))
-    .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({success: false, error: "Unknown action: " + data.action}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (opErr) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: "Terjadi kesalahan saat memproses data spreadsheet: " + opErr.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    try {
+      SpreadsheetApp.flush();
+    } catch (_) {}
+    lock.releaseLock();
+  }
 }
 
 // Mengambil data sheet atau membuatnya jika belum ada
