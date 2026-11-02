@@ -7073,7 +7073,7 @@ function renderIntegratedCalendar(container) {
 
                 <div class="flex items-center flex-wrap justify-between sm:justify-end gap-2.5">
                     ${(currentUser && (currentUser.role === 'admin' || currentUser.role === 'koordinator')) ? `
-                        <button onclick="openCalendarReminderModal()" class="btn-primary text-xs py-2 px-3.5 rounded-xl flex items-center gap-1.5 font-bold uppercase tracking-wider shadow-xs hover:shadow-md transition-all" title="Rekapan pengingat penugasan untuk dibagikan ke tim">
+                        <button onclick="openCalendarReminderModal(window.calendarMode)" class="btn-primary text-xs py-2 px-3.5 rounded-xl flex items-center gap-1.5 font-bold uppercase tracking-wider shadow-xs hover:shadow-md transition-all" title="Rekapan pengingat penugasan untuk dibagikan ke tim">
                             <i class="fa-solid fa-bell"></i>
                             <span>Rekapan Reminder</span>
                         </button>
@@ -7366,10 +7366,10 @@ window.openCalendarReminderModal = function (scopeOverride) {
         return;
     }
 
-    if (scopeOverride) {
-        window.calendarReminderScope = scopeOverride;
-    }
-    const activeScope = window.calendarReminderScope || 'month';
+    // Prioritaskan scopeOverride jika ada (misal dari tab switch di modal),
+    // atau ikuti filter mode kalender aktif saat ini (window.calendarMode: 'month' atau 'week')
+    const activeScope = scopeOverride || window.calendarMode || 'month';
+    window.calendarReminderScope = activeScope;
 
     const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -7378,12 +7378,12 @@ window.openCalendarReminderModal = function (scopeOverride) {
     const yr = curr.getFullYear();
     const mo = curr.getMonth();
 
-    // 1. Rentang Sebulan Penuh
+    // 1. Rentang Sebulan Penuh (sesuai bulan kalender yang sedang dipilih)
     const monthStartD = new Date(yr, mo, 1, 0, 0, 0, 0);
     const monthEndD = new Date(yr, mo + 1, 0, 23, 59, 59, 999);
     const monthRangeLabel = `Bulan ${monthNames[mo]} ${yr}`;
 
-    // 2. Rentang Mingguan
+    // 2. Rentang Mingguan (sesuai minggu kalender yang sedang dipilih)
     const dayOfWeek = curr.getDay();
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const weekStartD = new Date(curr);
@@ -7394,18 +7394,22 @@ window.openCalendarReminderModal = function (scopeOverride) {
     weekEndD.setDate(weekStartD.getDate() + 6);
     weekEndD.setHours(23, 59, 59, 999);
 
+    const nowWIB = typeof getNowWIB === 'function' ? getNowWIB() : new Date();
+    const isThisWeek = nowWIB >= weekStartD && nowWIB <= weekEndD;
+    const weekLabelPrefix = isThisWeek ? 'Minggu Ini' : 'Minggu';
+
     let weekRangeLabel = '';
     let weekRangeShortLabel = '';
     if (weekStartD.getFullYear() === weekEndD.getFullYear()) {
         if (weekStartD.getMonth() === weekEndD.getMonth()) {
-            weekRangeLabel = `Minggu Ini (${weekStartD.getDate()} - ${weekEndD.getDate()} ${monthNames[weekStartD.getMonth()]} ${weekStartD.getFullYear()})`;
+            weekRangeLabel = `${weekLabelPrefix} (${weekStartD.getDate()} - ${weekEndD.getDate()} ${monthNames[weekStartD.getMonth()]} ${weekStartD.getFullYear()})`;
             weekRangeShortLabel = `${weekStartD.getDate()} - ${weekEndD.getDate()} ${monthNames[weekStartD.getMonth()].slice(0, 3)}`;
         } else {
-            weekRangeLabel = `Minggu Ini (${weekStartD.getDate()} ${monthNames[weekStartD.getMonth()]} - ${weekEndD.getDate()} ${monthNames[weekEndD.getMonth()]} ${weekStartD.getFullYear()})`;
+            weekRangeLabel = `${weekLabelPrefix} (${weekStartD.getDate()} ${monthNames[weekStartD.getMonth()]} - ${weekEndD.getDate()} ${monthNames[weekEndD.getMonth()]} ${weekStartD.getFullYear()})`;
             weekRangeShortLabel = `${weekStartD.getDate()} ${monthNames[weekStartD.getMonth()].slice(0, 3)} - ${weekEndD.getDate()} ${monthNames[weekEndD.getMonth()].slice(0, 3)}`;
         }
     } else {
-        weekRangeLabel = `Minggu Ini (${weekStartD.getDate()} ${monthNames[weekStartD.getMonth()]} ${weekStartD.getFullYear()} - ${weekEndD.getDate()} ${monthNames[weekEndD.getMonth()]} ${weekEndD.getFullYear()})`;
+        weekRangeLabel = `${weekLabelPrefix} (${weekStartD.getDate()} ${monthNames[weekStartD.getMonth()]} ${weekStartD.getFullYear()} - ${weekEndD.getDate()} ${monthNames[weekEndD.getMonth()]} ${weekEndD.getFullYear()})`;
         weekRangeShortLabel = `${weekStartD.getDate()} ${monthNames[weekStartD.getMonth()].slice(0, 3)} '${String(weekStartD.getFullYear()).slice(2)} - ${weekEndD.getDate()} ${monthNames[weekEndD.getMonth()].slice(0, 3)} '${String(weekEndD.getFullYear()).slice(2)}`;
     }
 
@@ -7677,13 +7681,13 @@ window.openCalendarReminderModal = function (scopeOverride) {
                 </div>
             </div>
 
-            <!-- Switch Mode Cakupan: Sebulan Penuh vs Minggu Ini -->
+            <!-- Switch Mode Cakupan: Bulanan vs Mingguan -->
             <div class="flex items-center gap-1.5 mb-3 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-750">
                 <button type="button" onclick="openCalendarReminderModal('month')" class="flex-1 py-1.5 px-3 rounded-lg text-center transition-all ${activeScope === 'month' ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 font-bold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}">
-                    <i class="fa-solid fa-calendar-days mr-1.5"></i>Sebulan Penuh (${monthNames[mo]} ${yr})
+                    <i class="fa-solid fa-calendar-days mr-1.5"></i>Bulanan (${monthNames[mo]} ${yr})
                 </button>
                 <button type="button" onclick="openCalendarReminderModal('week')" class="flex-1 py-1.5 px-3 rounded-lg text-center transition-all ${activeScope === 'week' ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 font-bold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}">
-                    <i class="fa-solid fa-calendar-week mr-1.5"></i>Minggu Ini (${weekRangeShortLabel})
+                    <i class="fa-solid fa-calendar-week mr-1.5"></i>Mingguan (${weekRangeShortLabel})
                 </button>
             </div>
 

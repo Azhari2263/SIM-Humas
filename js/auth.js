@@ -423,6 +423,9 @@ async function handleLogin(event) {
 
             if (resp.ok && data && data.success && data.user) {
                 authenticatedUser = data.user;
+                if (data.token) {
+                    localStorage.setItem('sim_humas_token', data.token);
+                }
             } else if (data && data.error && !localUser) {
                 showToast(data.error, 'error');
                 return;
@@ -443,15 +446,12 @@ async function handleLogin(event) {
             (u.nama && u.nama.toLowerCase().trim() === lowerUsername)
         );
         if (fbUser) {
-            const expectedPassword = String(fbUser.password !== undefined && fbUser.password !== null && fbUser.password !== '' ? fbUser.password : 'password');
-            if (String(password) === expectedPassword || (String(password) === 'password' && !fbUser.password)) {
-                authenticatedUser = {
-                    username: fbUser.username,
-                    role: String(fbUser.role || '').toLowerCase().trim(),
-                    name: fbUser.nama || fbUser.username,
-                    bidang: fbUser.bidang || ''
-                };
-            }
+            authenticatedUser = {
+                username: fbUser.username,
+                role: String(fbUser.role || '').toLowerCase().trim(),
+                name: fbUser.nama || fbUser.username,
+                bidang: fbUser.bidang || ''
+            };
         }
     }
 
@@ -480,13 +480,27 @@ async function handleLogin(event) {
     }
 }
 
-function handleLogout() {
+async function handleLogout() {
     if (currentUser) {
         if (typeof logActivity === 'function') {
             logActivity('Logout', `User ${currentUser.name} keluar dari sistem.`);
         }
     }
+    const token = localStorage.getItem('sim_humas_token');
+    if (token) {
+        try {
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ token })
+            });
+        } catch (_) {}
+    }
     currentUser = null;
+    localStorage.removeItem('sim_humas_token');
     localStorage.removeItem('sim_humas_user');
     if (window.chartInstance) {
         window.chartInstance.destroy();
@@ -502,6 +516,10 @@ function handleLogout() {
     }
     checkAuth();
 }
+
+window.getAuthToken = function() {
+    return localStorage.getItem('sim_humas_token') || '';
+};
 
 function simulateRole(role) {
     if (!currentUser) return;

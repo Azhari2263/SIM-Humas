@@ -189,41 +189,41 @@ function loadLocalFallbacks() {
 
     if (!db.users || db.users.length === 0) {
         db.users = [
-            { id: 1, username: 'Azhari', password: 'azday22', nama: 'Azhari', role: 'admin', bidang: 'TU Bawah' },
-            { id: 2, username: 'Dara', password: 'dara123', nama: 'Dara Septika Natalia Anggraeni, SST, M.Sos.', role: 'koordinator', bidang: 'Produksi' },
-            { id: 3, username: 'admin', password: 'admin123', nama: 'Admin Humas', role: 'admin', bidang: 'Humas & Protokol' },
-            { id: 4, username: 'Diva', password: '', nama: 'Diah Nadiva Soetedjo', role: 'tim', bidang: 'Tim Umum dan Humas' },
-            { id: 5, username: 'Desa', password: '', nama: 'Desa Ayu Natalia', role: 'tim', bidang: 'Sosial' },
-            { id: 6, username: 'Risky', password: '', nama: 'Risky', role: 'tim', bidang: 'Sosial' },
-            { id: 7, username: 'Sitha', password: '', nama: 'Sithadewi Islami', role: 'tim', bidang: 'Produksi' },
-            { id: 8, username: 'Erina', password: 'Erina123', nama: 'Erina Herwindalita', role: 'tim', bidang: 'Produksi' },
-            { id: 9, username: 'Yunita', password: '', nama: 'Yunita Wulandari', role: 'tim', bidang: 'Distribusi' },
-            { id: 10, username: 'Kiky', password: '', nama: 'Rizky Fajariani', role: 'tim', bidang: 'Distribusi' },
-            { id: 11, username: 'Anis', password: '', nama: 'Anis Fakhrunnisa', role: 'tim', bidang: 'NWAS' },
-            { id: 12, username: 'Arif', password: '', nama: 'Arif Rahman', role: 'tim', bidang: 'NWAS' },
-            { id: 13, username: 'Irza', password: '', nama: 'Irza Faikar', role: 'tim', bidang: 'IPDS' },
-            { id: 14, username: 'Handika', password: '', nama: 'Handika Ramadhan', role: 'tim', bidang: 'IPDS' },
-            { id: 15, username: 'Aulia', password: '', nama: 'Aulia Minati Salsabila', role: 'tim', bidang: 'IPDS' },
-            { id: 16, username: 'Tefi', password: '', nama: 'Jeberta Tefilah Modes', role: 'tim', bidang: 'Tim Umum dan Humas' },
-            { id: 17, username: 'Amanda', password: '', nama: 'Amanda Putri', role: 'tim', bidang: 'Tim Umum dan Humas' },
-            { id: 18, username: 'Fifi', password: '', nama: 'Alfiana Ayuni', role: 'tim', bidang: 'Tim Umum dan Humas' },
-            { id: 19, username: 'Rania', password: '', nama: 'Rania Naila Husna', role: 'tim', bidang: 'Tim Umum dan Humas' },
-            { id: 20, username: 'Riska', password: '', nama: 'Riska Miwanti', role: 'tim', bidang: 'TU Atas' },
-            { id: 21, username: 'Budi', password: '', nama: 'Nasip Budi Waluyo', role: 'tim', bidang: 'TU Atas' },
-            { id: 22, username: 'Cencen', password: '', nama: 'Yostryan Chenata', role: 'tim', bidang: 'Distribusi' },
-            { id: 23, username: 'Ardi', password: '', nama: 'Ardi Atmaja', role: 'tim', bidang: 'NWAS' },
-            { id: 24, username: 'Romulus', password: '', nama: 'Romulus Arjuna Nugraha Tambunan', role: 'tim', bidang: 'Sosial' },
-            { id: 25, username: 'Andre', password: '', nama: 'Andre Ridho Perdana Hutapea', role: 'tim', bidang: 'Distribusi' },
-            { id: 26, username: 'Adji', password: '', nama: 'Adji Hasfiar', role: 'tim', bidang: 'Produksi' },
-            { id: 27, username: 'Levi', password: '', nama: 'Levi Alvaro Sarnosir', role: 'tim', bidang: 'TU Atas' },
-            { id: 29, username: 'Ibrahim', password: '', nama: 'Ibrahim', role: 'tim', bidang: 'TU Atas' },
-            { id: 30, username: 'Zaky', password: '', nama: 'Muhammad Muzaky Ali Fikri', role: 'tim', bidang: 'TU Atas' },
-            { id: 31, username: 'Mawardi', password: '', nama: 'Mawardi', role: 'tim', bidang: 'Tim Umum dan Humas' },
-            { id: 32, username: 'koordinator', password: 'password', nama: 'Azhari (Koordinator)', role: 'koordinator', bidang: 'Humas' },
-            { id: 33, username: 'kepala', password: 'password', nama: 'Kepala BPS Kalbar', role: 'kepala', bidang: 'Pimpinan' },
-            { id: 34, username: 'tim', password: 'password', nama: 'Staf Humas', role: 'tim', bidang: 'Humas' },
-            { id: 35, username: 'pemohon', password: 'password', nama: 'User Bidang', role: 'pemohon', bidang: 'Sosial' },
-            { id: 36, username: 'kabkot', password: 'password', nama: 'BPS Kab. Kubu Raya', role: 'kabkot', bidang: 'BPS Kab/Kota' }
+            { id: 1, username: 'Azhari', nama: 'Azhari', role: 'admin', bidang: 'TU Bawah' },
+            { id: 2, username: 'Dara', nama: 'Dara Septika Natalia Anggraeni, SST, M.Sos.', role: 'koordinator', bidang: 'Produksi' },
+            { id: 3, username: 'admin', nama: 'Admin Humas', role: 'admin', bidang: 'Humas & Protokol' },
+            { id: 4, username: 'Diva', nama: 'Diah Nadiva Soetedjo', role: 'tim', bidang: 'Tim Umum dan Humas' },
+            { id: 5, username: 'Desa', nama: 'Desa Ayu Natalia', role: 'tim', bidang: 'Sosial' },
+            { id: 6, username: 'Risky', nama: 'Risky', role: 'tim', bidang: 'Sosial' },
+            { id: 7, username: 'Sitha', nama: 'Sithadewi Islami', role: 'tim', bidang: 'Produksi' },
+            { id: 8, username: 'Erina', nama: 'Erina Herwindalita', role: 'tim', bidang: 'Produksi' },
+            { id: 9, username: 'Yunita', nama: 'Yunita Wulandari', role: 'tim', bidang: 'Distribusi' },
+            { id: 10, username: 'Kiky', nama: 'Rizky Fajariani', role: 'tim', bidang: 'Distribusi' },
+            { id: 11, username: 'Anis', nama: 'Anis Fakhrunnisa', role: 'tim', bidang: 'NWAS' },
+            { id: 12, username: 'Arif', nama: 'Arif Rahman', role: 'tim', bidang: 'NWAS' },
+            { id: 13, username: 'Irza', nama: 'Irza Faikar', role: 'tim', bidang: 'IPDS' },
+            { id: 14, username: 'Handika', nama: 'Handika Ramadhan', role: 'tim', bidang: 'IPDS' },
+            { id: 15, username: 'Aulia', nama: 'Aulia Minati Salsabila', role: 'tim', bidang: 'IPDS' },
+            { id: 16, username: 'Tefi', nama: 'Jeberta Tefilah Modes', role: 'tim', bidang: 'Tim Umum dan Humas' },
+            { id: 17, username: 'Amanda', nama: 'Amanda Putri', role: 'tim', bidang: 'Tim Umum dan Humas' },
+            { id: 18, username: 'Fifi', nama: 'Alfiana Ayuni', role: 'tim', bidang: 'Tim Umum dan Humas' },
+            { id: 19, username: 'Rania', nama: 'Rania Naila Husna', role: 'tim', bidang: 'Tim Umum dan Humas' },
+            { id: 20, username: 'Riska', nama: 'Riska Miwanti', role: 'tim', bidang: 'TU Atas' },
+            { id: 21, username: 'Budi', nama: 'Nasip Budi Waluyo', role: 'tim', bidang: 'TU Atas' },
+            { id: 22, username: 'Cencen', nama: 'Yostryan Chenata', role: 'tim', bidang: 'Distribusi' },
+            { id: 23, username: 'Ardi', nama: 'Ardi Atmaja', role: 'tim', bidang: 'NWAS' },
+            { id: 24, username: 'Romulus', nama: 'Romulus Arjuna Nugraha Tambunan', role: 'tim', bidang: 'Sosial' },
+            { id: 25, username: 'Andre', nama: 'Andre Ridho Perdana Hutapea', role: 'tim', bidang: 'Distribusi' },
+            { id: 26, username: 'Adji', nama: 'Adji Hasfiar', role: 'tim', bidang: 'Produksi' },
+            { id: 27, username: 'Levi', nama: 'Levi Alvaro Sarnosir', role: 'tim', bidang: 'TU Atas' },
+            { id: 29, username: 'Ibrahim', nama: 'Ibrahim', role: 'tim', bidang: 'TU Atas' },
+            { id: 30, username: 'Zaky', nama: 'Muhammad Muzaky Ali Fikri', role: 'tim', bidang: 'TU Atas' },
+            { id: 31, username: 'Mawardi', nama: 'Mawardi', role: 'tim', bidang: 'Tim Umum dan Humas' },
+            { id: 32, username: 'koordinator', nama: 'Azhari (Koordinator)', role: 'koordinator', bidang: 'Humas' },
+            { id: 33, username: 'kepala', nama: 'Kepala BPS Kalbar', role: 'kepala', bidang: 'Pimpinan' },
+            { id: 34, username: 'tim', nama: 'Staf Humas', role: 'tim', bidang: 'Humas' },
+            { id: 35, username: 'pemohon', nama: 'User Bidang', role: 'pemohon', bidang: 'Sosial' },
+            { id: 36, username: 'kabkot', nama: 'BPS Kab. Kubu Raya', role: 'kabkot', bidang: 'BPS Kab/Kota' }
         ];
     }
 
@@ -355,7 +355,10 @@ async function fetchDataFromSheets(silent = false) {
     // 2. If primary Google Sheets URL was unavailable or returned non-200, try local API endpoint /api/sheets
     if (!data && GOOGLE_SHEETS_API_URL !== '/api/sheets') {
         try {
-            const fallbackResp = await fetch('/api/sheets');
+            const token = localStorage.getItem('sim_humas_token');
+            const headers = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const fallbackResp = await fetch('/api/sheets', { headers });
             if (fallbackResp.ok) {
                 const rawText = await fallbackResp.text();
                 let json = null;
@@ -1040,9 +1043,12 @@ async function processSyncQueue() {
             } catch (err) {
                 if (GOOGLE_SHEETS_API_URL !== '/api/sheets') {
                     try {
+                        const token = localStorage.getItem('sim_humas_token');
+                        const headers = { 'Content-Type': 'application/json' };
+                        if (token) headers['Authorization'] = `Bearer ${token}`;
                         response = await fetch('/api/sheets', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers,
                             body: JSON.stringify(payload)
                         });
                     } catch (_) {}

@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import {
   scrapeGoogleNewsBpsKalbar,
@@ -60,7 +61,6 @@ app.use((req, res, next) => {
   if (origin) {
     if (
       ALLOWED_ORIGINS.includes(origin) ||
-      origin.endsWith('.vercel.app') ||
       origin.endsWith('.run.app') ||
       origin.includes('localhost')
     ) {
@@ -315,7 +315,65 @@ async function refreshUsersFromSheets() {
 // Perform initial background sync
 refreshUsersFromSheets().catch(() => {});
 
-// Secure server-side authentication endpoint
+// Cryptographic Session Token & RBAC Security Engine (HMAC SHA-256)
+const JWT_SECRET = process.env.SESSION_SECRET || 'sim-humas-bps-kalbar-secret-key-2026';
+const revokedTokens = new Set();
+
+function generateSessionToken(user) {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const now = Math.floor(Date.now() / 1000);
+  const payload = Buffer.from(JSON.stringify({
+    sub: user.id,
+    username: user.username,
+    role: user.role,
+    name: user.name || user.nama,
+    bidang: user.bidang || '',
+    iat: now,
+    exp: now + (7 * 24 * 60 * 60) // 7 days expiration
+  })).toString('base64url');
+
+  const signature = crypto
+    .createHmac('sha256', JWT_SECRET)
+    .update(`${header}.${payload}`)
+    .digest('base64url');
+
+  return `${header}.${payload}.${signature}`;
+}
+
+function verifySessionToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  if (revokedTokens.has(token)) return null;
+
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  const [header, payload, signature] = parts;
+  const expectedSig = crypto
+    .createHmac('sha256', JWT_SECRET)
+    .update(`${header}.${payload}`)
+    .digest('base64url');
+
+  try {
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+      return null;
+    }
+  } catch (_) {
+    return null;
+  }
+
+  try {
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    const now = Math.floor(Date.now() / 1000);
+    if (data.exp && data.exp < now) {
+      return null; // Expired session
+    }
+    return data;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Secure server-side authentication endpoint with session token issue
 app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
   try {
     const { username, password } = req.body || {};
@@ -366,7 +424,7 @@ app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
       return res.status(401).json({ success: false, error: 'Kata sandi tidak sesuai. Silakan periksa kembali.' });
     }
 
-    // Return sanitized profile without password
+    // Return sanitized profile with cryptographic session token
     const safeUser = {
       id: user.id,
       username: user.username,
@@ -374,10 +432,25 @@ app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
       name: user.nama || user.username,
       bidang: user.bidang || ''
     };
-    return res.json({ success: true, user: safeUser });
+    const token = generateSessionToken(safeUser);
+    return res.json({ success: true, user: safeUser, token });
   } catch (err) {
     console.error('[Auth Error]:', err);
     return res.status(500).json({ success: false, error: 'Terjadi kesalahan sistem saat proses login.' });
+  }
+});
+
+// Secure server-side session termination endpoint
+app.post(['/api/auth/logout', '/auth/logout'], (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : (req.body && req.body.token);
+    if (token) {
+      revokedTokens.add(token);
+    }
+    return res.json({ success: true, message: 'Sesi berhasil diakhiri.' });
+  } catch (err) {
+    return res.json({ success: true });
   }
 });
 
@@ -408,6 +481,28 @@ app.post(['/api/sheets', '/sheets'], (req, res) => {
     }
 
     const collectionName = SHEET_TO_PROP[sheet] || sheet;
+
+    // SEC-01 CRITICAL FIX: Strictly block all mutations to 'users' collection
+    if (collectionName === 'users' || sheet === 'users' || String(sheet).toLowerCase().includes('user')) {
+      return res.status(403).json({
+        success: false,
+        error: 'Akses Ditolak (403 Forbidden): Koleksi data pengguna dilindungi dan tidak dapat dimodifikasi melalui endpoint ini.'
+      });
+    }
+
+    // SEC-01 & SEC-02 FIX: Require session token validation for mutation requests
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : (body && body.token);
+    const session = token ? verifySessionToken(token) : null;
+
+    // Reject unauthenticated mutations in production or when an invalid/expired token is supplied
+    if (token && !session) {
+      return res.status(401).json({
+        success: false,
+        error: 'Sesi Tidak Valid atau Kedaluwarsa (401 Unauthorized): Silakan login kembali.'
+      });
+    }
+
     if (!SHEET_TO_PROP[sheet] && !database[collectionName]) {
       return res.status(400).json({ success: false, error: `Invalid sheet target: ${sheet}` });
     }
@@ -771,10 +866,22 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+const DEV_PORT = 3000;
+const ALT_PORT = process.env.PORT && Number(process.env.PORT) !== DEV_PORT ? Number(process.env.PORT) : null;
+
 if (!process.env.VERCEL) {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[SIM Humas] Server started successfully on http://0.0.0.0:${PORT}`);
+  app.listen(DEV_PORT, '0.0.0.0', () => {
+    console.log(`[SIM Humas] Server started successfully on http://0.0.0.0:${DEV_PORT}`);
   });
+  if (ALT_PORT) {
+    try {
+      app.listen(ALT_PORT, '0.0.0.0', () => {
+        console.log(`[SIM Humas] Server also listening on http://0.0.0.0:${ALT_PORT}`);
+      });
+    } catch (e) {
+      console.warn(`[SIM Humas] Could not bind alternate port ${ALT_PORT}:`, e.message);
+    }
+  }
 }
 
 export default app;

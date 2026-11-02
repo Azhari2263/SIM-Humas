@@ -10,7 +10,7 @@ function doGet(e) {
     tickets: getSheetData(sheet, 'tickets', ["id", "pengaju", "bidang", "jenis", "judul", "deadline", "detail", "status", "pic"]),
     assets: getSheetData(sheet, 'assets', ["id", "nama", "kategori", "jumlah", "kondisi", "lokasi"]),
     monitoring: getSheetData(sheet, 'monitoring', ["id", "media", "judul", "tanggal", "sentimen", "ringkasan", "url"]),
-    users: getSheetData(sheet, 'users', ["id", "username", "password", "nama", "role", "bidang"]),
+    users: getSheetData(sheet, 'users', ["id", "username", "nama", "role", "bidang"]),
     rekapRutin: getSheetData(sheet, 'rekap_rutin', ["id", "tanggal", "hari", "rubrikasi", "kegiatan", "petugas", "status"]),
     adHoc: getSheetData(sheet, 'ad_hoc_2026', ["id", "tanggal", "hari", "kegiatan", "jumlah_bertugas", "petugas", "keterangan", "status"]),
     protokoler: getSheetData(sheet, 'protokoler', ["id", "tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"]),

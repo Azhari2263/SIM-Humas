@@ -223,10 +223,14 @@
         } catch (err) {
             cachedAccessToken = null;
             if (err.code === 'auth/popup-closed-by-user') {
-                throw new Error('Jendela login Google ditutup sebelum otorisasi selesai. Silakan coba kembali.');
+                const cancelErr = new Error('Jendela login Google ditutup sebelum otorisasi selesai. Silakan coba kembali.');
+                cancelErr.code = 'auth/popup-closed-by-user';
+                throw cancelErr;
             }
             if (err.code === 'auth/popup-blocked') {
-                throw new Error('Jendela popup Google diblokir browser. Mohon izinkan popup untuk situs ini.');
+                const blockedErr = new Error('Jendela popup Google diblokir browser. Mohon izinkan popup untuk situs ini.');
+                blockedErr.code = 'auth/popup-blocked';
+                throw blockedErr;
             }
 
             // Jika domain deployment belum diotorisasi di Firebase Authentication
