@@ -384,75 +384,31 @@ async function handleLogin(event) {
     }
 
     let authenticatedUser = null;
-    const lowerUsername = username.toLowerCase();
 
-    // 1. Direct check against client database (loaded from Google Sheets / localStorage)
-    const userList = (db && db.users && Array.isArray(db.users) && db.users.length > 0) 
-        ? db.users 
-        : (JSON.parse(localStorage.getItem('sim_humas_db_users') || '[]'));
-        
-    const localUser = userList.find(u => 
-        (u.username && u.username.toLowerCase().trim() === lowerUsername) ||
-        (u.nama && u.nama.toLowerCase().trim() === lowerUsername)
-    );
+    try {
+        const resp = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await resp.json().catch(() => null);
 
-    if (localUser) {
-        const expectedPassword = String(localUser.password !== undefined && localUser.password !== null && localUser.password !== '' ? localUser.password : 'password');
-        const isMatch = (String(password) === expectedPassword) || 
-                        (String(password) === 'password' && !localUser.password) ||
-                        (lowerUsername === 'admin' && (String(password) === 'admin123' || String(password) === 'password'));
-        if (isMatch) {
-            authenticatedUser = {
-                username: localUser.username,
-                role: String(localUser.role || '').toLowerCase().trim(),
-                name: localUser.nama || localUser.username,
-                bidang: localUser.bidang || ''
-            };
-        }
-    }
-
-    // 2. If not authenticated from client memory, attempt server authentication
-    if (!authenticatedUser) {
-        try {
-            const resp = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await resp.json().catch(() => null);
-
-            if (resp.ok && data && data.success && data.user) {
-                authenticatedUser = data.user;
-                if (data.token) {
-                    localStorage.setItem('sim_humas_token', data.token);
-                }
-            } else if (data && data.error && !localUser) {
-                showToast(data.error, 'error');
-                return;
+        if (resp.ok && data && data.success && data.user) {
+            authenticatedUser = data.user;
+            if (data.token) {
+                localStorage.setItem('sim_humas_token', data.token);
             }
-        } catch (netErr) {
-            console.warn('[Auth] Server login endpoint unavailable:', netErr.message);
+        } else if (data && data.error) {
+            showToast(data.error, 'error');
+            return;
+        } else {
+            showToast('Kombinasi nama pengguna dan kata sandi tidak sesuai.', 'error');
+            return;
         }
-    }
-
-    // 3. Fallback to hardcoded/offline seed data if completely offline and not authenticated
-    if (!authenticatedUser) {
-        if (typeof loadLocalFallbacks === 'function') {
-            loadLocalFallbacks();
-        }
-        const fallbackUsers = (db && db.users && Array.isArray(db.users)) ? db.users : [];
-        const fbUser = fallbackUsers.find(u => 
-            (u.username && u.username.toLowerCase().trim() === lowerUsername) ||
-            (u.nama && u.nama.toLowerCase().trim() === lowerUsername)
-        );
-        if (fbUser) {
-            authenticatedUser = {
-                username: fbUser.username,
-                role: String(fbUser.role || '').toLowerCase().trim(),
-                name: fbUser.nama || fbUser.username,
-                bidang: fbUser.bidang || ''
-            };
-        }
+    } catch (netErr) {
+        console.warn('[Auth] Server login endpoint unavailable:', netErr.message);
+        showToast('Koneksi ke server autentikasi gagal. Pastikan koneksi internet aktif.', 'error');
+        return;
     }
 
     if (!authenticatedUser) {

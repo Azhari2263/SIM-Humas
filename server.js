@@ -885,17 +885,20 @@ const DEV_PORT = 3000;
 const ALT_PORT = process.env.PORT && Number(process.env.PORT) !== DEV_PORT ? Number(process.env.PORT) : null;
 
 if (!process.env.VERCEL) {
-  app.listen(DEV_PORT, '0.0.0.0', () => {
-    console.log(`[SIM Humas] Server started successfully on http://0.0.0.0:${DEV_PORT}`);
+  const server3000 = app.listen(DEV_PORT, '0.0.0.0', () => {
+    console.log(`[SIM Humas] Server running on http://0.0.0.0:${DEV_PORT}`);
   });
+  server3000.on('error', (err) => {
+    console.error(`[SIM Humas] Error on port ${DEV_PORT}:`, err.message);
+  });
+
   if (ALT_PORT) {
-    try {
-      app.listen(ALT_PORT, '0.0.0.0', () => {
-        console.log(`[SIM Humas] Server also listening on http://0.0.0.0:${ALT_PORT}`);
-      });
-    } catch (e) {
-      console.warn(`[SIM Humas] Could not bind alternate port ${ALT_PORT}:`, e.message);
-    }
+    const altServer = app.listen(ALT_PORT, '0.0.0.0', () => {
+      console.log(`[SIM Humas] Server also running on http://0.0.0.0:${ALT_PORT}`);
+    });
+    altServer.on('error', (err) => {
+      console.warn(`[SIM Humas] Could not bind alternate port ${ALT_PORT}:`, err.message);
+    });
   }
 }
 

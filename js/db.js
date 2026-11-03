@@ -1043,13 +1043,13 @@ async function processSyncQueue() {
             } catch (err) {
                 if (GOOGLE_SHEETS_API_URL !== '/api/sheets') {
                     try {
-                        const token = localStorage.getItem('sim_humas_token');
+                        const token = localStorage.getItem('sim_humas_token') || '';
                         const headers = { 'Content-Type': 'application/json' };
                         if (token) headers['Authorization'] = `Bearer ${token}`;
                         response = await fetch('/api/sheets', {
                             method: 'POST',
                             headers,
-                            body: JSON.stringify(payload)
+                            body: JSON.stringify({ ...payload, token })
                         });
                     } catch (_) {}
                 }

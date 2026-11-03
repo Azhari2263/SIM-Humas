@@ -2795,7 +2795,57 @@ function drawRutinTable() {
         });
     }
 
-    filtered.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+    // Helper untuk mengekstrak timestamp tanggal dan waktu secara presisi
+    const getRutinItemTimestamp = (item, defaultVal) => {
+        if (!item) return defaultVal;
+        const dateStr = item.tanggal || item.jadwal || item.tanggal_posting || '';
+        if (!dateStr) return defaultVal;
+
+        const timeStr = item.waktu || item.jam || item.jam_mulai || item.jam_posting || item.jam_selesai || item.pukul || null;
+
+        if (typeof parseDateTimeWIB === 'function') {
+            const dt = parseDateTimeWIB(dateStr, timeStr, false);
+            if (dt && !isNaN(dt.getTime())) return dt.getTime();
+        }
+
+        if (typeof parseIndonesianDate === 'function') {
+            const dt = parseIndonesianDate(dateStr);
+            if (dt && !isNaN(dt.getTime())) return dt.getTime();
+        }
+
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) return d.getTime();
+
+        return defaultVal;
+    };
+
+    // Urutkan untuk status Ditugaskan dari tanggal dan waktu yang paling dekat
+    filtered.sort((a, b) => {
+        const statusA = (a.status || 'Ditugaskan').trim();
+        const statusB = (b.status || 'Ditugaskan').trim();
+
+        const isDitugaskanA = statusA === 'Ditugaskan' || statusA === 'Sedang Dikerjakan';
+        const isDitugaskanB = statusB === 'Ditugaskan' || statusB === 'Sedang Dikerjakan';
+
+        // 1. Prioritaskan status Ditugaskan di atas status lainnya (seperti Selesai)
+        if (isDitugaskanA !== isDitugaskanB) {
+            return isDitugaskanA ? -1 : 1;
+        }
+
+        // 2. Untuk status Ditugaskan: urutkan dari tanggal dan waktu yang paling dekat (terdekat paling atas)
+        if (isDitugaskanA && isDitugaskanB) {
+            const timeA = getRutinItemTimestamp(a, Infinity);
+            const timeB = getRutinItemTimestamp(b, Infinity);
+            if (timeA !== timeB) return timeA - timeB;
+            return (Number(a.id) || 0) - (Number(b.id) || 0);
+        }
+
+        // 3. Untuk status lainnya (misal Selesai): urutkan dari tanggal terbaru ke terlama (descending)
+        const timeA = getRutinItemTimestamp(a, 0);
+        const timeB = getRutinItemTimestamp(b, 0);
+        if (timeA !== timeB) return timeB - timeA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+    });
 
     const isKepala = currentUser.role === 'kepala';
 
