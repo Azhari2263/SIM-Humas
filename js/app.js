@@ -556,6 +556,8 @@ function getItemByTypeAndId(type, id) {
         'hari_besar': 'hari_besar',
         'team': 'team',
         'user_manager': 'users',
+        'user_management': 'users',
+        'users': 'users',
         'assignment': 'assignments',
         'tickets': 'tickets',
         'monitoring': 'monitoring',
@@ -689,6 +691,17 @@ function handleBottomNavPrimary() {
     }
 }
 window.handleBottomNavPrimary = handleBottomNavPrimary;
+
+function handleBottomNavTeam() {
+    if (!currentUser) return;
+    const role = currentUser.role;
+    if (role === 'tim') {
+        router('rekap_kegiatan');
+    } else {
+        router('team');
+    }
+}
+window.handleBottomNavTeam = handleBottomNavTeam;
 
 // Global System Notifications (Per-User Targeting)
 function addNotification(title, message, target = 'all') {
@@ -2128,32 +2141,54 @@ function getModalFieldsHTML(type, item) {
         `;
     } else if (type === 'user_manager') {
         return `
-            <div class="space-y-4 text-slate-700 dark:text-slate-355">
+            <div class="space-y-4 text-slate-700 dark:text-slate-300">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama Lengkap <span class="text-rose-500">*</span></label>
-                    <input type="text" id="nama" value="${item?.nama || ''}" class="w-full px-4 py-2 bg-white dark:bg-slate-755 border border-slate-205 rounded-lg text-xs font-medium" placeholder="Contoh: Rian Komputer" required>
+                    <input type="text" id="nama" value="${escapeHtml(item?.nama || '')}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-white" placeholder="Contoh: Rian Komputer" required>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Username <span class="text-rose-500">*</span></label>
-                        <input type="text" id="username" value="${item?.username || ''}" ${item?.username === 'admin' ? 'readonly' : ''} class="w-full px-4 py-2 bg-white dark:bg-slate-755 border border-slate-205 rounded-lg text-xs font-medium" placeholder="username" required>
+                        <input type="text" id="username" value="${escapeHtml(item?.username || '')}" ${item?.username === 'admin' ? 'readonly' : ''} class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-white" placeholder="Contoh: rian22" required>
+                        <p class="text-[10px] text-slate-400 mt-1">Username digunakan untuk masuk (login) ke sistem.</p>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Kata Sandi (Password)</label>
-                        <input type="text" id="user_password" value="${item?.password || 'password'}" class="w-full px-4 py-2 bg-white dark:bg-slate-755 border border-slate-205 rounded-lg text-xs font-mono" placeholder="Default: password">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Kata Sandi (Password)</label>
+                        </div>
+                        <div class="relative">
+                            <input type="password" id="user_password" value="${escapeHtml(item?.password || 'password')}" class="w-full pl-3 pr-10 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-800 dark:text-white" placeholder="Default: password">
+                            <button type="button" onclick="const p=document.getElementById('user_password'); const icon=this.querySelector('i'); if(p.type==='password'){p.type='text';icon.className='fa-regular fa-eye-slash text-xs';}else{p.type='password';icon.className='fa-regular fa-eye text-xs';}" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white" title="Lihat/Sembunyikan Sandi">
+                                <i class="fa-regular fa-eye text-xs"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1.5 mt-1.5">
+                            <button type="button" onclick="document.getElementById('user_password').value='password'; showToast('Password direset ke default: password', 'info');" class="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                Default (password)
+                            </button>
+                            <span class="text-slate-300 dark:text-slate-600">&bull;</span>
+                            <button type="button" onclick="const rnd='BpsKalbar' + Math.floor(100 + Math.random() * 900); document.getElementById('user_password').value=rnd; document.getElementById('user_password').type='text'; showToast('Sandi acak dibuat: ' + rnd, 'info');" class="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                Acak Sandi
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Seksi/Bidang Kerja</label>
-                        <select id="bidang" class="w-full px-4 py-2 bg-white dark:bg-slate-755 border border-slate-205 rounded-lg text-xs">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Seksi / Bidang Kerja</label>
+                        <select id="bidang" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-white font-medium">
                             <option value="">Pilih Bidang...</option>
-                            ${db.masterData.filter(m => m.kategori === 'Bidang').map(m => `<option ${item?.bidang === m.nama ? 'selected' : ''} value="${m.nama}">${m.nama}</option>`).join('')}
+                            ${Array.from(new Set([
+                                'TU Bawah', 'TU Atas', 'Produksi', 'Sosial', 'Distribusi', 'NWAS', 'IPDS', 
+                                'Humas & Protokol', 'Tim Umum dan Humas', 'Pimpinan', 'BPS Kab/Kota',
+                                ...db.masterData.filter(m => m.kategori === 'Bidang').map(m => m.nama),
+                                ...(db.users || []).map(u => u.bidang).filter(Boolean)
+                            ])).sort().map(b => `<option ${item?.bidang === b ? 'selected' : ''} value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('')}
                         </select>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Hak Akses Peran (Role)</label>
-                        <select id="role" class="w-full px-4 py-2 bg-white dark:bg-slate-755 border border-slate-205 rounded-lg text-xs">
+                        <select id="role" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-white font-bold">
                             <option ${item?.role === 'admin' ? 'selected' : ''} value="admin">Administrator Sistem</option>
                             <option ${item?.role === 'kepala' ? 'selected' : ''} value="kepala">Kepala BPS</option>
                             <option ${item?.role === 'koordinator' ? 'selected' : ''} value="koordinator">Koordinator Humas</option>
@@ -3290,6 +3325,26 @@ async function saveData(event) {
         console.error('Sync error:', err);
     });
 
+    // Sinkronisasi khusus akun pengguna ke endpoint admin server
+    if (currentModalType === 'user_manager' || sheetName === 'users') {
+        const adminToken = localStorage.getItem('sim_humas_token');
+        if (adminToken) {
+            fetch('/api/admin/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${adminToken}`
+                },
+                body: JSON.stringify({ action, user: item })
+            }).then(r => r.json()).then(res => {
+                if (res && res.users) {
+                    db.users = res.users;
+                    saveLocalFallback('users');
+                }
+            }).catch(e => console.warn('[Admin User Sync] Background error:', e));
+        }
+    }
+
     // Otomatis sinkronisasi tugas Content Planner yang selesai ke Rekap Rutin
     if (currentModalType === 'content' && typeof window.syncCompletedContentToRekapRutin === 'function') {
         window.syncCompletedContentToRekapRutin(db, item, true);
@@ -3297,7 +3352,7 @@ async function saveData(event) {
 
     setSubmitLoading(false);
     closeModal();
-    showToast('Data berhasil disimpan lokal (Sedang disinkronkan)...');
+    showToast('Data berhasil disimpan!');
     router(currentState);
 }
 
@@ -3328,6 +3383,14 @@ function deleteItem(type, id) {
     const item = db[varName]?.find(i => Number(i.id) === Number(id));
     const itemDesc = item ? (item.judul || item.kegiatan || item.nama || item.hari_besar || item.media || `ID ${id}`) : `ID ${id}`;
 
+    // Proteksi akun administrator utama dan akun yang sedang digunakan
+    if (type === 'users' || sheetName === 'users') {
+        if (item && (item.username === 'admin' || (currentUser && currentUser.username === item.username))) {
+            showToast('Akun Administrator utama atau akun Anda yang sedang aktif tidak dapat dihapus!', 'warning');
+            return;
+        }
+    }
+
     showConfirmModal(
         `Data "<strong>${itemDesc}</strong>" akan dihapus secara permanen dari database dan tidak dapat dikembalikan.`,
         () => {
@@ -3335,6 +3398,22 @@ function deleteItem(type, id) {
             sendDataToServer('delete', sheetName, { id: Number(id) }).catch(err => {
                 console.error('Delete sync error:', err);
             });
+
+            // Sinkronisasi hapus akun pengguna ke endpoint admin server
+            if (type === 'users' || sheetName === 'users') {
+                const adminToken = localStorage.getItem('sim_humas_token');
+                if (adminToken) {
+                    fetch('/api/admin/users', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${adminToken}`
+                        },
+                        body: JSON.stringify({ action: 'delete', user: { id: Number(id) } })
+                    }).catch(console.error);
+                }
+            }
+
             showToast('Data berhasil dihapus!');
             router(currentState);
         },
@@ -4034,10 +4113,10 @@ window.debounce = debounce;
 function router(page) {
     if (!currentUser) return;
     const allowedPages = {
-        admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'settings', 'assignment', 'repository'],
+        admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'settings', 'assignment', 'repository', 'user_management', 'reset_credentials'],
         kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository'],
-        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository'],
-        tim: ['dashboard', 'calendar', 'assignment', 'rekap_kegiatan', 'monitoring', 'repository'],
+        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository', 'reset_credentials'],
+        tim: ['dashboard', 'calendar', 'assignment', 'rekap_kegiatan', 'monitoring', 'repository', 'reset_credentials'],
         pemohon: ['dashboard', 'tickets'],
         kabkot: ['repository', 'team']
     };
@@ -4082,19 +4161,45 @@ function router(page) {
         const primaryLabel = document.getElementById('bottom-nav-primary-label');
         const primaryBtn = document.getElementById('bottom-nav-primary-btn');
 
+        const teamBtn = document.getElementById('bottom-nav-team-btn');
+        const teamIcon = document.getElementById('bottom-nav-team-icon');
+        const teamLabel = document.getElementById('bottom-nav-team-label');
+
         if (currentUser) {
             if (currentUser.role === 'tim') {
                 if (primaryIcon) primaryIcon.className = 'fa-solid fa-clipboard-list text-base transition-transform';
                 if (primaryLabel) primaryLabel.textContent = 'Tugas';
                 if (primaryBtn) primaryBtn.dataset.page = 'assignment';
+
+                // Khusus role tim: ganti menu Direktori Tim dengan menu SLA & Rekap Tugas pada widget navigasi mobile
+                if (teamBtn) {
+                    teamBtn.dataset.page = 'rekap_kegiatan';
+                    teamBtn.title = 'SLA & Rekap Tugas';
+                }
+                if (teamIcon) teamIcon.className = 'fa-solid fa-chart-simple text-base transition-transform';
+                if (teamLabel) teamLabel.textContent = 'SLA & Rekap Tugas';
             } else if (currentUser.role === 'koordinator') {
                 if (primaryIcon) primaryIcon.className = 'fa-solid fa-list-check text-base transition-transform';
                 if (primaryLabel) primaryLabel.textContent = 'Planner';
                 if (primaryBtn) primaryBtn.dataset.page = 'planner';
+
+                if (teamBtn) {
+                    teamBtn.dataset.page = 'team';
+                    teamBtn.title = 'Direktori Tim';
+                }
+                if (teamIcon) teamIcon.className = 'fa-solid fa-users text-base transition-transform';
+                if (teamLabel) teamLabel.textContent = 'Tim';
             } else {
                 if (primaryIcon) primaryIcon.className = 'fa-solid fa-ticket text-base transition-transform';
                 if (primaryLabel) primaryLabel.textContent = 'Layanan';
                 if (primaryBtn) primaryBtn.dataset.page = 'tickets';
+
+                if (teamBtn) {
+                    teamBtn.dataset.page = 'team';
+                    teamBtn.title = 'Direktori Tim';
+                }
+                if (teamIcon) teamIcon.className = 'fa-solid fa-users text-base transition-transform';
+                if (teamLabel) teamLabel.textContent = 'Tim';
             }
         }
 
@@ -4176,6 +4281,8 @@ function router(page) {
         case 'settings': renderSettingsPage(contentDiv); break;
         case 'assignment': renderAssignmentPage(contentDiv); break;
         case 'repository': renderRepository(contentDiv); break;
+        case 'user_management': renderUserManagement(contentDiv); break;
+        case 'reset_credentials': renderResetCredentialsPage(contentDiv); break;
     }
 
     // Restore scroll position if re-rendering same page (after save/delete)

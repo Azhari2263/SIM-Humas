@@ -1,5 +1,8 @@
 // Authentication and Role-Based Access Control (RBAC) System
 let currentUser = JSON.parse(localStorage.getItem('sim_humas_user')) || null;
+if (currentUser && !currentUser.nama && currentUser.name) {
+    currentUser.nama = currentUser.name;
+}
 
 function checkAuth() {
     if (!currentUser) {
@@ -417,14 +420,16 @@ async function handleLogin(event) {
     }
 
     currentUser = { 
+        id: authenticatedUser.id,
         username: authenticatedUser.username, 
         role: String(authenticatedUser.role || '').toLowerCase().trim(), 
-        name: authenticatedUser.name || authenticatedUser.nama || authenticatedUser.username,
+        name: authenticatedUser.nama || authenticatedUser.name || authenticatedUser.username,
+        nama: authenticatedUser.nama || authenticatedUser.name || authenticatedUser.username,
         bidang: authenticatedUser.bidang || '' 
     };
     
     localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
-    showToast('Selamat datang, ' + (currentUser.name || currentUser.username) + '!');
+    showToast('Selamat datang, ' + (currentUser.nama || currentUser.name || currentUser.username) + '!');
     
     if (window.logActivity) {
         logActivity('Login', `User ${currentUser.name} masuk sebagai ${getRoleLabel(currentUser.role)}.`);
@@ -526,6 +531,24 @@ function updateUserProfileUI() {
 
     // Update sidebar buttons visibility based on role
     updateSidebarVisibility();
+
+    // Update Mobile Bottom Bar role-specific widgets
+    const teamBtn = document.getElementById('bottom-nav-team-btn');
+    const teamIcon = document.getElementById('bottom-nav-team-icon');
+    const teamLabel = document.getElementById('bottom-nav-team-label');
+    if (teamBtn) {
+        if (currentUser.role === 'tim') {
+            teamBtn.dataset.page = 'rekap_kegiatan';
+            teamBtn.title = 'SLA & Rekap Tugas';
+            if (teamIcon) teamIcon.className = 'fa-solid fa-chart-simple text-base transition-transform';
+            if (teamLabel) teamLabel.textContent = 'SLA & Rekap Tugas';
+        } else {
+            teamBtn.dataset.page = 'team';
+            teamBtn.title = 'Direktori Tim';
+            if (teamIcon) teamIcon.className = 'fa-solid fa-users text-base transition-transform';
+            if (teamLabel) teamLabel.textContent = 'Tim';
+        }
+    }
 }
 
 function getRoleLabel(role) {

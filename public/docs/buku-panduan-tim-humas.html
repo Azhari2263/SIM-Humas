@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buku Panduan Khusus Tim Pelaksana Humas [Google Docs & Cetak A4]</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #0d9488;
+            --accent: #14b8a6;
+            --border: #e2e8f0;
+            --gdocs-blue: #1a73e8;
+            --gdocs-border: #dadce0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+            color: #202124;
+            background-color: #f8f9fa;
+            line-height: 1.6;
+            font-size: 13px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* ================= GOOGLE DOCS TOP APPLICATION HEADER ================= */
+        .gdocs-header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: #ffffff;
+            border-bottom: 1px solid var(--gdocs-border);
+            box-shadow: 0 1px 3px rgba(60,64,67,0.08);
+        }
+        .gdocs-top-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 18px;
+            gap: 16px;
+        }
+        .gdocs-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+        .gdocs-title-block {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .gdocs-title-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .gdocs-doc-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #202124;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .gdocs-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            color: #5f6368;
+            background: #f1f3f4;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .gdocs-menubar {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 12px;
+            color: #3c4043;
+            margin-top: 2px;
+        }
+        .gdocs-menu-item {
+            padding: 2px 7px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .gdocs-menu-item:hover { background: #f1f3f4; }
+        .gdocs-actions-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .gdocs-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid transparent;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .gdocs-btn-primary {
+            background: #1a73e8;
+            color: white;
+            box-shadow: 0 1px 3px rgba(26,115,232,0.3);
+        }
+        .gdocs-btn-primary:hover { background: #1557b0; }
+        .gdocs-btn-outline {
+            background: #ffffff;
+            color: #1a73e8;
+            border-color: #dadce0;
+        }
+        .gdocs-btn-outline:hover { background: #e8f0fe; }
+        .gdocs-btn-ghost { background: #f1f3f4; color: #3c4043; }
+        .gdocs-btn-ghost:hover { background: #e8eaed; }
+
+        /* TOOLBAR */
+        .gdocs-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 18px;
+            background: #edf2fa;
+            border-top: 1px solid #e0e0e0;
+            border-bottom: 1px solid var(--gdocs-border);
+            overflow-x: auto;
+            scrollbar-width: thin;
+        }
+        .gdocs-tool-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 26px;
+            padding: 0 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #444746;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+        }
+        .gdocs-tool-btn:hover { background: #d3e3fd; color: #041e49; }
+        .gdocs-tool-separator { width: 1px; height: 18px; background: #c7c7c7; margin: 0 4px; }
+
+        /* WORKSPACE BODY */
+        .gdocs-app-body {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px 16px 60px 16px;
+            gap: 24px;
+        }
+        .gdocs-outline-sidebar {
+            width: 250px;
+            background: #ffffff;
+            border: 1px solid var(--gdocs-border);
+            border-radius: 10px;
+            padding: 16px 14px;
+            position: sticky;
+            top: 115px;
+            max-height: calc(100vh - 135px);
+            overflow-y: auto;
+            box-shadow: 0 1px 3px rgba(60,64,67,0.06);
+            flex-shrink: 0;
+        }
+        .gdocs-outline-title {
+            font-size: 11px;
+            font-weight: 800;
+            color: #5f6368;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .gdocs-outline-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #3c4043;
+            text-decoration: none;
+            line-height: 1.4;
+            transition: all 0.15s;
+            margin-bottom: 2px;
+        }
+        .gdocs-outline-link:hover { background: #e8f0fe; color: #1a73e8; }
+
+        .document-wrapper { width: 210mm; background: transparent; }
+
+        .gdocs-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #202124;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 9999;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
+            max-width: 90vw;
+        }
+        .gdocs-toast.show { transform: translateX(-50%) translateY(0); }
+            align-items: center;
+            gap: 8px;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 800;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-primary { background: #0d9488; color: white; }
+        .btn-secondary { background: rgba(255,255,255,0.15); color: white; }
+        .document-wrapper {
+            max-width: 210mm;
+            margin: 24px auto 60px auto;
+            background: white;
+            box-shadow: 0 12px 48px rgba(0,0,0,0.1);
+        }
+        .a4-page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 18mm 18mm 22mm 18mm;
+            margin: 0 auto;
+            position: relative;
+            background: white;
+            page-break-after: always;
+            break-after: page;
+        }
+        .cover-page {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 297mm;
+            padding: 26mm 20mm 20mm 20mm;
+            background: radial-gradient(circle at 80% 20%, #0d9488 0%, #042f2e 80%);
+            color: white;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+            font-size: 8.5px;
+            font-weight: 800;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+        .page-footer {
+            position: absolute;
+            bottom: 10mm;
+            left: 18mm;
+            right: 18mm;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid var(--border);
+            padding-top: 8px;
+            font-size: 8.5px;
+            color: #94a3b8;
+            font-weight: 700;
+        }
+        h2 { font-size: 17px; color: #0d9488; border-left: 4.5px solid #0d9488; padding-left: 10px; margin: 18px 0 10px 0; display: flex; align-items: center; gap: 8px; }
+        h3 { font-size: 13.5px; margin: 12px 0 6px 0; font-weight: 800; color: #134e4a; }
+        p { margin-bottom: 8px; text-align: justify; }
+        .step-item { display: flex; gap: 10px; margin-bottom: 10px; }
+        .step-number { width: 22px; height: 22px; border-radius: 50%; background: #0d9488; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 10.5px; flex-shrink: 0; }
+        .callout-box { background: #f0fdfa; border-left: 4px solid #14b8a6; border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 12px 0; font-size: 12px; }
+        table.doc-table { width: 100%; border-collapse: collapse; margin: 10px 0 14px 0; font-size: 11.5px; }
+        table.doc-table th, table.doc-table td { border: 1px solid #cbd5e1; padding: 7px 9px; }
+        table.doc-table th { background: #f1f5f9; font-weight: 800; font-size: 10.5px; text-transform: uppercase; }
+
+        .ui-mockup-card { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; overflow: hidden; margin: 10px 0 14px 0; }
+        .ui-mockup-bar { background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 6px 12px; display: flex; align-items: center; justify-content: space-between; font-size: 10px; font-weight: 800; color: #475569; }
+        .ui-mockup-body { padding: 10px; background: #ffffff; }
+
+        .badge { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-green { background: #d1fae5; color: #065f46; }
+        .badge-amber { background: #fef3c7; color: #92400e; }
+        .badge-purple { background: #ede9fe; color: #5b21b6; }
+
+        @media print {
+            body { background: white !important; font-size: 10.5pt; }
+            .no-print { display: none !important; }
+            .document-wrapper { margin: 0 !important; box-shadow: none !important; width: 100% !important; }
+            .a4-page { margin: 0 !important; padding: 15mm 15mm 18mm 15mm !important; width: 100% !important; min-height: 297mm !important; page-break-after: always !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- GOOGLE DOCS TOP APPLICATION HEADER -->
+    <header class="gdocs-header no-print">
+        <div class="gdocs-top-row">
+            <div class="gdocs-brand">
+                <svg width="26" height="32" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+                    <path d="M15 0H3C1.35 0 0.015 1.35 0.015 3L0 25C0 26.65 1.335 28 2.985 28H21C22.65 28 24 26.65 24 25V9L15 0Z" fill="#4285F4"/>
+                    <path d="M15 0V9H24L15 0Z" fill="#A1C2FA"/>
+                    <path d="M18 15H6V13H18V15ZM18 19H6V17H18V19ZM14 23H6V21H14V23Z" fill="white"/>
+                </svg>
+                <div class="gdocs-title-block">
+                    <div class="gdocs-title-row">
+                        <span class="gdocs-doc-title">Buku Panduan Khusus Tim Pelaksana Humas [Google Docs]</span>
+                        <span class="gdocs-status-pill">
+                            <i class="fa-solid fa-cloud-check" style="color: #1a73e8;"></i> Disimpan di Drive
+                        </span>
+                        <button onclick="toggleStar(this)" title="Bintang" style="background:none;border:none;cursor:pointer;color:#5f6368;font-size:13px;">
+                            <i class="fa-regular fa-star"></i>
+                        </button>
+                    </div>
+                    <nav class="gdocs-menubar">
+                        <span class="gdocs-menu-item" onclick="openInGoogleDocs()">File</span>
+                        <span class="gdocs-menu-item" onclick="openInGoogleDocs()">Edit di Google Docs</span>
+                        <span class="gdocs-menu-item" onclick="toggleOutline()">Tampilan</span>
+                        <span class="gdocs-menu-item" onclick="window.print()">Cetak (A4)</span>
+                        <span class="gdocs-menu-item" onclick="downloadAsDocx()">Download (.docx)</span>
+                        <span class="gdocs-menu-item" onclick="copyDocumentLink()">Salin Tautan</span>
+                    </nav>
+                </div>
+            </div>
+
+            <div class="gdocs-actions-row">
+                <button onclick="openInGoogleDocs()" class="gdocs-btn gdocs-btn-primary" title="Buka dan sunting di Google Docs (docs.new)">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka di Google Docs
+                </button>
+                <button onclick="downloadAsDocx()" class="gdocs-btn gdocs-btn-outline" title="Unduh berkas .docx untuk Google Drive">
+                    <i class="fa-solid fa-file-word"></i> Download .docx
+                </button>
+                <button onclick="window.print()" class="gdocs-btn gdocs-btn-ghost" title="Cetak atau PDF A4">
+                    <i class="fa-solid fa-print"></i> Cetak / PDF A4
+                </button>
+                <a href="/" class="gdocs-btn gdocs-btn-ghost" title="Kembali ke SIM Humas">
+                    <i class="fa-solid fa-house"></i> SIM Humas
+                </a>
+            </div>
+        </div>
+
+        <div class="gdocs-toolbar">
+            <button class="gdocs-tool-btn" title="Urungkan"><i class="fa-solid fa-rotate-left"></i></button>
+            <button class="gdocs-tool-btn" title="Ulangi"><i class="fa-solid fa-rotate-right"></i></button>
+            <button class="gdocs-tool-btn" onclick="window.print()" title="Cetak"><i class="fa-solid fa-print"></i></button>
+            <div class="gdocs-tool-separator"></div>
+            <button class="gdocs-tool-btn" style="font-weight:600;">100% <i class="fa-solid fa-chevron-down ml-1" style="font-size:8px;"></i></button>
+            <div class="gdocs-tool-separator"></div>
+            <button class="gdocs-tool-btn" style="font-weight:600;">Teks Normal</button>
+            <div class="gdocs-tool-separator"></div>
+            <button class="gdocs-tool-btn">Plus Jakarta Sans</button>
+            <button class="gdocs-tool-btn" style="font-weight:600;">11</button>
+            <div class="gdocs-tool-separator"></div>
+            <button class="gdocs-tool-btn" title="Tebal"><i class="fa-solid fa-bold"></i></button>
+            <button class="gdocs-tool-btn" title="Miring"><i class="fa-solid fa-italic"></i></button>
+            <button class="gdocs-tool-btn" title="Garis Bawah"><i class="fa-solid fa-underline"></i></button>
+            <div class="gdocs-tool-separator"></div>
+            <button class="gdocs-tool-btn" title="Rata Kiri"><i class="fa-solid fa-align-left"></i></button>
+            <button class="gdocs-tool-btn" title="Rata Tengah"><i class="fa-solid fa-align-center"></i></button>
+            <button class="gdocs-tool-btn" title="Rata Kanan"><i class="fa-solid fa-align-right"></i></button>
+            <div class="gdocs-tool-separator"></div>
+            <button onclick="toggleOutline()" class="gdocs-tool-btn" title="Struktur Dokumen">
+                <i class="fa-solid fa-bars-staggered mr-1"></i> Struktur Dokumen
+            </button>
+        </div>
+    </header>
+
+    <div class="gdocs-app-body">
+        <aside id="gdocs-outline" class="gdocs-outline-sidebar no-print">
+            <div class="gdocs-outline-title">
+                <i class="fa-solid fa-list-tree" style="color:#1a73e8;"></i>
+                <span>Struktur Dokumen</span>
+            </div>
+            <a href="#sec-cover" class="gdocs-outline-link"><i class="fa-regular fa-file-lines text-slate-400"></i> Halaman Judul Pelaksana</a>
+            <a href="#sec-tugas" class="gdocs-outline-link"><i class="fa-solid fa-list-check text-emerald-500"></i> 1. Mengerjakan Tugas di Hub</a>
+            <a href="#sec-canva" class="gdocs-outline-link"><i class="fa-solid fa-palette text-purple-500"></i> 2. Template Desain & Canva</a>
+            <a href="#sec-tips" class="gdocs-outline-link"><i class="fa-solid fa-lightbulb text-amber-500"></i> 3. Tips Kerja Humas BPS</a>
+        </aside>
+
+        <div id="gdocs-document-content" class="document-wrapper">
+        <!-- COVER -->
+        <div class="cover-page">
+            <div>
+                <div style="display: inline-block; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #a7f3d0; padding: 6px 14px; border-radius: 30px; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 16px;">
+                    <i class="fa-solid fa-id-badge mr-1"></i> Edisi Staf &amp; Pelaksana Teknis
+                </div>
+                <div style="font-size: 30px; font-weight: 900; line-height: 1.15; margin-bottom: 10px;">
+                    BUKU PANDUAN PENGGUNA<br>
+                    <span style="color: #5eead4;">TIM PELAKSANA HUMAS</span>
+                </div>
+                <div style="font-size: 14px; color: #ccfbf1; max-width: 90%; margin-bottom: 20px;">
+                    Panduan Praktis Pengelolaan Tugas di Assignment Hub, Pembaruan Progres Kerja, Unggah Bukti Tautan Google Drive, dan Penggunaan Template Canva/Adobe Resmi BPS Provinsi Kalimantan Barat.
+                </div>
+
+                <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; padding: 14px 18px; display: flex; align-items: center; gap: 16px;">
+                    <div style="width: 60px; height: 60px; border-radius: 14px; background: #0d9488; display: flex; align-items: center; justify-content: center; font-size: 26px; color: white;">
+                        <i class="fa-solid fa-clipboard-check"></i>
+                    </div>
+                    <div>
+                        <strong style="color: white; font-size: 12.5px;">Satu Pintu untuk Seluruh Tugas Kehumasan</strong>
+                        <p style="color: #ccfbf1; font-size: 11px; margin-top: 2px;">
+                            Cukup buka menu Assignment Hub untuk melihat batas waktu (H-1), memperbarui slider progres, dan mengunggah link publikasi.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: auto; margin-bottom: 20px;">
+                <div>
+                    <div style="font-size: 9.5px; text-transform: uppercase; color: #99f6e4; font-weight: 700;">Role Akun</div>
+                    <div style="font-size: 12px; color: white; font-weight: 700;">Tim Humas (tim)</div>
+                </div>
+                <div>
+                    <div style="font-size: 9.5px; text-transform: uppercase; color: #99f6e4; font-weight: 700;">Sasaran Pengguna</div>
+                    <div style="font-size: 12px; color: white; font-weight: 700;">Desainer, Fotografer, Videografer, Medsos, MC, Protokol</div>
+                </div>
+                <div>
+                    <div style="font-size: 9.5px; text-transform: uppercase; color: #99f6e4; font-weight: 700;">Penyimpanan Berkas</div>
+                    <div style="font-size: 12px; color: white; font-weight: 700;">Pusat Dokumen &gt; Folder Pedoman &amp; Juknis</div>
+                </div>
+                <div>
+                    <div style="font-size: 9.5px; text-transform: uppercase; color: #99f6e4; font-weight: 700;">Versi</div>
+                    <div style="font-size: 12px; color: white; font-weight: 700;">v2.1 • Format A4 Bergambar</div>
+                </div>
+            </div>
+
+            <div style="border-top: 1px solid rgba(255,255,255,0.15); padding-top: 14px; display: flex; justify-content: space-between; font-size: 10px; color: #ccfbf1;">
+                <div><strong>TIM KERJA HUMAS &amp; PROTOKOL BPS KALBAR</strong></div>
+                <div><strong>BADAN PUSAT STATISTIK</strong></div>
+            </div>
+        </div>
+
+        <!-- CONTENT PAGE 1 -->
+        <div class="a4-page">
+            <div class="page-header">
+                <span>SIM Humas BPS Kalbar • Panduan Tim Pelaksana</span>
+                <span>Assignment Hub &amp; Progres Tugas</span>
+            </div>
+
+            <h2><i class="fa-solid fa-list-check text-teal-600"></i> 1. PANDUAN KERJA HARIAN DI ASSIGNMENT HUB</h2>
+            <p>
+                Menu <strong>Assignment</strong> dirancang agar Anda dapat bekerja dengan tenang tanpa takut ada jadwal yang terlewat.
+            </p>
+
+            <!-- UI Mockup: Assignment Card Simulation -->
+            <div class="ui-mockup-card">
+                <div class="ui-mockup-bar">
+                    <span><i class="fa-solid fa-bars-progress text-teal-600 mr-1"></i> Tampilan Simulasi Tugas Anda</span>
+                    <span class="badge badge-amber">Pengingat H-1 Aktif</span>
+                </div>
+                <div class="ui-mockup-body" style="font-size: 11px;">
+                    <div style="background: #f0fdfa; border: 1.5px solid #0d9488; border-radius: 8px; padding: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <strong style="color: #0f172a; font-size: 12px;">Desain Fliers Rilis Sensus Pertanian &amp; Inflasi</strong>
+                            <span class="badge badge-purple">Sedang Dikerjakan</span>
+                        </div>
+                        <div style="font-size: 10px; color: #64748b; margin-bottom: 6px;">
+                            <span><i class="fa-regular fa-clock mr-1"></i> Deadline: Besok (09:00 WIB)</span> • 
+                            <span style="color: #0d9488; font-weight: 700;">Prioritas Tinggi</span>
+                        </div>
+                        <div style="background: #e2e8f0; border-radius: 999px; height: 7px; overflow: hidden; margin: 6px 0;">
+                            <div style="background: #0d9488; width: 60%; height: 100%;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #334155;">
+                            <span>Progres: <strong>60%</strong> (Draft Diserahkan)</span>
+                            <span style="color: #0d9488; font-weight: 800;">Lanjut Finalisasi &gt;</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Langkah-Langkah Pembaruan Tugas:</h3>
+            <div class="step-item">
+                <div class="step-number">1</div>
+                <div><strong>Cek Notifikasi:</strong> Buka menu Assignment, perhatikan banner peringatan H-1 bila ada tugas yang mendekati hari pelaksanaan.</div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">2</div>
+                <div><strong>Perbarui Progres:</strong> Klik tombol ubah, geser slider progres (misal: 50% setelah draft selesai didesain di Canva/Adobe).</div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">3</div>
+                <div><strong>Lampirkan Bukti:</strong> Masukkan link folder Google Drive foto liputan atau link postingan media sosial resmi BPS Kalbar, lalu klik <strong>Simpan</strong>.</div>
+            </div>
+
+            <div class="page-footer">
+                <span>SIM Humas BPS Kalbar • Panduan Tim Pelaksana</span>
+                <span>Halaman 2</span>
+            </div>
+        </div>
+
+        <!-- CONTENT PAGE 2 -->
+        <div class="a4-page">
+            <div class="page-header">
+                <span>SIM Humas BPS Kalbar • Panduan Tim Pelaksana</span>
+                <span>Template Desain &amp; Tips Staf</span>
+            </div>
+
+            <h2><i class="fa-solid fa-cubes text-teal-600"></i> 2. MENGAKSES TEMPLATE DESAIN RESMI BPS KALBAR</h2>
+            <p>
+                Guna menjaga standar grafis BPS, manfaatkan kit template resmi pada <strong>Pusat Dokumen</strong>:
+            </p>
+
+            <div class="step-item">
+                <div class="step-number">1</div>
+                <div>Buka menu <strong>Pusat Dokumen</strong> &gt; klik kartu <strong>"Template Desain"</strong>.</div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">2</div>
+                <div>Pilih template (misal: Carousel Instagram, Slide Paparan BRS, atau Spanduk).</div>
+            </div>
+            <div class="step-item">
+                <div class="step-number">3</div>
+                <div>Klik <strong>"Buka Berkas"</strong>, lalu di Canva pilih <em>File &gt; Make a copy</em> untuk mulai berkreasi.</div>
+            </div>
+
+            <h2><i class="fa-solid fa-lightbulb text-teal-600"></i> 3. TIPS KERJA HUMAS</h2>
+            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; margin-top: 8px;">
+                <ul style="padding-left: 18px; font-size: 10.5px; line-height: 1.6; color: #334155;">
+                    <li><strong>Fotografer:</strong> Unggah file foto beresolusi tinggi ke Google Drive maksimal 2 jam setelah acara berakhir.</li>
+                    <li><strong>MC &amp; Protokol:</strong> Lakukan koordinasi gladi bersih minimal H-1 sebelum rilis BRS atau acara pimpinan.</li>
+                    <li><strong>Admin Medsos:</strong> Pastikan caption mencantumkan hashtag resmi (<em>#BPSKalbar, #SE2026, #DataMencerdaskanBangsa</em>).</li>
+                </ul>
+            </div>
+
+            <div class="page-footer">
+                <span>SIM Humas BPS Kalbar • Panduan Tim Pelaksana • Google Docs Format</span>
+                <span>Halaman 3</span>
+            </div>
+        </div>
+        </div><!-- /#gdocs-document-content -->
+    </div><!-- /.gdocs-app-body -->
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="gdocs-toast" class="gdocs-toast no-print">
+        <i class="fa-solid fa-circle-check" style="color: #34d399; font-size: 16px;"></i>
+        <span id="gdocs-toast-msg">Dokumen disalin ke clipboard!</span>
+    </div>
+
+    <script>
+        function showToast(msg, duration = 4000) {
+            const toast = document.getElementById('gdocs-toast');
+            const toastMsg = document.getElementById('gdocs-toast-msg');
+            if (!toast || !toastMsg) return;
+            toastMsg.innerHTML = msg;
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, duration);
+        }
+
+        function toggleOutline() {
+            const outline = document.getElementById('gdocs-outline');
+            if (!outline) return;
+            outline.style.display = outline.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function toggleStar(btn) {
+            const icon = btn.querySelector('i');
+            if (icon) {
+                if (icon.classList.contains('fa-regular')) {
+                    icon.classList.remove('fa-regular');
+                    icon.classList.add('fa-solid');
+                    icon.style.color = '#f59e0b';
+                    showToast('Ditambahkan ke Berbintang');
+                } else {
+                    icon.classList.remove('fa-solid');
+                    icon.classList.add('fa-regular');
+                    icon.style.color = '#5f6368';
+                    showToast('Dihapus dari Berbintang');
+                }
+            }
+        }
+
+        async function openInGoogleDocs() {
+            const docWrapper = document.getElementById('gdocs-document-content');
+            if (!docWrapper) return;
+            try {
+                const htmlContent = docWrapper.innerHTML;
+                const plainContent = docWrapper.innerText;
+                if (navigator.clipboard && window.ClipboardItem) {
+                    const blobHtml = new Blob([htmlContent], { type: 'text/html' });
+                    const blobText = new Blob([plainContent], { type: 'text/plain' });
+                    await navigator.clipboard.write([new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobText })]);
+                } else if (navigator.clipboard) {
+                    await navigator.clipboard.writeText(plainContent);
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+            window.open('https://docs.new', '_blank');
+            showToast('<strong>Buku Panduan Berhasil Disalin!</strong><br>Tab Google Docs baru telah dibuka (docs.new). Tekan <b>Ctrl + V (Paste)</b> untuk langsung menempelkan seluruh panduan pelaksana beserta alur kerja dan formatnya.', 6500);
+        }
+
+        function downloadAsDocx() {
+            const docWrapper = document.getElementById('gdocs-document-content');
+            if (!docWrapper) return;
+            const docTitle = 'Buku-Panduan-Tim-Pelaksana-SIM-Humas-2026';
+            const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head><meta charset='utf-8'><title>${docTitle}</title>
+            <style>
+                @page WordSection1 { size: 595.3pt 841.9pt; margin: 54pt 54pt 54pt 54pt; }
+                div.WordSection1 { page: WordSection1; }
+                body { font-family: 'Arial', sans-serif; font-size: 11pt; line-height: 1.35; color: #202124; }
+                h1 { color: #0d9488; font-size: 18pt; margin-top: 18pt; }
+                h2 { color: #0d9488; font-size: 14pt; margin-top: 14pt; border-bottom: 1pt solid #dadce0; padding-bottom: 4pt; }
+                table { border-collapse: collapse; width: 100%; margin: 12pt 0; }
+                th, td { border: 1pt solid #cbd5e1; padding: 6pt 8pt; font-size: 10pt; text-align: left; }
+                th { background-color: #f1f3f4; font-weight: bold; }
+            </style>
+            </head><body><div class='WordSection1'>${docWrapper.innerHTML}</div></body></html>`;
+
+            const blob = new Blob(['\ufeff', header], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${docTitle}.doc`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Berkas dokumen berhasil diunduh! Siap dibuka di Google Docs / Word.', 5000);
+        }
+
+        function copyDocumentLink() {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                showToast('Tautan buku panduan berhasil disalin!');
+            });
+        }
+    </script>
+</body>
+</html>

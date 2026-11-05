@@ -4215,13 +4215,42 @@ function cleanAcademicDegrees(name) {
  * Pemetaan alias personil Tim Humas BPS Kalbar untuk memastikan seluruh tugas teratribusi akurat
  */
 const BPS_HUMAS_ALIASES = {
+    'dara': 'dara septika',
     'dara sna': 'dara septika',
+    'diva': 'diah nadiva',
+    'desa': 'desa ayu natalia',
     'desa ayu n': 'desa ayu natalia',
+    'sitha': 'sithadewi islami',
+    'erina': 'erina herwindalita',
+    'yunita': 'yunita wulandari',
+    'kiky': 'rizky fajariani',
     'rizky fajariani': 'rizky fajriani',
+    'anis': 'anis fakhrunnisa',
     'anis fakhrunnisa': 'anis fakhurnnisa',
-    'adji hasfiar': 'adji haspiar',
+    'arif': 'arif rahman',
+    'irza': 'irza faikar',
+    'handika': 'handika ramadhan',
+    'aulia': 'aulia minati salsabila',
+    'tefi': 'jeberta tefilah modes',
+    'amanda': 'amanda putri',
+    'fifi': 'alfiana ayuni',
+    'rania': 'rania naila husna',
+    'riska': 'riska miwanti',
+    'budi': 'nasip budi waluyo',
+    'cencen': 'yostryan chenata',
+    'ardi': 'ardi atmaja',
+    'romulus': 'romulus arjuna nugraha tambunan',
     'romulus arjuna nt': 'romulus arjuna',
-    'azhari koordinator': 'azhari'
+    'andre': 'andre ridho perdana hutapea',
+    'adji': 'adji hasfiar',
+    'adji hasfiar': 'adji haspiar',
+    'levi': 'levi alvaro sarnosir',
+    'zaky': 'muhammad muzaky ali fikri',
+    'mawardi': 'mawardi',
+    'azhari': 'azhari',
+    'azhari koordinator': 'azhari',
+    'risky': 'risky',
+    'ibrahim': 'ibrahim'
 };
 
 /**
@@ -4344,7 +4373,7 @@ function getAllTeamMembersList(allTasks = []) {
         }
     };
 
-    // Bersumber secara EKSKLUSIF dari daftar nama pada sheet team (db.team)
+    // Bersumber secara EKSKLUSIF dari daftar nama pada sheet team (db.team) - tepat 29 anggota tim
     (db.team || []).forEach(m => {
         registerMember(m.nama, m.jabatan, m.bidang || m.seksi, m.email, m.role || 'tim');
     });
@@ -5020,36 +5049,37 @@ function getLoggedInTeamMember(allMembers = [], user = currentUser) {
     if (!user) return null;
     const rawUserName = String(user.name || user.username || '').trim();
     const cleanUser = cleanAcademicDegrees(rawUserName);
+    const cleanUsername = cleanAcademicDegrees(String(user.username || '').trim());
     const uRole = user.role || 'tim';
 
-    // 1. Direct match on normKey or cleanName
-    let found = allMembers.find(m => m.normKey === cleanUser || m.cleanName === cleanUser);
+    // 1. Direct match on normKey or cleanName (both name and username)
+    let found = allMembers.find(m => m.normKey === cleanUser || m.cleanName === cleanUser || m.normKey === cleanUsername || m.cleanName === cleanUsername);
     if (found) return found;
 
     // 2. Resolve via resolveMemberFromPic
     found = resolveMemberFromPic(user.name, allMembers) || resolveMemberFromPic(user.username, allMembers);
     if (found) return found;
 
-    // 3. Username match
-    if (user.username) {
-        const uNameNorm = cleanAcademicDegrees(user.username);
-        found = allMembers.find(m => m.normKey === uNameNorm || (m.email && m.email.toLowerCase().includes(user.username.toLowerCase())));
+    // 3. Username match with alias dictionary
+    const aliasTarget = BPS_HUMAS_ALIASES[cleanUsername] || BPS_HUMAS_ALIASES[cleanUser];
+    if (aliasTarget) {
+        found = allMembers.find(m => m.normKey.includes(aliasTarget) || aliasTarget.includes(m.normKey) || m.cleanName.includes(aliasTarget));
         if (found) return found;
     }
 
-    // 4. Token overlap match (e.g. "Rina" in "Rina Marlina")
-    const userTokens = cleanUser.split(' ').filter(w => w.length >= 3);
-    if (userTokens.length > 0) {
+    // 4. Token overlap match (e.g. "Erina" in "Erina Herwindalita")
+    const testTokens = [cleanUser, cleanUsername].join(' ').split(' ').filter(w => w.length >= 3);
+    if (testTokens.length > 0) {
         found = allMembers.find(m => {
             const mTokens = m.normKey.split(' ').filter(w => w.length >= 3);
-            return userTokens.some(ut => mTokens.includes(ut));
+            return testTokens.some(ut => mTokens.some(mt => mt.includes(ut) || ut.includes(mt)));
         });
         if (found) return found;
     }
 
-    // 5. Fallback: buat objek personil canonical untuk akun ini jika belum ada di direktori
-    return {
-        rawName: user.name || 'Anggota Tim Humas',
+    // 5. Fallback ke anggota pertama jika ada di direktori
+    return allMembers[0] || {
+        rawName: user.name || user.username || 'Anggota Tim Humas',
         cleanName: cleanUser || 'tim',
         normKey: cleanUser || 'tim',
         jabatan: user.jabatan || 'Staf Kehumasan',
@@ -5105,7 +5135,7 @@ function isMemberMatchingSearch(member, query) {
  * 2. Kelompok terpisah: Humas & Protokoler berdasarkan kolom C (Jabatan)
  * 3. Rubrikasi lengkap sistem dengan rubrikasi baru #SE2026 sebagai kategori tersendiri
  */
-function renderRubrikasiCategorySection(catTitle, catIcon, badgeBg, members, allTasks, rubrikList) {
+function renderRubrikasiCategorySection(catTitle, catIcon, badgeBg, members, allTasks, rubrikList, options = {}) {
     if (!members || members.length === 0) {
         return `
             <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs p-6 text-center text-slate-400">
@@ -5164,9 +5194,11 @@ function renderRubrikasiCategorySection(catTitle, catIcon, badgeBg, members, all
                                 ${members.length} Pegawai
                             </span>
                         </div>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                            Sumber Pegawai: Sheet <code>team</code> (Kolom C: Jabatan)
-                        </p>
+                        ${!options.isUserTim ? `
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                Sumber Pegawai: Sheet <code>team</code> (Kolom C: Jabatan)
+                            </p>
+                        ` : ''}
                     </div>
                 </div>
 
@@ -5239,6 +5271,7 @@ function renderRubrikasiCategorySection(catTitle, catIcon, badgeBg, members, all
                             </tr>
                         `).join('')}
                     </tbody>
+                    ${!options.isUserTim ? `
                     <tfoot class="bg-slate-100 dark:bg-slate-900 border-t-2 border-slate-300 dark:border-slate-600 font-black text-xs text-slate-800 dark:text-slate-100">
                         <tr>
                             <td class="py-3 px-3 text-center sticky left-0 bg-slate-100 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 z-10">∑</td>
@@ -5261,12 +5294,13 @@ function renderRubrikasiCategorySection(catTitle, catIcon, badgeBg, members, all
                             <td class="py-3 px-3 text-center font-black text-xs bg-sky-100/70 dark:bg-sky-950/50 text-sky-900 dark:text-sky-200">${groupRate}%</td>
                         </tr>
                     </tfoot>
+                    ` : ''}
                 </table>
             </div>
 
             <!-- TAMPILAN MOBILE CARD RESPONSIVE UNTUK SMARTPHONE -->
             <div class="block xl:hidden p-3.5 sm:p-4 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700 space-y-3">
-                <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Ringkasan Pegawai ${catTitle} (Mobile)</div>
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">${options.isUserTim ? 'Ringkasan Rekapitulasi Tugas (Mobile)' : `Ringkasan Pegawai ${catTitle} (Mobile)`}</div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     ${rows.map(r => {
                         const activeRubriks = rubrikList.filter(rub => (r.rubCounts[rub.key] || 0) > 0);
@@ -5317,6 +5351,13 @@ function renderRekapKegiatan(container) {
     const isUserTim = currentUser && currentUser.role === 'tim';
     const loggedInMember = isUserTim ? getLoggedInTeamMember(allMembers, currentUser) : null;
 
+    if (isUserTim) {
+        filter.kategori = 'all';
+        if (filter.viewMode === 'per_member') {
+            filter.viewMode = 'rekap_rubrikasi';
+        }
+    }
+
     // 1. FILTER DATA PEGAWAI BERDASARKAN SHEET TEAM:
     // Pastikan seluruh data tugas dan nama pegawai bersumber secara eksklusif dari sheet team
     const validMemberNormKeys = new Set(allMembers.map(m => m.normKey));
@@ -5324,7 +5365,7 @@ function renderRekapKegiatan(container) {
 
     // Scoping data: Pada role tim, hanya tampilkan data sesuai dengan akun anggota tim humas tersebut yang login
     const scopedTasks = isUserTim
-        ? teamScopedTasks.filter(t => isTaskAssignedToLoggedInUser(t, currentUser, loggedInMember))
+        ? allIntegratedTasks.filter(t => isTaskAssignedToLoggedInUser(t, currentUser, loggedInMember))
         : teamScopedTasks;
 
     const scopedMembers = isUserTim
@@ -5668,23 +5709,25 @@ function renderRekapKegiatan(container) {
 
             <!-- Switcher Mode Tampilan: Rekap Rubrikasi vs Per Anggota vs Seluruh Tugas (Segmented Control Responsive) -->
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2.5 sm:p-3 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-                <div class="grid grid-cols-3 sm:flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-x-auto">
+                <div class="${isUserTim ? 'grid grid-cols-2' : 'grid grid-cols-3'} sm:flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-x-auto">
                     <button onclick="switchRekapViewMode('rekap_rubrikasi')" class="px-2.5 sm:px-3 py-2 rounded-lg text-[10.5px] sm:text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0 ${filter.viewMode === 'rekap_rubrikasi' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}">
                         <i class="fa-solid fa-table-cells-large text-[11px]"></i>
                         <span class="truncate">Rekap Rubrikasi</span>
                     </button>
+                    ${!isUserTim ? `
                     <button onclick="switchRekapViewMode('per_member')" class="px-2.5 sm:px-3 py-2 rounded-lg text-[10.5px] sm:text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0 ${filter.viewMode === 'per_member' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}">
                         <i class="fa-solid fa-users-viewfinder text-[11px]"></i>
                         <span class="truncate">Rincian Anggota (${displayedMemberCards.length})</span>
                     </button>
+                    ` : ''}
                     <button onclick="switchRekapViewMode('matrix')" class="px-2.5 sm:px-3 py-2 rounded-lg text-[10.5px] sm:text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0 ${filter.viewMode === 'matrix' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}">
                         <i class="fa-solid fa-table-list text-[11px]"></i>
-                        <span class="truncate">Seluruh Tugas (${filteredTasks.length})</span>
+                        <span class="truncate">${isUserTim ? 'Daftar Tugas Saya' : 'Seluruh Tugas'} (${filteredTasks.length})</span>
                     </button>
                 </div>
 
                 <div class="grid grid-cols-2 sm:flex items-center justify-end gap-2 text-xs">
-                    ${filter.viewMode === 'per_member' ? `
+                    ${(!isUserTim && filter.viewMode === 'per_member') ? `
                         <button onclick="toggleAllMemberAccordions(true)" class="text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 transition-colors flex items-center justify-center gap-1 shadow-2xs cursor-pointer">
                             <i class="fa-solid fa-angles-down text-[10px]"></i> Buka Semua
                         </button>
@@ -5701,45 +5744,58 @@ function renderRekapKegiatan(container) {
             ${filter.viewMode === 'rekap_rubrikasi' ? `
                 <!-- TABEL REKAPITULASI TUGAS BERDASARKAN KATEGORI & RUBRIKASI -->
                 <div class="space-y-6">
-                    <!-- Tab Filter Kategori Cepat (Pill Switcher) -->
-                    <div class="flex items-center gap-2 overflow-x-auto pb-1">
-                        <span class="text-xs font-black uppercase tracking-wider text-slate-400 mr-1 shrink-0">Kategori:</span>
-                        <button onclick="updateRekapFilter('kategori', 'all')" class="px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 cursor-pointer ${filter.kategori === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'}">
-                            Semua Kategori (${allMembers.length})
-                        </button>
-                        <button onclick="updateRekapFilter('kategori', 'Humas')" class="px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 cursor-pointer ${filter.kategori === 'Humas' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'}">
-                            <i class="fa-solid fa-bullhorn mr-1 text-[11px]"></i> Kelompok Humas (${humasMembers.length})
-                        </button>
-                        <button onclick="updateRekapFilter('kategori', 'Protokoler')" class="px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 cursor-pointer ${filter.kategori === 'Protokoler' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'}">
-                            <i class="fa-solid fa-user-tie mr-1 text-[11px]"></i> Kelompok Protokoler (${protokolerMembers.length})
-                        </button>
-                    </div>
+                    ${!isUserTim ? `
+                        <!-- Tab Filter Kategori Cepat (Pill Switcher) -->
+                        <div class="flex items-center gap-2 overflow-x-auto pb-1">
+                            <span class="text-xs font-black uppercase tracking-wider text-slate-400 mr-1 shrink-0">Kategori:</span>
+                            <button onclick="updateRekapFilter('kategori', 'all')" class="px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 cursor-pointer ${filter.kategori === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'}">
+                                Semua Kategori (${allMembers.length})
+                            </button>
+                            <button onclick="updateRekapFilter('kategori', 'Humas')" class="px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 cursor-pointer ${filter.kategori === 'Humas' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'}">
+                                <i class="fa-solid fa-bullhorn mr-1 text-[11px]"></i> Kelompok Humas (${humasMembers.length})
+                            </button>
+                            <button onclick="updateRekapFilter('kategori', 'Protokoler')" class="px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 cursor-pointer ${filter.kategori === 'Protokoler' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'}">
+                                <i class="fa-solid fa-user-tie mr-1 text-[11px]"></i> Kelompok Protokoler (${protokolerMembers.length})
+                            </button>
+                        </div>
 
-                    ${(filter.kategori === 'all' || filter.kategori === 'Humas') ? `
-                        <!-- BAGIAN 1: REKAPITULASI KELOMPOK HUMAS -->
+                        ${(filter.kategori === 'all' || filter.kategori === 'Humas') ? `
+                            <!-- BAGIAN 1: REKAPITULASI KELOMPOK HUMAS -->
+                            ${renderRubrikasiCategorySection(
+                                'Kelompok Humas',
+                                'fa-bullhorn',
+                                'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300',
+                                humasMembers,
+                                filteredTasks,
+                                REKAP_RUBRIKASI_LIST
+                            )}
+                        ` : ''}
+
+                        ${(filter.kategori === 'all' || filter.kategori === 'Protokoler') ? `
+                            <!-- BAGIAN 2: REKAPITULASI KELOMPOK PROTOKOLER -->
+                            ${renderRubrikasiCategorySection(
+                                'Kelompok Protokoler',
+                                'fa-user-tie',
+                                'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+                                protokolerMembers,
+                                filteredTasks,
+                                REKAP_RUBRIKASI_LIST
+                            )}
+                        ` : ''}
+                    ` : `
+                        <!-- TABEL REKAPITULASI RUBRIKASI TUGAS (ROLE TIM HUMAS) -->
                         ${renderRubrikasiCategorySection(
-                            'Kelompok Humas',
-                            'fa-bullhorn',
+                            'Rekapitulasi Rubrikasi Tugas',
+                            'fa-table-cells-large',
                             'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300',
-                            humasMembers,
+                            scopedMembers,
                             filteredTasks,
-                            REKAP_RUBRIKASI_LIST
+                            REKAP_RUBRIKASI_LIST,
+                            { isUserTim: true }
                         )}
-                    ` : ''}
-
-                    ${(filter.kategori === 'all' || filter.kategori === 'Protokoler') ? `
-                        <!-- BAGIAN 2: REKAPITULASI KELOMPOK PROTOKOLER -->
-                        ${renderRubrikasiCategorySection(
-                            'Kelompok Protokoler',
-                            'fa-user-tie',
-                            'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-                            protokolerMembers,
-                            filteredTasks,
-                            REKAP_RUBRIKASI_LIST
-                        )}
-                    ` : ''}
+                    `}
                 </div>
-            ` : filter.viewMode === 'per_member' ? `
+            ` : (!isUserTim && filter.viewMode === 'per_member') ? `
                 <!-- DAFTAR ANGGOTA TIM BESERTA RINCIAN TUGAS MASING-MASING -->
                 <div class="space-y-3 sm:space-y-4">
                     ${displayedMemberCards.length === 0 ? `
@@ -6046,6 +6102,9 @@ window.resetRekapFilter = function() {
  */
 window.switchRekapViewMode = function(mode) {
     if (!window.rekapKegiatanFilter) return;
+    if (currentUser && currentUser.role === 'tim' && mode === 'per_member') {
+        mode = 'rekap_rubrikasi';
+    }
     window.rekapKegiatanFilter.viewMode = mode;
     const container = document.getElementById('app-content') || document.getElementById('content') || document.querySelector('main');
     if (container) renderRekapKegiatan(container);
@@ -7846,9 +7905,21 @@ function renderSettingsPage(container) {
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-205 dark:border-slate-700 p-6 mt-6 shadow-xs">
-            <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
-                <h3 class="font-bold text-slate-850 dark:text-slate-100 text-sm flex items-center gap-1.5"><i class="fa-solid fa-user-gear text-indigo-500"></i> Kelola Pengguna & Hak Akses (RBAC)</h3>
-                <button onclick="openModal('user_manager')" class="btn-primary py-2 px-4 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-user-plus text-xs"></i> Tambah User</button>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div>
+                    <h3 class="font-bold text-slate-850 dark:text-slate-100 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-user-gear text-indigo-500"></i> Kelola Pengguna & Hak Akses (RBAC)
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Daftar akun pengguna, hak akses peran, serta fitur reset username dan kata sandi.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="router('user_management')" class="btn-secondary py-2 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5" title="Buka menu lengkap">
+                        <i class="fa-solid fa-users-gear text-indigo-500"></i> Buka Manajemen Akun Lengkap
+                    </button>
+                    <button onclick="openModal('user_manager')" class="btn-primary py-2 px-3.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                        <i class="fa-solid fa-user-plus text-xs"></i> Tambah User
+                    </button>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-xs text-left text-slate-655 dark:text-slate-300">
@@ -7858,27 +7929,39 @@ function renderSettingsPage(container) {
                             <th class="px-6 py-4">Username</th>
                             <th class="px-6 py-4">Hak Akses Role</th>
                             <th class="px-6 py-4">Bidang/Seksi</th>
-                            <th class="px-6 py-4 text-center">Aksi</th>
+                            <th class="px-6 py-4 text-center">Aksi & Reset</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                         ${db.users.map(u => {
-        const uJson = JSON.stringify(u).replace(/"/g, '&quot;');
-        return `
+                            const isSuperAdmin = u.username === 'admin';
+                            return `
                                 <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-900/35 transition-colors">
-                                    <td class="px-6 py-3 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">${u.nama}</td>
-                                    <td class="px-6 py-3 font-semibold text-slate-500 whitespace-nowrap">${u.username}</td>
+                                    <td class="px-6 py-3 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-7 h-7 rounded-full bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xs shrink-0">
+                                                ${(u.nama || 'U').charAt(0).toUpperCase()}
+                                            </div>
+                                            <span>${escapeHtml(u.nama || '-')}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-3 font-mono font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                        @${escapeHtml(u.username || '-')}
+                                    </td>
                                     <td class="px-6 py-3 whitespace-nowrap"><span class="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-955 text-indigo-750 dark:text-indigo-300 border border-indigo-150 dark:border-indigo-900 rounded font-bold text-[9px] uppercase tracking-wide">${getRoleLabel(u.role)}</span></td>
-                                    <td class="px-6 py-3 font-medium text-slate-500 whitespace-nowrap">${u.bidang || '-'}</td>
+                                    <td class="px-6 py-3 font-medium text-slate-500 whitespace-nowrap">${escapeHtml(u.bidang || '-')}</td>
                                     <td class="px-6 py-3 whitespace-nowrap text-center">
-                                        <div class="flex items-center justify-center gap-1">
-                                            <button onclick="openModalById('user_manager', ${u.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                                            <button onclick="deleteItem('users', ${u.id})" ${u.username === 'admin' ? 'disabled' : ''} class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                                        <div class="flex items-center justify-center gap-1.5">
+                                            <button onclick="openResetCredentialsModal(${u.id})" class="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-[10px] font-bold flex items-center gap-1 transition-all" title="Reset Username dan Password Akun">
+                                                <i class="fa-solid fa-key text-[10px]"></i> Reset
+                                            </button>
+                                            <button onclick="openModalById('user_manager', ${u.id})" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all" title="Ubah Profil Akun"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                                            <button onclick="deleteItem('users', ${u.id})" ${isSuperAdmin ? 'disabled' : ''} class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all" title="${isSuperAdmin ? 'Akun Admin Utama dilindungi' : 'Hapus Akun'}"><i class="fa-solid fa-trash text-[10px]"></i></button>
                                         </div>
                                     </td>
                                 </tr>
                             `;
-    }).join('')}
+                        }).join('')}
                     </tbody>
                 </table>
             </div>
@@ -7985,6 +8068,7 @@ function drawTeamGrid() {
         if (!isKepala && isUserAdminOrKetua()) {
             actionButtons = `
                 <div class="flex items-center" onclick="event.stopPropagation()">
+                    <button onclick="openResetCredentialsByTeamMember('${escapeHtml(member.nama)}')" title="Reset Username & Sandi Akun" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-amber-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-key text-[10px]"></i></button>
                     <button onclick="openModalById('team', ${member.id})" title="Edit Profil" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen-to-square text-[10px]"></i></button>
                     <button onclick="deleteItem('team', ${member.id})" title="Hapus Profil" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
                 </div>
@@ -11286,4 +11370,1886 @@ window.copyRepoLink = function(encodedLink) {
     }
 };
 
+// ===================================================================
+// MODUL MANAJEMEN AKUN & RESET USERNAME / PASSWORD (KHUSUS ADMIN)
+// ===================================================================
+
+let userMgmtSearch = '';
+let userMgmtRoleFilter = 'all';
+let userMgmtBidangFilter = 'all';
+let userMgmtPwdFilter = 'all';
+
+function renderUserManagement(container) {
+    // Hak akses guard: hanya role 'admin' yang berhak mengakses menu ini
+    if (!currentUser || String(currentUser.role).toLowerCase().trim() !== 'admin') {
+        container.innerHTML = `
+            <div class="max-w-xl mx-auto my-16 p-8 bg-white dark:bg-slate-800 rounded-3xl border border-rose-200 dark:border-rose-900/60 shadow-xl text-center animate-fade-in">
+                <div class="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/70 border border-rose-200 dark:border-rose-800 flex items-center justify-center text-rose-500 mx-auto mb-4 text-2xl shadow-inner">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h3 class="text-lg font-black text-slate-800 dark:text-white">Akses Terbatas Khusus Admin</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                    Halaman <strong>Manajemen Akun/User</strong> dan fitur <strong>Reset Username & Password</strong> hanya dapat diakses oleh pengguna dengan hak akses peran Administrator Sistem.
+                </p>
+                <div class="mt-6 flex justify-center">
+                    <button onclick="router('dashboard')" class="btn-primary py-2.5 px-6 text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-left"></i> Kembali ke Dashboard
+                    </button>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    const users = db.users || [];
+    const totalUsers = users.length;
+    const adminCount = users.filter(u => ['admin', 'kepala', 'koordinator'].includes(String(u.role).toLowerCase())).length;
+    const timCount = users.filter(u => String(u.role).toLowerCase() === 'tim').length;
+    const pemohonCount = users.filter(u => ['pemohon', 'kabkot'].includes(String(u.role).toLowerCase())).length;
+    const defaultPwdCount = users.filter(u => !u.password || String(u.password).trim() === 'password').length;
+
+    // Kumpulkan daftar bidang unik untuk filter
+    const bidangSet = new Set();
+    users.forEach(u => {
+        if (u.bidang && String(u.bidang).trim()) bidangSet.add(String(u.bidang).trim());
+    });
+    const bidangList = Array.from(bidangSet).sort();
+
+    container.innerHTML = `
+        <div class="space-y-6 animate-fade-in pb-12">
+            <!-- Header Section -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-7 rounded-3xl border border-indigo-900/50 shadow-xl relative overflow-hidden">
+                <div class="absolute -right-8 -bottom-8 w-44 h-44 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="relative z-10">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-2.5">
+                        <i class="fa-solid fa-shield-halved text-xs"></i> Khusus Role Administrator
+                    </div>
+                    <h2 class="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+                        <i class="fa-solid fa-users-gear text-indigo-400"></i> Manajemen Akun & Kredensial
+                    </h2>
+                    <p class="text-xs text-slate-300 max-w-2xl mt-1.5 leading-relaxed">
+                        Kelola seluruh akun pengguna SIM HUMAS BPS Kalbar, lakukan reset username dan kata sandi, serta kontrol hak akses pengguna secara aman.
+                    </p>
+                </div>
+                <div class="relative z-10 flex flex-wrap items-center gap-2.5 self-start md:self-center">
+                    <button onclick="syncUserAccounts()" id="btn-sync-users" class="btn-secondary py-2.5 px-4 text-xs font-bold uppercase tracking-wider flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-xs transition-all shadow-sm" title="Perbarui data akun dari server">
+                        <i class="fa-solid fa-arrows-rotate text-xs"></i> Sinkronkan Akun
+                    </button>
+                    <button onclick="openModal('user_manager')" class="btn-primary py-2.5 px-4 text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-indigo-600/30">
+                        <i class="fa-solid fa-user-plus text-xs"></i> Tambah Pengguna Baru
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Metric Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="p-4 sm:p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-xl shrink-0">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-black text-slate-900 dark:text-white" id="stat-total-users">${totalUsers}</div>
+                        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Total Pengguna</div>
+                    </div>
+                </div>
+
+                <div class="p-4 sm:p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/70 border border-rose-200 dark:border-rose-800 flex items-center justify-center text-rose-600 dark:text-rose-400 text-xl shrink-0">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-black text-slate-900 dark:text-white">${adminCount}</div>
+                        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Admin & Pimpinan</div>
+                    </div>
+                </div>
+
+                <div class="p-4 sm:p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-xl shrink-0">
+                        <i class="fa-solid fa-id-badge"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-black text-slate-900 dark:text-white">${timCount}</div>
+                        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Tim Humas</div>
+                    </div>
+                </div>
+
+                <div class="p-4 sm:p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/70 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 text-xl shrink-0">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-black text-slate-900 dark:text-white">${defaultPwdCount}</div>
+                        <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Sandi Default</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toolbar & Filter Controls -->
+            <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs space-y-4">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                    <!-- Search input -->
+                    <div class="relative flex-1 min-w-[240px]">
+                        <input type="text"
+                               id="user-mgmt-search-input"
+                               value="${escapeHtml(userMgmtSearch)}"
+                               oninput="handleUserMgmtSearch(this.value)"
+                               placeholder="Cari berdasarkan nama, username, atau bidang..."
+                               class="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <button type="button"
+                                onclick="const inp=document.getElementById('user-mgmt-search-input'); if(inp){inp.value=''; handleUserMgmtSearch('');}"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ${userMgmtSearch ? '' : 'hidden'}"
+                                id="user-mgmt-search-clear">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+
+                    <!-- Filter dropdowns -->
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <select id="user-mgmt-role-filter"
+                                onchange="handleUserMgmtRoleFilter(this.value)"
+                                class="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="all" ${userMgmtRoleFilter === 'all' ? 'selected' : ''}>Semua Hak Akses (Role)</option>
+                            <option value="admin" ${userMgmtRoleFilter === 'admin' ? 'selected' : ''}>Administrator</option>
+                            <option value="kepala" ${userMgmtRoleFilter === 'kepala' ? 'selected' : ''}>Kepala BPS</option>
+                            <option value="koordinator" ${userMgmtRoleFilter === 'koordinator' ? 'selected' : ''}>Ketua Tim Humas</option>
+                            <option value="tim" ${userMgmtRoleFilter === 'tim' ? 'selected' : ''}>Tim Humas</option>
+                            <option value="pemohon" ${userMgmtRoleFilter === 'pemohon' ? 'selected' : ''}>Pegawai / Pemohon</option>
+                            <option value="kabkot" ${userMgmtRoleFilter === 'kabkot' ? 'selected' : ''}>BPS Kab/Kot</option>
+                        </select>
+
+                        <select id="user-mgmt-bidang-filter"
+                                onchange="handleUserMgmtBidangFilter(this.value)"
+                                class="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="all" ${userMgmtBidangFilter === 'all' ? 'selected' : ''}>Semua Bidang/Seksi</option>
+                            ${bidangList.map(b => `<option value="${escapeHtml(b)}" ${userMgmtBidangFilter === b ? 'selected' : ''}>${escapeHtml(b)}</option>`).join('')}
+                        </select>
+
+                        <select id="user-mgmt-pwd-filter"
+                                onchange="handleUserMgmtPwdFilter(this.value)"
+                                class="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="all" ${userMgmtPwdFilter === 'all' ? 'selected' : ''}>Semua Status Sandi</option>
+                            <option value="default" ${userMgmtPwdFilter === 'default' ? 'selected' : ''}>Sandi Default ('password')</option>
+                            <option value="custom" ${userMgmtPwdFilter === 'custom' ? 'selected' : ''}>Sandi Kustom</option>
+                        </select>
+
+                        <button onclick="resetUserMgmtFilters()"
+                                class="px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-750 transition-all flex items-center gap-1.5"
+                                title="Reset semua filter">
+                            <i class="fa-solid fa-filter-circle-xmark"></i> Reset
+                        </button>
+
+                        <button onclick="exportUsersToExcel()"
+                                class="px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all flex items-center gap-1.5"
+                                title="Ekspor daftar pengguna ke format Excel">
+                            <i class="fa-solid fa-file-excel"></i> Ekspor Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs overflow-hidden">
+                <div id="user-mgmt-table-container">
+                    <!-- Populated dynamically by drawUserManagementTable() -->
+                </div>
+            </div>
+        </div>
+    `;
+
+    drawUserManagementTable();
+}
+
+window.renderUserManagement = renderUserManagement;
+
+function handleUserMgmtSearch(val) {
+    userMgmtSearch = (val || '').trim();
+    const clearBtn = document.getElementById('user-mgmt-search-clear');
+    if (clearBtn) {
+        if (userMgmtSearch) clearBtn.classList.remove('hidden');
+        else clearBtn.classList.add('hidden');
+    }
+    drawUserManagementTable();
+}
+window.handleUserMgmtSearch = handleUserMgmtSearch;
+
+function handleUserMgmtRoleFilter(val) {
+    userMgmtRoleFilter = val || 'all';
+    drawUserManagementTable();
+}
+window.handleUserMgmtRoleFilter = handleUserMgmtRoleFilter;
+
+function handleUserMgmtBidangFilter(val) {
+    userMgmtBidangFilter = val || 'all';
+    drawUserManagementTable();
+}
+window.handleUserMgmtBidangFilter = handleUserMgmtBidangFilter;
+
+function handleUserMgmtPwdFilter(val) {
+    userMgmtPwdFilter = val || 'all';
+    drawUserManagementTable();
+}
+window.handleUserMgmtPwdFilter = handleUserMgmtPwdFilter;
+
+function resetUserMgmtFilters() {
+    userMgmtSearch = '';
+    userMgmtRoleFilter = 'all';
+    userMgmtBidangFilter = 'all';
+    userMgmtPwdFilter = 'all';
+
+    const searchInput = document.getElementById('user-mgmt-search-input');
+    const roleSelect = document.getElementById('user-mgmt-role-filter');
+    const bidangSelect = document.getElementById('user-mgmt-bidang-filter');
+    const pwdSelect = document.getElementById('user-mgmt-pwd-filter');
+    const clearBtn = document.getElementById('user-mgmt-search-clear');
+
+    if (searchInput) searchInput.value = '';
+    if (roleSelect) roleSelect.value = 'all';
+    if (bidangSelect) bidangSelect.value = 'all';
+    if (pwdSelect) pwdSelect.value = 'all';
+    if (clearBtn) clearBtn.classList.add('hidden');
+
+    drawUserManagementTable();
+    showToast('Filter pencarian akun direset.');
+}
+window.resetUserMgmtFilters = resetUserMgmtFilters;
+
+function drawUserManagementTable() {
+    const container = document.getElementById('user-mgmt-table-container');
+    if (!container) return;
+
+    let users = db.users || [];
+
+    // Filter query pencarian
+    if (userMgmtSearch) {
+        const q = userMgmtSearch.toLowerCase();
+        users = users.filter(u => {
+            const nama = String(u.nama || '').toLowerCase();
+            const username = String(u.username || '').toLowerCase();
+            const bidang = String(u.bidang || '').toLowerCase();
+            const role = String(u.role || '').toLowerCase();
+            return nama.includes(q) || username.includes(q) || bidang.includes(q) || role.includes(q);
+        });
+    }
+
+    // Filter role
+    if (userMgmtRoleFilter !== 'all') {
+        users = users.filter(u => String(u.role).toLowerCase() === userMgmtRoleFilter);
+    }
+
+    // Filter bidang
+    if (userMgmtBidangFilter !== 'all') {
+        users = users.filter(u => String(u.bidang || '').trim() === userMgmtBidangFilter);
+    }
+
+    // Filter status sandi
+    if (userMgmtPwdFilter !== 'all') {
+        users = users.filter(u => {
+            const isDefault = !u.password || String(u.password).trim() === 'password';
+            return userMgmtPwdFilter === 'default' ? isDefault : !isDefault;
+        });
+    }
+
+    if (users.length === 0) {
+        container.innerHTML = `
+            <div class="py-16 text-center">
+                <div class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 text-2xl mx-auto mb-3">
+                    <i class="fa-solid fa-user-slash"></i>
+                </div>
+                <h4 class="text-sm font-black text-slate-700 dark:text-slate-200">Tidak Ada Akun Pengguna</h4>
+                <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                    ${userMgmtSearch || userMgmtRoleFilter !== 'all' || userMgmtBidangFilter !== 'all' || userMgmtPwdFilter !== 'all'
+                        ? 'Tidak ditemukan akun yang sesuai dengan kriteria filter saat ini.'
+                        : 'Belum ada akun pengguna yang terdaftar di sistem.'}
+                </p>
+                <button onclick="resetUserMgmtFilters()" class="mt-4 px-4 py-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/50">
+                    Bersihkan Filter
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    const roleBadges = {
+        admin: 'bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+        kepala: 'bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+        koordinator: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+        tim: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+        pemohon: 'bg-sky-50 text-sky-700 dark:bg-sky-950/70 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+        kabkot: 'bg-purple-50 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+    };
+
+    container.innerHTML = `
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left text-slate-600 dark:text-slate-300">
+                <thead class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50/80 dark:bg-slate-900/60 uppercase border-b border-slate-200 dark:border-slate-700 font-black tracking-wider">
+                    <tr>
+                        <th class="px-5 py-4 w-12 text-center">No</th>
+                        <th class="px-5 py-4">Nama Lengkap & Bidang Kerja</th>
+                        <th class="px-5 py-4">Username Akun</th>
+                        <th class="px-5 py-4">Hak Akses Role</th>
+                        <th class="px-5 py-4">Status Kata Sandi</th>
+                        <th class="px-5 py-4 text-center">Status Akun</th>
+                        <th class="px-5 py-4 text-center w-48">Aksi Manajemen</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    ${users.map((u, idx) => {
+                        const isSuperAdmin = u.username === 'admin';
+                        const isSelf = currentUser && currentUser.username === u.username;
+                        const roleKey = String(u.role || '').toLowerCase();
+                        const badgeClass = roleBadges[roleKey] || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+                        const isDefaultPwd = !u.password || String(u.password).trim() === 'password';
+                        const userAvatarChar = (u.nama || 'U').charAt(0).toUpperCase();
+
+                        return `
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-750/40 transition-colors">
+                                <td class="px-5 py-3.5 text-center font-bold text-slate-400 text-[11px] whitespace-nowrap">
+                                    ${idx + 1}
+                                </td>
+                                <td class="px-5 py-3.5 whitespace-nowrap">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 font-black text-sm flex items-center justify-center shrink-0 shadow-2xs">
+                                            ${userAvatarChar}
+                                        </div>
+                                        <div>
+                                            <div class="font-extrabold text-slate-800 dark:text-white flex items-center gap-1.5">
+                                                <span>${escapeHtml(u.nama || '-')}</span>
+                                                ${isSelf ? '<span class="px-1.5 py-0.2 bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[9px] rounded font-black tracking-wider uppercase border border-indigo-200 dark:border-indigo-800">Anda</span>' : ''}
+                                            </div>
+                                            <div class="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mt-0.5">
+                                                <i class="fa-solid fa-briefcase text-[10px]"></i>
+                                                <span>${escapeHtml(u.bidang || 'Pusat / Lintas Seksi')}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-5 py-3.5 whitespace-nowrap">
+                                    <div class="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
+                                        <span>@${escapeHtml(u.username || '-')}</span>
+                                        <button type="button"
+                                                onclick="copyUserCredential('${escapeHtml(u.username)}', 'Username')"
+                                                class="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 ml-1 p-0.5 transition-colors"
+                                                title="Salin username">
+                                            <i class="fa-regular fa-copy text-[11px]"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="px-5 py-3.5 whitespace-nowrap">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${badgeClass}">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                                        <span>${getRoleLabel(u.role)}</span>
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3.5 whitespace-nowrap">
+                                    ${isDefaultPwd ? `
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-bold text-[10.5px]">
+                                            <i class="fa-solid fa-triangle-exclamation text-amber-500 text-xs"></i>
+                                            <span>Default ('password')</span>
+                                        </span>
+                                    ` : `
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold text-[10.5px]">
+                                            <i class="fa-solid fa-shield-check text-emerald-500 text-xs"></i>
+                                            <span>Sandi Kustom (Diubah)</span>
+                                        </span>
+                                    `}
+                                </td>
+                                <td class="px-5 py-3.5 whitespace-nowrap text-center">
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold uppercase border border-emerald-200 dark:border-emerald-800">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        <span>Aktif</span>
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3.5 whitespace-nowrap text-center">
+                                    <div class="flex items-center justify-center gap-1.5">
+                                        <!-- Tombol Reset Kredensial -->
+                                        <button onclick="openResetCredentialsModal(${u.id})"
+                                                class="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-[11px] font-bold shadow-xs hover:shadow-amber-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
+                                                title="Reset Username dan Kata Sandi Akun ini">
+                                            <i class="fa-solid fa-key text-[10px]"></i>
+                                            <span>Reset</span>
+                                        </button>
+
+                                        <!-- Tombol Edit Profil Akun -->
+                                        <button onclick="openModalById('user_manager', ${u.id})"
+                                                class="w-8 h-8 rounded-xl border border-slate-205 dark:border-slate-700 hover:border-indigo-500 bg-white dark:bg-slate-750 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center transition-all shadow-2xs cursor-pointer"
+                                                title="Ubah profil akun (Nama, Role, Bidang)">
+                                            <i class="fa-solid fa-pen text-xs"></i>
+                                        </button>
+
+                                        <!-- Tombol Hapus Akun -->
+                                        <button onclick="deleteUserAccount(${u.id}, '${escapeHtml(u.username)}')"
+                                                ${isSuperAdmin || isSelf ? 'disabled' : ''}
+                                                class="w-8 h-8 rounded-xl border border-slate-205 dark:border-slate-700 hover:border-rose-500 bg-white dark:bg-slate-750 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-all shadow-2xs disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                                title="${isSuperAdmin ? 'Akun Administrator utama tidak dapat dihapus' : (isSelf ? 'Anda tidak dapat menghapus akun Anda sendiri' : 'Hapus akun pengguna')}">
+                                            <i class="fa-solid fa-trash text-xs"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+        <div class="p-4 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400 font-semibold">
+            <span>Menampilkan <strong>${users.length}</strong> dari <strong>${db.users.length}</strong> akun terdaftar</span>
+            <span class="inline-flex items-center gap-1.5">
+                <i class="fa-solid fa-circle-info text-indigo-500"></i>
+                Klik tombol <strong>Reset</strong> untuk mengubah username atau menetapkan kata sandi baru.
+            </span>
+        </div>
+    `;
+}
+
+window.drawUserManagementTable = drawUserManagementTable;
+
+window.copyUserCredential = function(text, label) {
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast(`${label} '${text}' berhasil disalin ke clipboard!`);
+        }).catch(() => {
+            prompt(`Salin ${label}:`, text);
+        });
+    } else {
+        prompt(`Salin ${label}:`, text);
+    }
+};
+
+// ===================================================================
+// MODAL & HANDLER RESET USERNAME DAN PASSWORD
+// ===================================================================
+
+function openResetCredentialsModal(userId) {
+    const user = (db.users || []).find(u => Number(u.id) === Number(userId));
+    if (!user) {
+        showToast('Akun pengguna tidak ditemukan.', 'error');
+        return;
+    }
+
+    // Cek izin akses: Admin bisa reset semua, pengguna bisa reset akun sendiri, Ketua Tim (koordinator) bisa reset anggota tim
+    if (currentUser) {
+        const isSelf = Number(currentUser.id) === Number(userId) || currentUser.username === user.username;
+        const isAdmin = currentUser.role === 'admin';
+        const isKetuaAndTargetIsTim = currentUser.role === 'koordinator' && user.role === 'tim';
+        if (!isAdmin && !isSelf && !isKetuaAndTargetIsTim) {
+            showToast('Anda tidak memiliki hak akses untuk mereset kredensial akun ini.', 'warning');
+            return;
+        }
+    }
+
+    // Hapus modal reset yang sudah ada jika ada
+    document.getElementById('reset-credentials-modal')?.remove();
+
+    const isSuperAdmin = user.username === 'admin';
+    const roleBadges = {
+        admin: 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+        kepala: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+        koordinator: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+        tim: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+        pemohon: 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+        kabkot: 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+    };
+    const roleClass = roleBadges[String(user.role).toLowerCase()] || 'bg-slate-100 text-slate-700';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'reset-credentials-modal';
+    modal.innerHTML = `
+        <div class="modal-content p-6 sm:p-7 max-w-lg border border-slate-200 dark:border-slate-700 shadow-2xl animate-scale-up">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between pb-4 mb-5 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/70 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 text-lg shrink-0">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                            Reset Username & Kata Sandi
+                        </h3>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Ubah kredensial masuk pengguna dengan aman.</p>
+                    </div>
+                </div>
+                <button type="button"
+                        onclick="this.closest('#reset-credentials-modal').remove()"
+                        class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all cursor-pointer">
+                    <i class="fa-solid fa-times text-base"></i>
+                </button>
+            </div>
+
+            <!-- User Preview Card -->
+            <div class="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-700 mb-5 flex items-center gap-3.5">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white font-black text-base flex items-center justify-center shrink-0 shadow-sm">
+                    ${(user.nama || 'U').charAt(0).toUpperCase()}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <h4 class="text-sm font-black text-slate-800 dark:text-white truncate">${escapeHtml(user.nama || '-')}</h4>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${roleClass}">
+                            ${getRoleLabel(user.role)}
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        <span>Username saat ini:</span>
+                        <code class="px-2 py-0.5 rounded bg-white dark:bg-slate-800 font-bold font-mono text-indigo-600 dark:text-indigo-400 border border-slate-200 dark:border-slate-700">@${escapeHtml(user.username || '-')}</code>
+                        <span>•</span>
+                        <span class="truncate">${escapeHtml(user.bidang || 'Pusat')}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reset Form -->
+            <form onsubmit="submitResetCredentials(event, ${user.id})" class="space-y-4">
+                <!-- Nama Akun Field -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        Nama Akun <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 text-xs">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        <input type="text"
+                               id="reset-new-nama"
+                               value="${escapeHtml(user.nama || user.name || '')}"
+                               class="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                               placeholder="misal: Erina Herwindalita"
+                               required>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">Nama lengkap akun pengguna (misal: Erina Herwindalita).</p>
+                </div>
+
+                <!-- Username Baru Field -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                            Username (ID Masuk) <span class="text-rose-500">*</span>
+                        </label>
+                        ${isSuperAdmin ? '<span class="text-[10px] text-amber-500 font-bold flex items-center gap-1"><i class="fa-solid fa-lock"></i> Username Admin Utama Terkunci</span>' : '<span class="text-[10px] text-slate-400">misal: Erina</span>'}
+                    </div>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 font-mono text-xs font-bold">@</span>
+                        <input type="text"
+                               id="reset-new-username"
+                               value="${escapeHtml(user.username || '')}"
+                               ${isSuperAdmin ? 'readonly' : ''}
+                               oninput="validateResetUsernameInput(this)"
+                               class="w-full pl-8 pr-10 py-2.5 bg-white dark:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${isSuperAdmin ? 'bg-slate-100 dark:bg-slate-800 cursor-not-allowed opacity-80' : ''}"
+                               placeholder="misal: Erina"
+                               required>
+                        <span id="reset-username-feedback" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 text-xs"></span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">Username digunakan untuk masuk (login) ke SIM Humas.</p>
+                </div>
+
+                <!-- Kata Sandi Sebelumnya (Validasi Akun Wajib Sebelum Kata Sandi Baru) -->
+                <div class="p-3 bg-amber-50/70 dark:bg-amber-950/30 rounded-xl border border-amber-200/80 dark:border-amber-800/60">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider">
+                            Kata Sandi Sebelumnya <span class="text-rose-500">* (Validasi Akun)</span>
+                        </label>
+                        <span class="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <i class="fa-solid fa-shield-halved"></i> Validasi Identitas
+                        </span>
+                    </div>
+                    <div class="relative">
+                        <input type="password"
+                               id="reset-old-password"
+                               class="w-full pl-3.5 pr-10 py-2.5 bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                               placeholder="Masukkan kata sandi sebelumnya untuk validasi"
+                               required>
+                        <button type="button"
+                                onclick="toggleResetPasswordVisibility('reset-old-password', this)"
+                                class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                                title="Lihat/Sembunyikan Sandi">
+                            <i class="fa-regular fa-eye text-xs"></i>
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-amber-700 dark:text-amber-400/80 mt-1">Sebelum memasukkan kata sandi baru, wajib menginput kata sandi akun sebelumnya sebagai validasi.</p>
+                </div>
+
+                <!-- Password Baru Field -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                            Kata Sandi (Password) Baru <span class="text-rose-500">*</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <button type="button"
+                                    onclick="setResetPasswordDefault()"
+                                    class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
+                                Default: password
+                            </button>
+                            <span class="text-slate-300 dark:text-slate-700">|</span>
+                            <button type="button"
+                                    onclick="generateRandomPassword()"
+                                    class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">
+                                <i class="fa-solid fa-wand-magic-sparkles text-[9px]"></i> Acak Sandi Kuat
+                            </button>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <input type="password"
+                               id="reset-new-password"
+                               value="password"
+                               oninput="checkPasswordStrength(this.value)"
+                               class="w-full pl-3.5 pr-10 py-2.5 bg-white dark:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                               placeholder="Minimal 4 karakter"
+                               required>
+                        <button type="button"
+                                onclick="toggleResetPasswordVisibility('reset-new-password', this)"
+                                class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                                title="Lihat/Sembunyikan Sandi">
+                            <i class="fa-regular fa-eye text-xs"></i>
+                        </button>
+                    </div>
+
+                    <!-- Password strength indicator -->
+                    <div class="mt-2 flex items-center justify-between text-[10px]">
+                        <span class="text-slate-400">Kekuatan Sandi:</span>
+                        <span id="reset-pwd-strength-text" class="font-bold text-amber-500">Standar ('password')</span>
+                    </div>
+                    <div class="w-full bg-slate-100 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden mt-1">
+                        <div id="reset-pwd-strength-bar" class="h-full bg-amber-500 transition-all duration-300" style="width: 50%"></div>
+                    </div>
+                </div>
+
+                <!-- Konfirmasi Password Field -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        Konfirmasi Kata Sandi Baru <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <input type="password"
+                               id="reset-confirm-password"
+                               value="password"
+                               class="w-full pl-3.5 pr-10 py-2.5 bg-white dark:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                               placeholder="Ulangi kata sandi baru"
+                               required>
+                        <button type="button"
+                                onclick="toggleResetPasswordVisibility('reset-confirm-password', this)"
+                                class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                                title="Lihat/Sembunyikan Sandi">
+                            <i class="fa-regular fa-eye text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Options Checkbox -->
+                <div class="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                    <label class="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <input type="checkbox" id="reset-copy-clipboard" checked class="rounded text-indigo-600">
+                        <span>Salin kredensial baru ke Clipboard setelah berhasil disimpan</span>
+                    </label>
+                    <label class="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <input type="checkbox" id="reset-send-notification" checked class="rounded text-indigo-600">
+                        <span>Kirim pemberitahuan sistem internal ke akun pengguna</span>
+                    </label>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                    <button type="submit"
+                            id="reset-submit-btn"
+                            class="flex-1 btn-primary py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Simpan & Terapkan Kredensial</span>
+                    </button>
+                    <button type="button"
+                            onclick="document.getElementById('reset-credentials-modal')?.remove()"
+                            class="btn-secondary py-2.5 px-5 text-xs font-bold uppercase tracking-wider">
+                        Batal
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+window.openResetCredentialsModal = openResetCredentialsModal;
+
+window.validateResetUsernameInput = function(input) {
+    if (!input) return;
+    const val = input.value.trim().toLowerCase();
+    input.value = val;
+    const feedback = document.getElementById('reset-username-feedback');
+    if (!feedback) return;
+
+    if (!val) {
+        feedback.innerHTML = '<i class="fa-solid fa-circle-xmark text-rose-500"></i>';
+        return;
+    }
+
+    if (!/^[a-zA-Z0-9_.\-]+$/.test(val)) {
+        feedback.innerHTML = '<span class="text-[10px] text-rose-500 font-bold">Karakter tidak valid</span>';
+        return;
+    }
+
+    feedback.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500"></i>';
+};
+
+window.toggleResetPasswordVisibility = function(inputId, btn) {
+    const inp = document.getElementById(inputId);
+    const icon = btn?.querySelector('i');
+    if (!inp) return;
+    if (inp.type === 'password') {
+        inp.type = 'text';
+        if (icon) icon.className = 'fa-regular fa-eye-slash text-xs text-indigo-500';
+    } else {
+        inp.type = 'password';
+        if (icon) icon.className = 'fa-regular fa-eye text-xs';
+    }
+};
+
+window.setResetPasswordDefault = function() {
+    const pwd = document.getElementById('reset-new-password');
+    const cpwd = document.getElementById('reset-confirm-password');
+    if (pwd) pwd.value = 'password';
+    if (cpwd) cpwd.value = 'password';
+    checkPasswordStrength('password');
+    showToast('Kata sandi diatur ke nilai default: "password"');
+};
+
+window.generateRandomPassword = function() {
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%';
+    let pass = '';
+    for (let i = 0; i < 8; i++) {
+        pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const pwd = document.getElementById('reset-new-password');
+    const cpwd = document.getElementById('reset-confirm-password');
+    if (pwd) {
+        pwd.type = 'text';
+        pwd.value = pass;
+    }
+    if (cpwd) {
+        cpwd.type = 'text';
+        cpwd.value = pass;
+    }
+    checkPasswordStrength(pass);
+    showToast('Kata sandi acak kuat berhasil dibuat!');
+};
+
+function checkPasswordStrength(val) {
+    const textEl = document.getElementById('reset-pwd-strength-text');
+    const barEl = document.getElementById('reset-pwd-strength-bar');
+    if (!textEl || !barEl) return;
+
+    if (!val || val.length < 4) {
+        textEl.textContent = 'Terlalu Pendek (Min 4 Karakter)';
+        textEl.className = 'font-bold text-rose-500';
+        barEl.className = 'h-full bg-rose-500 transition-all duration-300';
+        barEl.style.width = '20%';
+        return;
+    }
+
+    if (val === 'password') {
+        textEl.textContent = 'Standar Default ("password")';
+        textEl.className = 'font-bold text-amber-500';
+        barEl.className = 'h-full bg-amber-500 transition-all duration-300';
+        barEl.style.width = '50%';
+        return;
+    }
+
+    let score = 0;
+    if (val.length >= 6) score++;
+    if (val.length >= 8) score++;
+    if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+
+    if (score <= 2) {
+        textEl.textContent = 'Cukup';
+        textEl.className = 'font-bold text-amber-500';
+        barEl.className = 'h-full bg-amber-500 transition-all duration-300';
+        barEl.style.width = '50%';
+    } else if (score <= 3) {
+        textEl.textContent = 'Kuat';
+        textEl.className = 'font-bold text-blue-500';
+        barEl.className = 'h-full bg-blue-500 transition-all duration-300';
+        barEl.style.width = '75%';
+    } else {
+        textEl.textContent = 'Sangat Kuat';
+        textEl.className = 'font-bold text-emerald-500';
+        barEl.className = 'h-full bg-emerald-500 transition-all duration-300';
+        barEl.style.width = '100%';
+    }
+}
+window.checkPasswordStrength = checkPasswordStrength;
+
+async function submitResetCredentials(event, userId) {
+    event.preventDefault();
+    const user = (db.users || []).find(u => Number(u.id) === Number(userId));
+    if (!user) {
+        showToast('Pengguna tidak ditemukan.', 'error');
+        return;
+    }
+
+    const newNamaInput = document.getElementById('reset-new-nama');
+    const newUsernameInput = document.getElementById('reset-new-username');
+    const oldPasswordInput = document.getElementById('reset-old-password');
+    const newPasswordInput = document.getElementById('reset-new-password');
+    const confirmPasswordInput = document.getElementById('reset-confirm-password');
+    const copyClipboard = document.getElementById('reset-copy-clipboard')?.checked;
+    const sendNotification = document.getElementById('reset-send-notification')?.checked;
+    const submitBtn = document.getElementById('reset-submit-btn');
+
+    const newNama = (newNamaInput?.value || '').trim();
+    const newUsername = (newUsernameInput?.value || '').trim().toLowerCase();
+    const oldPassword = (oldPasswordInput?.value || '').trim();
+    const newPassword = (newPasswordInput?.value || '').trim();
+    const confirmPassword = (confirmPasswordInput?.value || '').trim();
+
+    // Validasi Nama Akun jika ada input nama
+    if (newNamaInput && !newNama) {
+        showToast('Nama Akun tidak boleh kosong!', 'error');
+        newNamaInput?.focus();
+        return;
+    }
+
+    // Validasi username
+    if (!newUsername) {
+        showToast('Username tidak boleh kosong!', 'error');
+        newUsernameInput?.focus();
+        return;
+    }
+
+    if (!/^[a-zA-Z0-9_.\-]+$/.test(newUsername)) {
+        showToast('Format username hanya boleh mengandung huruf, angka, titik, strip, atau garis bawah!', 'error');
+        newUsernameInput?.focus();
+        return;
+    }
+
+    if (newUsername.length < 3 || newUsername.length > 30) {
+        showToast('Panjang username harus antara 3 hingga 30 karakter!', 'error');
+        newUsernameInput?.focus();
+        return;
+    }
+
+    // Cek keunikan username terhadap akun lain
+    const existingOther = (db.users || []).find(u => Number(u.id) !== Number(userId) && String(u.username).toLowerCase().trim() === newUsername);
+    if (existingOther) {
+        showToast(`Username '@${newUsername}' sudah digunakan oleh pengguna lain (${existingOther.nama})!`, 'error');
+        newUsernameInput?.focus();
+        return;
+    }
+
+    // Proteksi username admin
+    if (user.username === 'admin' && newUsername !== 'admin') {
+        showToast('Username akun Administrator Utama ("admin") tidak boleh diubah!', 'warning');
+        return;
+    }
+
+    // Validasi Kata Sandi Sebelumnya sebelum memasukkan kata sandi baru
+    if (oldPasswordInput) {
+        if (!oldPassword) {
+            showToast('Kata sandi sebelumnya wajib diisi sebagai validasi akun!', 'error');
+            oldPasswordInput?.focus();
+            return;
+        }
+        const expectedOld = user.password !== undefined && user.password !== null && user.password !== '' ? String(user.password).trim() : 'password';
+        if (oldPassword !== expectedOld && !(expectedOld === 'password' && !user.password && oldPassword === 'password')) {
+            showToast('Kata sandi sebelumnya tidak sesuai! Validasi akun gagal.', 'error');
+            oldPasswordInput?.focus();
+            return;
+        }
+    }
+
+    // Validasi kata sandi baru
+    if (!newPassword || newPassword.length < 4) {
+        showToast('Kata sandi baru minimal 4 karakter!', 'error');
+        newPasswordInput?.focus();
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        showToast('Konfirmasi kata sandi tidak cocok dengan kata sandi baru!', 'error');
+        confirmPasswordInput?.focus();
+        return;
+    }
+
+    // Set tombol ke mode loading
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan Kredensial...';
+    }
+
+    try {
+        const oldUsername = user.username;
+        const oldName = user.nama;
+        const token = localStorage.getItem('sim_humas_token') || '';
+
+        // Panggil endpoint backend /api/admin/users/reset
+        let apiSuccess = false;
+        try {
+            const resp = await fetch('/api/admin/users/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    id: user.id,
+                    nama: newNama || user.nama,
+                    username: newUsername,
+                    oldPassword: oldPassword,
+                    password: newPassword
+                })
+            });
+
+            if (resp.ok) {
+                const resData = await resp.json();
+                if (resData && resData.users && Array.isArray(resData.users)) {
+                    db.users = resData.users;
+                    apiSuccess = true;
+                }
+            } else {
+                const errData = await resp.json().catch(() => null);
+                throw new Error((errData && errData.error) || 'Gagal mereset kredensial.');
+            }
+        } catch (fetchErr) {
+            if (fetchErr.message && fetchErr.message.includes('Kata sandi')) {
+                throw fetchErr;
+            }
+            console.warn('[Reset] API call fallback to local:', fetchErr);
+        }
+
+        // Jika API tidak merespons update lengkap, update local state
+        if (newNama) user.nama = newNama;
+        if (!apiSuccess) {
+            user.username = newUsername;
+            user.password = newPassword;
+        } else {
+            // Pastikan referensi user terupdate
+            const updatedUser = db.users.find(u => Number(u.id) === Number(userId));
+            if (updatedUser) {
+                user.nama = updatedUser.nama;
+                user.username = updatedUser.username;
+                user.password = updatedUser.password;
+            }
+        }
+
+        // Simpan local fallback
+        saveLocalFallback('users');
+
+        // Jika user yang diubah adalah user yang sedang login, update sesi lokal
+        if (currentUser && Number(currentUser.id) === Number(userId)) {
+            if (newNama) {
+                currentUser.nama = newNama;
+                currentUser.name = newNama;
+            }
+            currentUser.username = newUsername;
+            localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
+            if (typeof updateUserProfileUI === 'function') updateUserProfileUI();
+        }
+
+        // Catat di log aktivitas
+        if (typeof logActivity === 'function') {
+            logActivity(
+                'Reset Kredensial',
+                `Mereset username (@${oldUsername} -> @${newUsername}) dan kata sandi akun ${oldName}.`
+            );
+        }
+
+        // Kirim notifikasi sistem jika dipilih
+        if (sendNotification && typeof addNotification === 'function') {
+            addNotification(
+                'Kredensial Akun Diperbarui',
+                `Username Anda kini @${newUsername} dan kata sandi telah diperbarui oleh Administrator.`,
+                newUsername
+            );
+        }
+
+        // Salin ke clipboard jika dipilih
+        if (copyClipboard) {
+            const copyText = `KREDENSIAL SIM HUMAS BPS KALBAR\nNama: ${oldName}\nUsername: ${newUsername}\nKata Sandi: ${newPassword}\nTautan Masuk: ${window.location.origin}`;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(copyText).catch(() => {});
+            }
+        }
+
+        // Tutup modal
+        document.getElementById('reset-credentials-modal')?.remove();
+
+        showToast(
+            copyClipboard
+                ? `Kredensial @${newUsername} berhasil direset dan disalin ke clipboard!`
+                : `Kredensial @${newUsername} berhasil direset!`
+        );
+
+        // Re-draw table jika di halaman manajemen akun
+        if (typeof drawUserManagementTable === 'function' && document.getElementById('user-table-body')) {
+            drawUserManagementTable();
+        }
+
+        // Re-render jika di halaman reset kredensial
+        if (typeof currentState !== 'undefined' && currentState === 'reset_credentials') {
+            const container = document.getElementById('main-content');
+            if (container && typeof renderResetCredentialsPage === 'function') {
+                renderResetCredentialsPage(container);
+            }
+        }
+
+    } catch (err) {
+        console.error('Reset credentials error:', err);
+        showToast('Gagal mereset kredensial: ' + err.message, 'error');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Simpan & Terapkan Kredensial';
+        }
+    }
+}
+window.submitResetCredentials = submitResetCredentials;
+
+// Sinkronisasi data akun pengguna langsung dari backend
+async function syncUserAccounts() {
+    const btn = document.getElementById('btn-sync-users');
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Menyinkronkan...';
+    }
+
+    try {
+        const token = localStorage.getItem('sim_humas_token') || '';
+        const resp = await fetch('/api/admin/users', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!resp.ok) {
+            throw new Error(`HTTP error ${resp.status}`);
+        }
+
+        const data = await resp.json();
+        if (data && data.users && Array.isArray(data.users)) {
+            db.users = data.users;
+            saveLocalFallback('users');
+            showToast(`Berhasil menyinkronkan ${data.users.length} akun pengguna!`);
+            drawUserManagementTable();
+
+            // Update total users counter jika elemen ada
+            const totalEl = document.getElementById('stat-total-users');
+            if (totalEl) totalEl.textContent = data.users.length;
+        } else {
+            showToast('Data akun sudah mutakhir.');
+        }
+    } catch (err) {
+        console.warn('Sync users error:', err);
+        // Fallback: reload dari Sheets jika backend offline
+        if (typeof fetchDataFromSheets === 'function') {
+            await fetchDataFromSheets(false);
+            drawUserManagementTable();
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+        }
+    }
+}
+window.syncUserAccounts = syncUserAccounts;
+
+// Hapus akun pengguna khusus dengan proteksi akun admin
+function deleteUserAccount(userId, username) {
+    if (username === 'admin') {
+        showToast('Akun Administrator utama tidak dapat dihapus!', 'warning');
+        return;
+    }
+
+    if (currentUser && currentUser.username === username) {
+        showToast('Anda tidak dapat menghapus akun Anda sendiri saat sedang masuk!', 'warning');
+        return;
+    }
+
+    deleteItem('users', userId);
+}
+window.deleteUserAccount = deleteUserAccount;
+
+// Ekspor daftar pengguna ke format berkas Excel (.xlsx)
+function exportUsersToExcel() {
+    if (typeof XLSX === 'undefined') {
+        showToast('Library Excel belum siap. Coba lagi beberapa saat.', 'warning');
+        return;
+    }
+
+    try {
+        const users = db.users || [];
+        const rows = [
+            ['No', 'Nama Lengkap', 'Username', 'Role / Peran', 'Bidang / Seksi', 'Status Sandi', 'Status Akun']
+        ];
+
+        users.forEach((u, i) => {
+            const isDef = !u.password || String(u.password).trim() === 'password';
+            rows.push([
+                i + 1,
+                u.nama || '-',
+                u.username || '-',
+                getRoleLabel(u.role),
+                u.bidang || '-',
+                isDef ? 'Default (password)' : 'Kustom',
+                'Aktif'
+            ]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Pengguna SIM HUMAS');
+
+        const nowStr = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(wb, `daftar_pengguna_sim_humas_${nowStr}.xlsx`);
+        showToast('Daftar pengguna berhasil diekspor ke Excel!');
+    } catch (err) {
+        console.error('Export error:', err);
+        showToast('Gagal mengekspor data: ' + err.message, 'error');
+    }
+}
+window.exportUsersToExcel = exportUsersToExcel;
+
+// ===================================================================
+// FITUR & HALAMAN RESET USERNAME DAN PASSWORD
+// Khusus Role: Administrator Sistem, Ketua Tim (Koordinator), dan Tim Humas
+// ===================================================================
+
+// Helper membuka modal reset berdasarkan nama anggota tim
+function openResetCredentialsByTeamMember(memberName) {
+    if (!memberName) return;
+    const cleanName = memberName.trim().toLowerCase();
+    const user = (db.users || []).find(u =>
+        u.nama && u.nama.toLowerCase().trim() === cleanName
+    ) || (db.users || []).find(u =>
+        u.nama && (u.nama.toLowerCase().includes(cleanName) || cleanName.includes(u.nama.toLowerCase()))
+    );
+
+    if (user) {
+        openResetCredentialsModal(user.id);
+    } else {
+        showToast(`Akun pengguna untuk "${memberName}" tidak ditemukan di daftar akun.`, 'warning');
+    }
+}
+window.openResetCredentialsByTeamMember = openResetCredentialsByTeamMember;
+
+// Handler toggle visibilitas password form mandiri
+window.toggleSelfPasswordVisibility = function(inputId, btn) {
+    const inp = document.getElementById(inputId);
+    const icon = btn?.querySelector('i');
+    if (!inp) return;
+    if (inp.type === 'password') {
+        inp.type = 'text';
+        if (icon) icon.className = 'fa-regular fa-eye-slash text-xs text-indigo-500';
+    } else {
+        inp.type = 'password';
+        if (icon) icon.className = 'fa-regular fa-eye text-xs';
+    }
+};
+
+window.setSelfPasswordDefault = function() {
+    const pwd = document.getElementById('self-reset-password');
+    const cpwd = document.getElementById('self-reset-confirm-password');
+    if (pwd) pwd.value = 'password';
+    if (cpwd) cpwd.value = 'password';
+    checkSelfPasswordStrength('password');
+    showToast('Kata sandi diatur ke nilai default: "password"');
+};
+
+window.generateSelfRandomPassword = function() {
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%';
+    let pass = '';
+    for (let i = 0; i < 8; i++) {
+        pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const pwd = document.getElementById('self-reset-password');
+    const cpwd = document.getElementById('self-reset-confirm-password');
+    if (pwd) {
+        pwd.type = 'text';
+        pwd.value = pass;
+    }
+    if (cpwd) {
+        cpwd.type = 'text';
+        cpwd.value = pass;
+    }
+    checkSelfPasswordStrength(pass);
+    showToast('Kata sandi acak kuat berhasil dibuat!');
+};
+
+function checkSelfPasswordStrength(val) {
+    const textEl = document.getElementById('self-pwd-strength-text');
+    const barEl = document.getElementById('self-pwd-strength-bar');
+    if (!textEl || !barEl) return;
+
+    if (!val || val.length < 4) {
+        textEl.textContent = 'Terlalu Pendek (Min 4 Karakter)';
+        textEl.className = 'font-bold text-rose-500';
+        barEl.className = 'h-full bg-rose-500 transition-all duration-300';
+        barEl.style.width = '20%';
+        return;
+    }
+
+    if (val === 'password') {
+        textEl.textContent = 'Standar Default ("password")';
+        textEl.className = 'font-bold text-amber-500';
+        barEl.className = 'h-full bg-amber-500 transition-all duration-300';
+        barEl.style.width = '50%';
+        return;
+    }
+
+    let score = 0;
+    if (val.length >= 6) score++;
+    if (val.length >= 8) score++;
+    if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+
+    if (score <= 2) {
+        textEl.textContent = 'Cukup';
+        textEl.className = 'font-bold text-amber-500';
+        barEl.className = 'h-full bg-amber-500 transition-all duration-300';
+        barEl.style.width = '50%';
+    } else if (score <= 3) {
+        textEl.textContent = 'Kuat';
+        textEl.className = 'font-bold text-blue-500';
+        barEl.className = 'h-full bg-blue-500 transition-all duration-300';
+        barEl.style.width = '75%';
+    } else {
+        textEl.textContent = 'Sangat Kuat';
+        textEl.className = 'font-bold text-emerald-500';
+        barEl.className = 'h-full bg-emerald-500 transition-all duration-300';
+        barEl.style.width = '100%';
+    }
+}
+window.checkSelfPasswordStrength = checkSelfPasswordStrength;
+
+// Submit reset kredensial mandiri
+async function submitSelfResetCredentials(event, userId) {
+    event.preventDefault();
+    if (!currentUser) return;
+
+    const targetUser = (db.users || []).find(u => Number(u.id) === Number(userId)) || currentUser;
+    const newNamaInput = document.getElementById('self-reset-nama');
+    const newUsernameInput = document.getElementById('self-reset-username');
+    const oldPasswordInput = document.getElementById('self-reset-old-password');
+    const newPasswordInput = document.getElementById('self-reset-password');
+    const confirmPasswordInput = document.getElementById('self-reset-confirm-password');
+    const copyClipboard = document.getElementById('self-reset-copy-clipboard')?.checked;
+    const submitBtn = document.getElementById('self-reset-submit-btn');
+
+    const newNama = (newNamaInput?.value || '').trim();
+    const newUsername = (newUsernameInput?.value || '').trim().toLowerCase();
+    const oldPassword = (oldPasswordInput?.value || '').trim();
+    const newPassword = (newPasswordInput?.value || '').trim();
+    const confirmPassword = (confirmPasswordInput?.value || '').trim();
+
+    // Validasi Nama Akun
+    if (!newNama) {
+        showToast('Nama Akun tidak boleh kosong!', 'error');
+        newNamaInput?.focus();
+        return;
+    }
+
+    // Validasi username
+    if (!newUsername) {
+        showToast('Username tidak boleh kosong!', 'error');
+        newUsernameInput?.focus();
+        return;
+    }
+
+    if (!/^[a-zA-Z0-9_.\-]+$/.test(newUsername)) {
+        showToast('Format username hanya boleh mengandung huruf, angka, titik, strip, atau garis bawah!', 'error');
+        newUsernameInput?.focus();
+        return;
+    }
+
+    if (newUsername.length < 3 || newUsername.length > 30) {
+        showToast('Panjang username harus antara 3 hingga 30 karakter!', 'error');
+        newUsernameInput?.focus();
+        return;
+    }
+
+    // Cek keunikan username terhadap akun lain
+    const existingOther = (db.users || []).find(u => Number(u.id) !== Number(userId) && String(u.username).toLowerCase().trim() === newUsername);
+    if (existingOther) {
+        showToast(`Username '@${newUsername}' sudah digunakan oleh pengguna lain!`, 'error');
+        newUsernameInput?.focus();
+        return;
+    }
+
+    // Proteksi username admin
+    if (targetUser.username === 'admin' && newUsername !== 'admin') {
+        showToast('Username akun Administrator Utama ("admin") tidak boleh diubah!', 'warning');
+        return;
+    }
+
+    // Validasi Kata Sandi Sebelumnya sebelum memasukkan kata sandi baru (Validasi Akun)
+    if (!oldPassword) {
+        showToast('Silakan masukkan kata sandi sebelumnya untuk validasi akun!', 'error');
+        oldPasswordInput?.focus();
+        return;
+    }
+
+    const expectedOld = targetUser.password !== undefined && targetUser.password !== null && targetUser.password !== '' ? String(targetUser.password).trim() : 'password';
+    if (oldPassword !== expectedOld && !(expectedOld === 'password' && !targetUser.password && oldPassword === 'password')) {
+        showToast('Kata sandi sebelumnya tidak sesuai! Validasi akun gagal.', 'error');
+        oldPasswordInput?.focus();
+        return;
+    }
+
+    // Validasi kata sandi baru
+    if (!newPassword || newPassword.length < 4) {
+        showToast('Kata sandi baru minimal 4 karakter!', 'error');
+        newPasswordInput?.focus();
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        showToast('Konfirmasi kata sandi tidak cocok dengan kata sandi baru!', 'error');
+        confirmPasswordInput?.focus();
+        return;
+    }
+
+    // Loading status
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan Kredensial...';
+    }
+
+    try {
+        const oldUsername = targetUser.username;
+        const oldName = targetUser.nama || currentUser.nama || currentUser.name || 'Pengguna';
+        const token = localStorage.getItem('sim_humas_token') || '';
+
+        let apiSuccess = false;
+        try {
+            const resp = await fetch('/api/admin/users/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    id: targetUser.id,
+                    nama: newNama,
+                    username: newUsername,
+                    oldPassword: oldPassword,
+                    password: newPassword
+                })
+            });
+
+            if (resp.ok) {
+                const resData = await resp.json();
+                if (resData && resData.users && Array.isArray(resData.users)) {
+                    db.users = resData.users;
+                    apiSuccess = true;
+                }
+            } else {
+                const errData = await resp.json().catch(() => null);
+                throw new Error((errData && errData.error) || 'Gagal mereset kredensial');
+            }
+        } catch (fetchErr) {
+            if (fetchErr.message && fetchErr.message.includes('Kata sandi')) {
+                throw fetchErr;
+            }
+            console.warn('[Self-Reset] API call fallback to local:', fetchErr);
+        }
+
+        targetUser.nama = newNama;
+        if (!apiSuccess) {
+            targetUser.username = newUsername;
+            targetUser.password = newPassword;
+        } else {
+            const updatedUser = db.users.find(u => Number(u.id) === Number(userId));
+            if (updatedUser) {
+                targetUser.nama = updatedUser.nama;
+                targetUser.username = updatedUser.username;
+                targetUser.password = updatedUser.password;
+            }
+        }
+
+        saveLocalFallback('users');
+
+        // Perbarui sesi aktif saat ini
+        currentUser.nama = newNama;
+        currentUser.name = newNama;
+        currentUser.username = newUsername;
+        localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
+        if (typeof updateUserProfileUI === 'function') updateUserProfileUI();
+
+        if (typeof logActivity === 'function') {
+            logActivity(
+                'Reset Kredensial Mandiri',
+                `Mereset Nama Akun (${oldName} -> ${newNama}), username (@${oldUsername} -> @${newUsername}), dan kata sandi akun sendiri.`
+            );
+        }
+
+        if (copyClipboard) {
+            const copyText = `KREDENSIAL SIM HUMAS BPS KALBAR\nNama Akun: ${newNama}\nUsername: ${newUsername}\nKata Sandi: ${newPassword}\nTautan Masuk: ${window.location.origin}`;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(copyText).catch(() => {});
+            }
+        }
+
+        showToast(
+            copyClipboard
+                ? `Kredensial akun ${newNama} berhasil diperbarui dan disalin ke clipboard!`
+                : `Kredensial akun ${newNama} berhasil diperbarui!`
+        );
+
+        // Re-render halaman
+        const container = document.getElementById('main-content');
+        if (container) {
+            renderResetCredentialsPage(container);
+        }
+
+    } catch (err) {
+        console.error('Self reset error:', err);
+        showToast('Gagal mereset kredensial: ' + err.message, 'error');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Simpan & Perbarui Kredensial Saya';
+        }
+    }
+}
+window.submitSelfResetCredentials = submitSelfResetCredentials;
+
+// Live filter tabel anggota tim untuk Ketua Tim
+window.filterTeamCredentialsTable = function(query) {
+    const filter = (query || '').toLowerCase().trim();
+    const rows = document.querySelectorAll('.team-credential-row');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        const text = row.getAttribute('data-search') || '';
+        if (!filter || text.includes(filter)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    const emptyNotice = document.getElementById('team-credential-empty');
+    if (emptyNotice) {
+        emptyNotice.style.display = visibleCount === 0 ? '' : 'none';
+    }
+};
+
+// Render Halaman Utama Reset Username & Sandi
+function renderResetCredentialsPage(container) {
+    if (!currentUser || !['admin', 'koordinator', 'tim'].includes(currentUser.role)) {
+        container.innerHTML = `
+            <div class="p-8 text-center bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm max-w-md mx-auto my-12">
+                <div class="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-500 flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="text-base font-bold text-slate-800 dark:text-white">Akses Terbatas</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Halaman Reset Kredensial hanya dapat diakses oleh Administrator Sistem, Ketua Tim Humas, dan Anggota Tim Humas.</p>
+                <button onclick="router('dashboard')" class="mt-5 btn-primary text-xs py-2 px-5">
+                    Kembali ke Beranda
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    const isKetuaTim = currentUser.role === 'koordinator';
+    const isAdmin = currentUser.role === 'admin';
+    const canManageTeam = isKetuaTim || isAdmin;
+
+    // Temukan record user saat ini di db.users
+    const userAcc = (db.users || []).find(u => currentUser.id && Number(u.id) === Number(currentUser.id)) ||
+                    (db.users || []).find(u => u.username && String(u.username).toLowerCase() === String(currentUser.username).toLowerCase()) ||
+                    (db.users || []).find(u => u.nama && (u.nama === currentUser.nama || u.nama === currentUser.name)) ||
+                    currentUser;
+
+    const accountName = userAcc.nama || currentUser.nama || currentUser.name || 'Pengguna Humas';
+    const accountUsername = userAcc.username || currentUser.username || '';
+
+    const roleBadges = {
+        admin: 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+        koordinator: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+        tim: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+    };
+    const roleBadgeClass = roleBadges[currentUser.role] || 'bg-slate-100 text-slate-700 border-slate-200';
+
+    // Ambil daftar anggota tim humas jika user adalah Ketua Tim atau Admin
+    let teamMembers = [];
+    if (canManageTeam) {
+        teamMembers = (db.users || []).filter(u => {
+            if (isKetuaTim) {
+                // Ketua Tim dapat mengelola anggota Tim Humas (role === 'tim')
+                return u.role === 'tim';
+            }
+            if (isAdmin) {
+                // Admin dapat melihat seluruh tim kerja (tim & koordinator)
+                return u.role === 'tim' || u.role === 'koordinator';
+            }
+            return false;
+        });
+    }
+
+    container.innerHTML = `
+        <div class="space-y-6 max-w-7xl mx-auto pb-10">
+            <!-- Header Section -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-base">
+                            <i class="fa-solid fa-key"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-black text-slate-800 dark:text-white tracking-tight">
+                                Reset Username & Kata Sandi
+                            </h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                ${isKetuaTim
+                                    ? 'Kelola kredensial akun masuk Anda sendiri dan reset kredensial anggota Tim Humas.'
+                                    : (isAdmin
+                                        ? 'Kelola kredensial akun mandiri dan atur ulang kredensial tim kerja.'
+                                        : 'Perbarui kredensial nama pengguna (username) dan kata sandi akun masuk Anda.')}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    ${isAdmin ? `
+                        <button onclick="router('user_management')" class="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5">
+                            <i class="fa-solid fa-users-gear text-indigo-500"></i>
+                            <span>Manajemen Pengguna</span>
+                        </button>
+                    ` : ''}
+                    <button onclick="router('dashboard')" class="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span>Kembali</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grid Konten: Akun Sendiri & Anggota Tim -->
+            <div class="grid grid-cols-1 ${canManageTeam ? 'lg:grid-cols-12' : 'max-w-2xl mx-auto'} gap-6">
+
+                <!-- KARTU 1: Reset Kredensial Akun Saya -->
+                <div class="${canManageTeam ? 'lg:col-span-5' : 'w-full'} space-y-6">
+                    <div class="bg-white dark:bg-slate-850 rounded-2xl p-6 border border-slate-205 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-amber-500/5 rounded-full pointer-events-none"></div>
+
+                        <!-- Header Kartu -->
+                        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-700/60 mb-5">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center text-sm font-bold">
+                                    <i class="fa-solid fa-user-shield"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-extrabold text-slate-800 dark:text-white">Akun Saya</h3>
+                                    <p class="text-[11px] text-slate-400">Atur ulang kredensial akun masuk Anda</p>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${roleBadgeClass}">
+                                ${getRoleLabel(currentUser.role)}
+                            </span>
+                        </div>
+
+                        <!-- Profil Singkat User (Nama Akun & Username) -->
+                        <div class="flex items-center gap-3.5 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60 mb-5">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white font-black text-base flex items-center justify-center shrink-0 shadow-sm">
+                                ${(accountName).charAt(0).toUpperCase()}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <h4 class="text-xs font-black text-slate-800 dark:text-white truncate">${escapeHtml(accountName)}</h4>
+                                <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                    <span>Nama Akun: <strong class="text-slate-700 dark:text-slate-300">${escapeHtml(accountName)}</strong></span>
+                                    <span>•</span>
+                                    <span>Username: <code class="px-1.5 py-0.5 bg-white dark:bg-slate-700 rounded font-mono font-bold text-indigo-600 dark:text-indigo-400 border border-slate-200 dark:border-slate-600">@${escapeHtml(accountUsername)}</code></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Reset Mandiri -->
+                        <form onsubmit="submitSelfResetCredentials(event, ${userAcc.id || currentUser.id || 0})" class="space-y-4">
+                            <!-- Field Nama Akun -->
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                                    Nama Akun <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 text-xs">
+                                        <i class="fa-solid fa-user"></i>
+                                    </span>
+                                    <input type="text"
+                                           id="self-reset-nama"
+                                           value="${escapeHtml(accountName)}"
+                                           class="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                           placeholder="misal: Erina Herwindalita"
+                                           required>
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-1">Nama lengkap pemilik akun (misal: Erina Herwindalita).</p>
+                            </div>
+
+                            <!-- Field Username Baru -->
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                                    Username (ID Masuk) <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 font-mono text-xs font-bold">@</span>
+                                    <input type="text"
+                                           id="self-reset-username"
+                                           value="${escapeHtml(accountUsername)}"
+                                           ${accountUsername === 'admin' ? 'readonly' : ''}
+                                           class="w-full pl-8 pr-3.5 py-2.5 bg-white dark:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 ${accountUsername === 'admin' ? 'bg-slate-100 dark:bg-slate-800 cursor-not-allowed opacity-80' : ''}"
+                                           placeholder="misal: Erina"
+                                           required>
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-1">Username digunakan untuk masuk (login) ke SIM Humas.</p>
+                            </div>
+
+                            <!-- Field Kata Sandi Sebelumnya (Validasi Akun Sebelum Kata Sandi Baru) -->
+                            <div class="p-3.5 bg-amber-50/70 dark:bg-amber-950/30 rounded-xl border border-amber-200/80 dark:border-amber-800/60">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label class="block text-xs font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider">
+                                        Kata Sandi Sebelumnya <span class="text-rose-500">* (Validasi Akun)</span>
+                                    </label>
+                                    <span class="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                        <i class="fa-solid fa-shield-halved"></i> Validasi Identitas
+                                    </span>
+                                </div>
+                                <div class="relative">
+                                    <input type="password"
+                                           id="self-reset-old-password"
+                                           class="w-full pl-3.5 pr-10 py-2.5 bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                           placeholder="Masukkan kata sandi sebelumnya untuk validasi akun"
+                                           required>
+                                    <button type="button"
+                                            onclick="toggleSelfPasswordVisibility('self-reset-old-password', this)"
+                                            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                                            title="Lihat/Sembunyikan Sandi">
+                                        <i class="fa-regular fa-eye text-xs"></i>
+                                    </button>
+                                </div>
+                                <p class="text-[10px] text-amber-700 dark:text-amber-400/80 mt-1.5">Sebelum memasukkan kata sandi baru, wajib menginput kata sandi akun saat ini sebagai validasi akun.</p>
+                            </div>
+
+                            <!-- Field Kata Sandi Baru -->
+                            <div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                                        Kata Sandi Baru <span class="text-rose-500">*</span>
+                                    </label>
+                                    <div class="flex items-center gap-2">
+                                        <button type="button"
+                                                onclick="setSelfPasswordDefault()"
+                                                class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
+                                            Default: password
+                                        </button>
+                                        <span class="text-slate-300 dark:text-slate-700">|</span>
+                                        <button type="button"
+                                                onclick="generateSelfRandomPassword()"
+                                                class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">
+                                            <i class="fa-solid fa-wand-magic-sparkles text-[9px]"></i> Acak Kuat
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="relative">
+                                    <input type="password"
+                                           id="self-reset-password"
+                                           value=""
+                                           oninput="checkSelfPasswordStrength(this.value)"
+                                           class="w-full pl-3.5 pr-10 py-2.5 bg-white dark:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                           placeholder="Minimal 4 karakter"
+                                           required>
+                                    <button type="button"
+                                            onclick="toggleSelfPasswordVisibility('self-reset-password', this)"
+                                            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                                            title="Lihat/Sembunyikan Sandi">
+                                        <i class="fa-regular fa-eye text-xs"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Password strength meter -->
+                                <div class="mt-2 flex items-center justify-between text-[10px]">
+                                    <span class="text-slate-400">Kekuatan Sandi:</span>
+                                    <span id="self-pwd-strength-text" class="font-bold text-slate-400">Belum diisi</span>
+                                </div>
+                                <div class="w-full bg-slate-100 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden mt-1">
+                                    <div id="self-pwd-strength-bar" class="h-full bg-slate-300 transition-all duration-300" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Field Konfirmasi Sandi Baru -->
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                                    Konfirmasi Kata Sandi Baru <span class="text-rose-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="password"
+                                           id="self-reset-confirm-password"
+                                           value=""
+                                           class="w-full pl-3.5 pr-10 py-2.5 bg-white dark:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                           placeholder="Ulangi kata sandi baru"
+                                           required>
+                                    <button type="button"
+                                            onclick="toggleSelfPasswordVisibility('self-reset-confirm-password', this)"
+                                            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                                            title="Lihat/Sembunyikan Sandi">
+                                        <i class="fa-regular fa-eye text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Checkbox Options -->
+                            <div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <label class="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                    <input type="checkbox" id="self-reset-copy-clipboard" checked class="rounded text-indigo-600">
+                                    <span>Salin kredensial baru ke Clipboard setelah disimpan</span>
+                                </label>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button type="submit"
+                                    id="self-reset-submit-btn"
+                                    class="w-full btn-primary py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md">
+                                <i class="fa-solid fa-check"></i>
+                                <span>Simpan & Perbarui Kredensial Saya</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Kartu Panduan Keamanan Kredensial -->
+                    <div class="bg-indigo-50/50 dark:bg-indigo-950/20 rounded-2xl p-4.5 border border-indigo-100 dark:border-indigo-900/50">
+                        <div class="flex items-start gap-3">
+                            <div class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 text-xs">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <div class="text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                                <p class="font-bold text-slate-800 dark:text-white">Tips Keamanan Akun:</p>
+                                <ul class="list-disc list-inside text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5">
+                                    <li>Pastikan kata sandi sebelumnya benar sebelum menetapkan sandi baru.</li>
+                                    <li>Hindari menggunakan kata sandi bawaan ("password") untuk keamanan optimal.</li>
+                                    <li>Gunakan kombinasi huruf kapital, angka, dan simbol.</li>
+                                    <li>Jangan membagikan kredensial login kepada pihak lain.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KARTU 2: Reset Kredensial Anggota Tim Humas (Khusus Ketua Tim & Admin) -->
+                ${canManageTeam ? `
+                <div class="lg:col-span-7 space-y-4">
+                    <div class="bg-white dark:bg-slate-850 rounded-2xl p-6 border border-slate-205 dark:border-slate-700 shadow-sm flex flex-col h-full">
+                        <!-- Header Kartu Anggota Tim -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-700/60 mb-4">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-sm font-bold">
+                                        <i class="fa-solid fa-users"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-sm font-extrabold text-slate-800 dark:text-white">
+                                            Kredensial Anggota Tim Humas
+                                        </h3>
+                                        <p class="text-[11px] text-slate-400">
+                                            ${isKetuaTim
+                                                ? 'Sebagai Ketua Tim, Anda dapat mereset username dan sandi anggota tim'
+                                                : 'Kelola dan atur ulang kredensial anggota tim kerja'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-1 bg-slate-100 dark:bg-slate-750 text-slate-600 dark:text-slate-300 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-slate-700">
+                                    Total: ${teamMembers.length} Anggota
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Search Box Filter -->
+                        <div class="relative mb-4">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                            </span>
+                            <input type="text"
+                                   placeholder="Cari berdasarkan Nama Akun atau username..."
+                                   oninput="filterTeamCredentialsTable(this.value)"
+                                   class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+
+                        <!-- Tabel Anggota Tim -->
+                        <div class="overflow-x-auto flex-1 -mx-6 sm:mx-0">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-200 dark:border-slate-750 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                        <th class="py-2.5 px-3">Nama Akun (Anggota)</th>
+                                        <th class="py-2.5 px-3">Username Masuk</th>
+                                        <th class="py-2.5 px-3">Status Sandi</th>
+                                        <th class="py-2.5 px-3 text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${teamMembers.map(member => {
+                                        const isDef = !member.password || String(member.password).trim() === 'password';
+                                        const searchText = `${member.nama || ''} ${member.username || ''} ${member.bidang || ''}`.toLowerCase();
+                                        return `
+                                            <tr class="team-credential-row border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors" data-search="${escapeHtml(searchText)}">
+                                                <td class="py-3 px-3">
+                                                    <div class="flex items-center gap-2.5">
+                                                        <div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-extrabold text-xs flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-900/50">
+                                                            ${(member.nama || 'A').charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div class="min-w-0">
+                                                            <div class="font-extrabold text-slate-800 dark:text-white truncate">${escapeHtml(member.nama || '-')}</div>
+                                                            <div class="text-[10px] text-slate-400 truncate">${escapeHtml(member.bidang || 'Tim Humas BPS')}</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td class="py-3 px-3">
+                                                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-bold border border-slate-200 dark:border-slate-700">
+                                                        <span>@${escapeHtml(member.username || '-')}</span>
+                                                        <button onclick="copyToClipboard('${escapeHtml(member.username || '')}', 'Username')" title="Salin Username" class="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+                                                            <i class="fa-regular fa-copy text-[10px]"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                                <td class="py-3 px-3">
+                                                    ${isDef ? `
+                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                                                            <i class="fa-solid fa-triangle-exclamation text-[8px]"></i> Default
+                                                        </span>
+                                                    ` : `
+                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                                            <i class="fa-solid fa-check text-[8px]"></i> Kustom
+                                                        </span>
+                                                    `}
+                                                </td>
+                                                <td class="py-3 px-3 text-right">
+                                                    <button onclick="openResetCredentialsModal(${member.id})"
+                                                            title="Reset Kredensial Akun ${escapeHtml(member.nama)}"
+                                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 dark:text-amber-300 rounded-lg text-xs font-bold border border-amber-200 dark:border-amber-800 transition-all cursor-pointer shadow-xs">
+                                                        <i class="fa-solid fa-key text-[10px]"></i>
+                                                        <span>Reset</span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+
+                            <div id="team-credential-empty" class="p-8 text-center text-slate-400 ${teamMembers.length === 0 ? '' : 'hidden'}">
+                                <i class="fa-solid fa-user-slash text-2xl mb-2"></i>
+                                <p class="text-xs font-semibold">Tidak ada anggota tim yang cocok.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+            </div>
+        </div>
+    `;
+}
+window.renderResetCredentialsPage = renderResetCredentialsPage;
 

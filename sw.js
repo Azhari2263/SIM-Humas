@@ -1,5 +1,5 @@
 // Service Worker for SIM Humas BPS Kalbar (PWA)
-const CACHE_NAME = 'sim-humas-v1.2.1';
+const CACHE_NAME = 'sim-humas-v1.2.3';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -12,6 +12,9 @@ const PRECACHE_ASSETS = [
   '/js/views.js',
   '/js/pwa.js',
   '/js/app.js',
+  '/public/docs/buku-panduan-sim-humas.html',
+  '/public/docs/buku-panduan-admin-ketua-tim.html',
+  '/public/docs/buku-panduan-tim-humas.html',
   '/icon.svg',
   '/apple-touch-icon.png',
   '/pwa-192x192.png',

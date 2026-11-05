@@ -19,6 +19,8 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR = path.join(__dirname, 'data');
 const MONITORING_FILE = path.join(DATA_DIR, 'monitoring.json');
 const TMP_MONITORING_FILE = path.join('/tmp', 'monitoring.json');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const TMP_USERS_FILE = path.join('/tmp', 'users.json');
 
 // Safe cross-version JSON loading (compatible with Node 18, 20, 22+)
 let bundledMonitoringData = [];
@@ -243,6 +245,24 @@ if (candidateMonitoringFile) {
   }
 }
 
+// Load existing user data from persistent or tmp storage if present
+const candidateUsersFile = fs.existsSync(TMP_USERS_FILE)
+  ? TMP_USERS_FILE
+  : (fs.existsSync(USERS_FILE) ? USERS_FILE : null);
+
+if (candidateUsersFile) {
+  try {
+    const rawUsers = fs.readFileSync(candidateUsersFile, 'utf8');
+    const parsedUsers = JSON.parse(rawUsers);
+    if (Array.isArray(parsedUsers) && parsedUsers.length > 0) {
+      database.users = parsedUsers;
+      console.log(`[DB] Restored custom users from ${candidateUsersFile} (${database.users.length} users).`);
+    }
+  } catch (uErr) {
+    console.warn('[DB] Could not load users.json:', uErr.message);
+  }
+}
+
 function persistMonitoringData() {
   const content = JSON.stringify(database.monitoring || [], null, 2);
   try {
@@ -256,6 +276,22 @@ function persistMonitoringData() {
       fs.writeFileSync(TMP_MONITORING_FILE, content, 'utf8');
     } catch (tmpErr) {
       console.warn('[DB] Could not save monitoring data to disk or /tmp:', tmpErr.message);
+    }
+  }
+}
+
+function persistUsersData() {
+  const content = JSON.stringify(database.users || [], null, 2);
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (_) {}
+    }
+    fs.writeFileSync(USERS_FILE, content, 'utf8');
+  } catch (e) {
+    try {
+      fs.writeFileSync(TMP_USERS_FILE, content, 'utf8');
+    } catch (tmpErr) {
+      console.warn('[DB] Could not save users data to disk or /tmp:', tmpErr.message);
     }
   }
 }
@@ -306,14 +342,23 @@ async function refreshUsersFromSheets() {
       if (data && Array.isArray(data.users) && data.users.length > 0) {
         const existingMap = new Map();
         (database.users || []).forEach(u => {
-          if (u.username) existingMap.set(u.username.toLowerCase().trim(), u);
+          if (u.id) existingMap.set(Number(u.id), u);
+          else if (u.username) existingMap.set(u.username.toLowerCase().trim(), u);
         });
         data.users.forEach(u => {
-          if (u.username) {
-            existingMap.set(u.username.toLowerCase().trim(), u);
+          const key = Number(u.id) || (u.username && u.username.toLowerCase().trim());
+          if (key) {
+            const existing = existingMap.get(key);
+            if (existing) {
+              // Preserve locally edited password/username if existing in database.users
+              existingMap.set(key, { ...u, ...existing });
+            } else {
+              existingMap.set(key, u);
+            }
           }
         });
         database.users = Array.from(existingMap.values());
+        persistUsersData();
         console.log(`[DB] Successfully refreshed users from Google Sheets (${database.users.length} total).`);
         return database.users;
       }
@@ -442,6 +487,7 @@ app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
       username: user.username,
       role: String(user.role || '').toLowerCase().trim(),
       name: user.nama || user.username,
+      nama: user.nama || user.username,
       bidang: user.bidang || ''
     };
     const token = generateSessionToken(safeUser);
@@ -463,6 +509,296 @@ app.post(['/api/auth/logout', '/auth/logout'], (req, res) => {
     return res.json({ success: true, message: 'Sesi berhasil diakhiri.' });
   } catch (err) {
     return res.json({ success: true });
+  }
+});
+
+// =============================================================
+// USER MANAGEMENT & CREDENTIAL RESET (ADMIN ROLE ONLY)
+// =============================================================
+
+function getAdminSession(req) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : ((req.body && req.body.token) || (req.query && req.query.token));
+  const session = verifySessionToken(token);
+  if (!session) return null;
+  if (String(session.role).toLowerCase().trim() !== 'admin') return null;
+  return session;
+}
+
+// 1. Get full users list with credential status (Admin, Ketua Tim, and Tim)
+app.get(['/api/admin/users', '/admin/users', '/api/users/list'], (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : ((req.body && req.body.token) || (req.query && req.query.token));
+  const session = verifySessionToken(token);
+  if (!session) {
+    return res.status(401).json({
+      success: false,
+      error: 'Sesi tidak valid atau telah berakhir. Silakan login kembali.'
+    });
+  }
+
+  const role = String(session.role || '').toLowerCase().trim();
+  if (role !== 'admin' && role !== 'koordinator' && role !== 'tim') {
+    return res.status(403).json({
+      success: false,
+      error: 'Akses Ditolak (403 Forbidden): Hanya Administrator, Ketua Tim, atau Tim yang berhak mengakses data kredensial.'
+    });
+  }
+
+  const users = (database.users || []).map(u => ({
+    id: u.id,
+    nama: u.nama || u.name || '',
+    username: u.username || '',
+    role: String(u.role || 'tim').toLowerCase().trim(),
+    bidang: u.bidang || '',
+    password: u.password !== undefined && u.password !== null && u.password !== '' ? u.password : 'password',
+    isDefaultPassword: !u.password || u.password === 'password'
+  }));
+
+  return res.json({ success: true, users });
+});
+
+// 2. Reset Username & Password endpoint (Admin, Ketua Tim / Koordinator, and Tim)
+app.post(['/api/admin/users/reset', '/api/users/reset', '/admin/users/reset'], (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : ((req.body && req.body.token) || (req.query && req.query.token));
+    const session = verifySessionToken(token);
+    if (!session) {
+      return res.status(401).json({
+        success: false,
+        error: 'Sesi tidak valid atau telah berakhir. Silakan login kembali.'
+      });
+    }
+
+    const body = req.body || {};
+    const targetUserId = body.userId || body.id;
+    const targetNewUsername = body.newUsername !== undefined ? body.newUsername : body.username;
+    const targetNewPassword = body.newPassword !== undefined ? body.newPassword : body.password;
+    const resetToDefault = body.resetToDefault;
+
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, error: 'ID Pengguna wajib disertakan.' });
+    }
+
+    const user = (database.users || []).find(u => Number(u.id) === Number(targetUserId));
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'Akun pengguna tidak ditemukan dalam database.' });
+    }
+
+    // Role-based access control for resetting credentials:
+    // 1. Admin can reset any account
+    // 2. Any user can reset their own username & password (sub or username match)
+    // 3. Koordinator (Ketua Tim) can reset their own account OR any team member (role 'tim')
+    const sessionRole = String(session.role || '').toLowerCase().trim();
+    const isSelf = Number(session.sub) === Number(targetUserId) || 
+                   String(session.username || '').toLowerCase().trim() === String(user.username || '').toLowerCase().trim();
+    const isAdmin = sessionRole === 'admin';
+    const isKetuaTim = sessionRole === 'koordinator';
+    const targetIsTim = String(user.role || '').toLowerCase().trim() === 'tim';
+
+    if (!isAdmin && !isSelf && !(isKetuaTim && targetIsTim)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Akses Ditolak: Anda tidak memiliki wewenang untuk mereset akun ini.'
+      });
+    }
+
+    const targetNewNama = body.nama !== undefined ? body.nama : (body.newNama !== undefined ? body.newNama : body.name);
+    const oldPassword = body.oldPassword !== undefined ? body.oldPassword : body.currentPassword;
+
+    let usernameChanged = false;
+    let passwordChanged = false;
+
+    // Validasi Kata Sandi Sebelumnya sebagai validasi akun sebelum memasukkan Kata Sandi Baru
+    if (targetNewPassword !== undefined && targetNewPassword !== null && !resetToDefault) {
+      const expectedPassword = String(user.password !== undefined && user.password !== null && user.password !== '' ? user.password : 'password');
+      // Jika mereset akun sendiri atau jika oldPassword dikirimkan, wajibkan validasi sandi sebelumnya
+      if (isSelf || oldPassword !== undefined) {
+        if (!oldPassword || String(oldPassword).trim() === '') {
+          return res.status(400).json({
+            success: false,
+            error: 'Kata sandi sebelumnya wajib diisi sebagai validasi akun sebelum memasukkan kata sandi baru.'
+          });
+        }
+        if (String(oldPassword).trim() !== expectedPassword && !(expectedPassword === 'password' && !user.password && String(oldPassword).trim() === 'password')) {
+          return res.status(400).json({
+            success: false,
+            error: 'Kata sandi sebelumnya tidak sesuai! Validasi akun gagal.'
+          });
+        }
+      }
+    }
+
+    // Ubah Nama Akun jika diberikan
+    if (targetNewNama !== undefined && targetNewNama !== null) {
+      const cleanNama = String(targetNewNama).trim();
+      if (cleanNama) {
+        user.nama = cleanNama;
+      }
+    }
+
+    // Ubah Username jika diberikan
+    if (targetNewUsername !== undefined && targetNewUsername !== null) {
+      const cleanNewUser = String(targetNewUsername).trim();
+      if (!cleanNewUser) {
+        return res.status(400).json({ success: false, error: 'Username tidak boleh kosong.' });
+      }
+      if (!/^[a-zA-Z0-9_.\-]+$/.test(cleanNewUser)) {
+        return res.status(400).json({ success: false, error: 'Username hanya boleh berupa huruf, angka, underscore (_), minus (-), atau titik (.) tanpa spasi.' });
+      }
+
+      // Pastikan username unik di antara akun lain
+      const duplicate = (database.users || []).find(u => 
+        Number(u.id) !== Number(targetUserId) && 
+        u.username && 
+        u.username.toLowerCase().trim() === cleanNewUser.toLowerCase()
+      );
+      if (duplicate) {
+        return res.status(400).json({ success: false, error: `Username "${cleanNewUser}" sudah digunakan oleh akun lain (${duplicate.nama || duplicate.username}). Silakan pilih username yang berbeda.` });
+      }
+
+      if (user.username !== cleanNewUser) {
+        user.username = cleanNewUser;
+        usernameChanged = true;
+      }
+    }
+
+    // Reset Password
+    if (resetToDefault) {
+      user.password = 'password';
+      passwordChanged = true;
+    } else if (targetNewPassword !== undefined && targetNewPassword !== null) {
+      const cleanPwd = String(targetNewPassword).trim();
+      if (cleanPwd.length < 4) {
+        return res.status(400).json({ success: false, error: 'Kata sandi minimal terdiri dari 4 karakter.' });
+      }
+      user.password = cleanPwd;
+      passwordChanged = true;
+    }
+
+    persistUsersData();
+
+    return res.json({
+      success: true,
+      message: `Kredensial untuk akun "${user.nama || user.username}" berhasil diperbarui.`,
+      user: {
+        id: user.id,
+        nama: user.nama,
+        username: user.username,
+        role: user.role,
+        bidang: user.bidang,
+        password: user.password || 'password',
+        isDefaultPassword: !user.password || user.password === 'password'
+      },
+      users: (database.users || []).map(u => ({
+        id: u.id,
+        nama: u.nama || u.name || '',
+        username: u.username || '',
+        role: String(u.role || 'tim').toLowerCase().trim(),
+        bidang: u.bidang || '',
+        password: u.password !== undefined && u.password !== null && u.password !== '' ? u.password : 'password',
+        isDefaultPassword: !u.password || u.password === 'password'
+      })),
+      usernameChanged,
+      passwordChanged
+    });
+  } catch (err) {
+    console.error('[Reset Credential Error]:', err);
+    return res.status(500).json({ success: false, error: 'Gagal memproses reset kredensial pengguna.' });
+  }
+});
+
+// 3. User Management CRUD endpoint (Admin only)
+app.post(['/api/admin/users', '/admin/users'], (req, res) => {
+  try {
+    const admin = getAdminSession(req);
+    if (!admin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Akses Ditolak (403 Forbidden): Hanya Administrator yang dapat mengelola akun pengguna.'
+      });
+    }
+
+    const { action, user: item, userId } = req.body || {};
+
+    if (action === 'delete') {
+      const targetId = userId || (item && item.id);
+      if (!targetId) {
+        return res.status(400).json({ success: false, error: 'ID Pengguna wajib disertakan untuk penghapusan.' });
+      }
+      const targetUser = (database.users || []).find(u => Number(u.id) === Number(targetId));
+      if (!targetUser) {
+        return res.status(404).json({ success: false, error: 'Akun pengguna tidak ditemukan.' });
+      }
+      if (String(targetUser.username).toLowerCase().trim() === 'admin') {
+        return res.status(400).json({ success: false, error: 'Akun Administrator utama ("admin") dilindungi dan tidak boleh dihapus.' });
+      }
+
+      database.users = database.users.filter(u => Number(u.id) !== Number(targetId));
+      persistUsersData();
+      return res.json({ success: true, message: `Akun "${targetUser.nama || targetUser.username}" berhasil dihapus.` });
+    }
+
+    if (action === 'add') {
+      if (!item || !item.nama || !item.username) {
+        return res.status(400).json({ success: false, error: 'Nama lengkap dan username wajib diisi.' });
+      }
+      const cleanUser = String(item.username).trim();
+      const duplicate = (database.users || []).find(u => u.username && u.username.toLowerCase().trim() === cleanUser.toLowerCase());
+      if (duplicate) {
+        return res.status(400).json({ success: false, error: `Username "${cleanUser}" sudah terdaftar.` });
+      }
+
+      const maxId = (database.users || []).reduce((max, u) => Math.max(max, Number(u.id) || 0), 0);
+      const newUser = {
+        id: maxId + 1,
+        nama: String(item.nama).trim(),
+        username: cleanUser,
+        role: String(item.role || 'tim').toLowerCase().trim(),
+        bidang: item.bidang || '',
+        password: item.password && String(item.password).trim() ? String(item.password).trim() : 'password'
+      };
+
+      database.users.push(newUser);
+      persistUsersData();
+      return res.json({ success: true, user: newUser, message: `Akun baru "${newUser.nama}" berhasil dibuat.` });
+    }
+
+    if (action === 'update') {
+      if (!item || item.id === undefined) {
+        return res.status(400).json({ success: false, error: 'ID Pengguna wajib disertakan.' });
+      }
+      const userIdx = (database.users || []).findIndex(u => Number(u.id) === Number(item.id));
+      if (userIdx === -1) {
+        return res.status(404).json({ success: false, error: 'Akun pengguna tidak ditemukan.' });
+      }
+
+      const existing = database.users[userIdx];
+      if (item.username) {
+        const cleanUser = String(item.username).trim();
+        const duplicate = (database.users || []).find(u => Number(u.id) !== Number(item.id) && u.username && u.username.toLowerCase().trim() === cleanUser.toLowerCase());
+        if (duplicate) {
+          return res.status(400).json({ success: false, error: `Username "${cleanUser}" sudah digunakan oleh akun lain.` });
+        }
+        existing.username = cleanUser;
+      }
+
+      if (item.nama) existing.nama = String(item.nama).trim();
+      if (item.role) existing.role = String(item.role).toLowerCase().trim();
+      if (item.bidang !== undefined) existing.bidang = item.bidang;
+      if (item.password !== undefined && item.password !== null && String(item.password).trim() !== '') {
+        existing.password = String(item.password).trim();
+      }
+
+      persistUsersData();
+      return res.json({ success: true, user: existing, message: `Data akun "${existing.nama}" berhasil diperbarui.` });
+    }
+
+    return res.status(400).json({ success: false, error: 'Aksi tidak valid.' });
+  } catch (err) {
+    console.error('[Admin Users CRUD Error]:', err);
+    return res.status(500).json({ success: false, error: 'Gagal memproses manajemen akun.' });
   }
 });
 
@@ -494,18 +830,51 @@ app.post(['/api/sheets', '/sheets'], (req, res) => {
 
     const collectionName = SHEET_TO_PROP[sheet] || sheet;
 
-    // SEC-01 CRITICAL FIX: Strictly block all mutations to 'users' collection
-    if (collectionName === 'users' || sheet === 'users' || String(sheet).toLowerCase().includes('user')) {
-      return res.status(403).json({
-        success: false,
-        error: 'Akses Ditolak (403 Forbidden): Koleksi data pengguna dilindungi dan tidak dapat dimodifikasi melalui endpoint ini.'
-      });
-    }
-
     // SEC-01 & SEC-02 FIX: Require session token validation for mutation requests
     const authHeader = req.headers.authorization || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : (body && body.token);
     const session = token ? verifySessionToken(token) : null;
+
+    // User management through sheets: allowed for admin only
+    if (collectionName === 'users' || sheet === 'users' || String(sheet).toLowerCase().includes('user')) {
+      if (!session || String(session.role).toLowerCase().trim() !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          error: 'Akses Ditolak (403 Forbidden): Koleksi data pengguna dilindungi dan hanya dapat dimodifikasi oleh Administrator.'
+        });
+      }
+
+      if (action === 'add') {
+        if (!item || !item.username) return res.status(400).json({ success: false, error: 'Data username wajib diisi' });
+        const maxId = (database.users || []).reduce((m, u) => Math.max(m, Number(u.id) || 0), 0);
+        item.id = item.id || (maxId + 1);
+        if (!item.password) item.password = 'password';
+        database.users.push(item);
+        persistUsersData();
+        return res.json({ success: true, item });
+      }
+
+      if (action === 'update') {
+        if (!item || item.id === undefined) return res.status(400).json({ success: false, error: 'User ID diperlukan' });
+        const idx = (database.users || []).findIndex(u => Number(u.id) === Number(item.id));
+        if (idx !== -1) {
+          database.users[idx] = { ...database.users[idx], ...item };
+          persistUsersData();
+          return res.json({ success: true, item: database.users[idx] });
+        }
+      }
+
+      if (action === 'delete') {
+        if (!item || item.id === undefined) return res.status(400).json({ success: false, error: 'User ID diperlukan' });
+        const target = (database.users || []).find(u => Number(u.id) === Number(item.id));
+        if (target && String(target.username).toLowerCase() === 'admin') {
+          return res.status(400).json({ success: false, error: 'Akun admin utama tidak boleh dihapus.' });
+        }
+        database.users = database.users.filter(u => Number(u.id) !== Number(item.id));
+        persistUsersData();
+        return res.json({ success: true });
+      }
+    }
 
     // Reject unauthenticated mutations in production or when an invalid/expired token is supplied
     if (token && !session) {

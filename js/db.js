@@ -35,6 +35,42 @@ let db = {
             status: 'Aktif'
         },
         {
+            id: 101,
+            nama_dokumen: 'Buku Panduan Pengguna (User Guide) SIM Humas BPS Kalbar [Google Docs]',
+            kategori: 'Pedoman',
+            deskripsi: 'Buku panduan lengkap seluruh fitur SIM Humas untuk Administrator, Ketua Tim, dan Tim Pelaksana dalam format Google Docs resmi (bisa diedit di docs.new, diunduh .docx, atau dicetak A4).',
+            tanggal: '2026-11-03',
+            pic: 'Tim Humas BPS Kalbar',
+            link_cloud: '/public/docs/buku-panduan-sim-humas.html',
+            format: 'Google Docs',
+            versi: 'v2.1 (Google Docs)',
+            status: 'Aktif'
+        },
+        {
+            id: 102,
+            nama_dokumen: 'Buku Panduan Khusus Administrator & Ketua Tim [Google Docs]',
+            kategori: 'Pedoman',
+            deskripsi: 'Petunjuk pelaksanaan tata kelola sistem, manajemen akun pengguna, distribusi penugasan, approval tiket, dan media monitoring dalam format Google Docs.',
+            tanggal: '2026-11-03',
+            pic: 'Azhari (Koordinator)',
+            link_cloud: '/public/docs/buku-panduan-admin-ketua-tim.html',
+            format: 'Google Docs',
+            versi: 'v2.1 (Google Docs)',
+            status: 'Aktif'
+        },
+        {
+            id: 103,
+            nama_dokumen: 'Buku Panduan Khusus Tim Pelaksana Humas [Google Docs]',
+            kategori: 'Pedoman',
+            deskripsi: 'Panduan operasional staf untuk memantau tugas pada Assignment Hub, pembaruan progres kerja, unggah bukti publikasi, dan akses template dalam format Google Docs.',
+            tanggal: '2026-11-03',
+            pic: 'Tim Humas BPS Kalbar',
+            link_cloud: '/public/docs/buku-panduan-tim-humas.html',
+            format: 'Google Docs',
+            versi: 'v2.1 (Google Docs)',
+            status: 'Aktif'
+        },
+        {
             id: 2,
             nama_dokumen: 'Template Desain Carousel & Infografis Rilis BRS (Adobe & Canva)',
             kategori: 'Template',
@@ -58,6 +94,48 @@ let db = {
         }
     ]
 };
+
+const OFFICIAL_USER_GUIDES = [
+    {
+        id: 101,
+        nama_dokumen: 'Buku Panduan Pengguna (User Guide) SIM Humas BPS Kalbar [Google Docs]',
+        kategori: 'Pedoman',
+        deskripsi: 'Buku panduan lengkap seluruh fitur SIM Humas untuk Administrator, Ketua Tim, dan Tim Pelaksana dalam format Google Docs resmi (bisa diedit di docs.new, diunduh .docx, atau dicetak A4).',
+        tanggal: '2026-11-03',
+        pic: 'Tim Humas BPS Kalbar',
+        link_cloud: '/public/docs/buku-panduan-sim-humas.html',
+        format: 'Google Docs',
+        versi: 'v2.1 (Google Docs)',
+        status: 'Aktif'
+    },
+    {
+        id: 102,
+        nama_dokumen: 'Buku Panduan Khusus Administrator & Ketua Tim [Google Docs]',
+        kategori: 'Pedoman',
+        deskripsi: 'Petunjuk pelaksanaan tata kelola sistem, manajemen akun pengguna, distribusi penugasan, approval tiket, dan media monitoring dalam format Google Docs.',
+        tanggal: '2026-11-03',
+        pic: 'Azhari (Koordinator)',
+        link_cloud: '/public/docs/buku-panduan-admin-ketua-tim.html',
+        format: 'Google Docs',
+        versi: 'v2.1 (Google Docs)',
+        status: 'Aktif'
+    },
+    {
+        id: 103,
+        nama_dokumen: 'Buku Panduan Khusus Tim Pelaksana Humas [Google Docs]',
+        kategori: 'Pedoman',
+        deskripsi: 'Panduan operasional staf untuk memantau tugas pada Assignment Hub, pembaruan progres kerja, unggah bukti publikasi, dan akses template dalam format Google Docs.',
+        tanggal: '2026-11-03',
+        pic: 'Tim Humas BPS Kalbar',
+        link_cloud: '/public/docs/buku-panduan-tim-humas.html',
+        format: 'Google Docs',
+        versi: 'v2.1 (Google Docs)',
+        status: 'Aktif'
+    }
+];
+if (typeof window !== 'undefined') {
+    window.OFFICIAL_USER_GUIDES = OFFICIAL_USER_GUIDES;
+}
 
 const TABLES = [
     'contentPlanner', 'brsSchedule', 'protocol', 'team', 'tickets', 'assets', 'monitoring',
@@ -252,6 +330,39 @@ function loadLocalFallbacks() {
                 status: 'Aktif'
             },
             {
+                id: 101,
+                nama_dokumen: 'Buku Panduan Pengguna (User Guide) SIM Humas BPS Kalbar - Edisi Komprehensif A4',
+                kategori: 'Pedoman',
+                deskripsi: 'Buku panduan lengkap seluruh fitur SIM Humas untuk Administrator, Ketua Tim, dan Tim Pelaksana dalam format standar cetak A4.',
+                tanggal: '2026-11-03',
+                pic: 'Tim Humas BPS Kalbar',
+                link_cloud: '/public/docs/buku-panduan-sim-humas.html',
+                versi: 'v2.1',
+                status: 'Aktif'
+            },
+            {
+                id: 102,
+                nama_dokumen: 'Buku Panduan Khusus Administrator & Ketua Tim - SIM Humas BPS Kalbar',
+                kategori: 'Pedoman',
+                deskripsi: 'Petunjuk pelaksanaan tata kelola sistem, manajemen akun pengguna, distribusi penugasan, approval tiket, dan media monitoring.',
+                tanggal: '2026-11-03',
+                pic: 'Azhari (Koordinator)',
+                link_cloud: '/public/docs/buku-panduan-admin-ketua-tim.html',
+                versi: 'v2.1',
+                status: 'Aktif'
+            },
+            {
+                id: 103,
+                nama_dokumen: 'Buku Panduan Khusus Tim Pelaksana Humas - SIM Humas BPS Kalbar',
+                kategori: 'Pedoman',
+                deskripsi: 'Panduan operasional staf untuk memantau tugas pada Assignment Hub, pembaruan progres kerja, unggah bukti publikasi, dan akses template.',
+                tanggal: '2026-11-03',
+                pic: 'Tim Humas BPS Kalbar',
+                link_cloud: '/public/docs/buku-panduan-tim-humas.html',
+                versi: 'v2.1',
+                status: 'Aktif'
+            },
+            {
                 id: 2,
                 nama_dokumen: 'Template Desain Carousel & Infografis Rilis BRS (Adobe & Canva)',
                 kategori: 'Template',
@@ -275,6 +386,19 @@ function loadLocalFallbacks() {
             }
         ];
     }
+
+    if (!db.repository || !Array.isArray(db.repository)) {
+        db.repository = [];
+    }
+    OFFICIAL_USER_GUIDES.forEach(guide => {
+        const idx = db.repository.findIndex(r => Number(r.id) === guide.id || (r.nama_dokumen && r.nama_dokumen.includes('Buku Panduan') && Number(r.id) === guide.id));
+        if (idx !== -1) {
+            db.repository[idx] = { ...db.repository[idx], ...guide };
+        } else {
+            db.repository.push(guide);
+        }
+    });
+    saveLocalFallback('repository');
 
     if (db.contentPlanner && Array.isArray(db.contentPlanner)) {
         db.contentPlanner.forEach(item => {
@@ -533,9 +657,18 @@ async function fetchDataFromSheets(silent = false) {
         }
 
         // Pastikan Pusat Dokumen / Repository memiliki default jika kosong & normalisasi Kontak Partner
-        if ((!tempDb.repository || tempDb.repository.length === 0) && db.repository && db.repository.length > 0) {
-            tempDb.repository = JSON.parse(JSON.stringify(db.repository));
+        if (!tempDb.repository || !Array.isArray(tempDb.repository) || tempDb.repository.length === 0) {
+            tempDb.repository = JSON.parse(JSON.stringify(db.repository || []));
         }
+        // Selalu pastikan Buku Panduan Pengguna resmi terdaftar di tempDb.repository
+        OFFICIAL_USER_GUIDES.forEach(guide => {
+            const idx = tempDb.repository.findIndex(r => Number(r.id) === guide.id || (r.nama_dokumen && r.nama_dokumen.includes('Buku Panduan') && Number(r.id) === guide.id));
+            if (idx !== -1) {
+                tempDb.repository[idx] = { ...tempDb.repository[idx], ...guide };
+            } else {
+                tempDb.repository.push(guide);
+            }
+        });
         if (tempDb.repository && Array.isArray(tempDb.repository)) {
             tempDb.repository.forEach(item => {
                 // Satukan kategori Kontak Media/Wartawan, Kontak Humas Instansi, dan Kontak Protokoler Instansi menjadi Kontak Partner
