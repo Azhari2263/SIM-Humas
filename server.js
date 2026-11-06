@@ -94,55 +94,24 @@ app.use((req, res, next) => {
 // Authoritative Google Sheets Endpoint for real-time synchronization
 const GOOGLE_SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzqG9cQMjnpv-bOyifs4kfdpPYdEB5A5a7lw64Yod7GtfFKN4kcwN3BhYyeTQ90n4p7/exec';
 
+// Helper untuk memfilter akun dummy warisan agar hanya akun dari spreadsheet yang digunakan
+function isDummyUserAccount(u) {
+  if (!u) return true;
+  const id = Number(u.id);
+  const uname = String(u.username || '').toLowerCase().trim();
+  const nama = String(u.nama || u.name || '').toLowerCase().trim();
+  if ([32, 33, 34, 35, 36].includes(id)) return true;
+  if (['koordinator', 'kepala', 'tim', 'pemohon', 'kabkot', 'staf1'].includes(uname)) return true;
+  if (['azhari (koordinator)', 'kepala bps kalbar', 'staf humas', 'user bidang', 'bps kab. kubu raya', 'super admin', 'admin humas'].includes(nama)) return true;
+  return false;
+}
+
 // Seed Data for SIM Humas & Protokol BPS Kalbar synchronized with Google Sheets
 const initialDb = {
-  users: [
-    { id: 1, username: 'Azhari', password: 'azday22', nama: 'Azhari', role: 'admin', bidang: 'TU Bawah' },
-    { id: 2, username: 'Dara', password: 'dara123', nama: 'Dara Septika Natalia Anggraeni, SST, M.Sos.', role: 'koordinator', bidang: 'Produksi' },
-    { id: 3, username: 'admin', password: 'admin123', nama: 'Admin Humas', role: 'admin', bidang: 'Humas & Protokol' },
-    { id: 4, username: 'Diva', password: '', nama: 'Diah Nadiva Soetedjo', role: 'tim', bidang: 'Tim Umum dan Humas' },
-    { id: 5, username: 'Desa', password: '', nama: 'Desa Ayu Natalia', role: 'tim', bidang: 'Sosial' },
-    { id: 6, username: 'Risky', password: '', nama: 'Risky', role: 'tim', bidang: 'Sosial' },
-    { id: 7, username: 'Sitha', password: '', nama: 'Sithadewi Islami', role: 'tim', bidang: 'Produksi' },
-    { id: 8, username: 'Erina', password: 'Erina123', nama: 'Erina Herwindalita', role: 'tim', bidang: 'Produksi' },
-    { id: 9, username: 'Yunita', password: '', nama: 'Yunita Wulandari', role: 'tim', bidang: 'Distribusi' },
-    { id: 10, username: 'Kiky', password: '', nama: 'Rizky Fajariani', role: 'tim', bidang: 'Distribusi' },
-    { id: 11, username: 'Anis', password: '', nama: 'Anis Fakhrunnisa', role: 'tim', bidang: 'NWAS' },
-    { id: 12, username: 'Arif', password: '', nama: 'Arif Rahman', role: 'tim', bidang: 'NWAS' },
-    { id: 13, username: 'Irza', password: '', nama: 'Irza Faikar', role: 'tim', bidang: 'IPDS' },
-    { id: 14, username: 'Handika', password: '', nama: 'Handika Ramadhan', role: 'tim', bidang: 'IPDS' },
-    { id: 15, username: 'Aulia', password: '', nama: 'Aulia Minati Salsabila', role: 'tim', bidang: 'IPDS' },
-    { id: 16, username: 'Tefi', password: '', nama: 'Jeberta Tefilah Modes', role: 'tim', bidang: 'Tim Umum dan Humas' },
-    { id: 17, username: 'Amanda', password: '', nama: 'Amanda Putri', role: 'tim', bidang: 'Tim Umum dan Humas' },
-    { id: 18, username: 'Fifi', password: '', nama: 'Alfiana Ayuni', role: 'tim', bidang: 'Tim Umum dan Humas' },
-    { id: 19, username: 'Rania', password: '', nama: 'Rania Naila Husna', role: 'tim', bidang: 'Tim Umum dan Humas' },
-    { id: 20, username: 'Riska', password: '', nama: 'Riska Miwanti', role: 'tim', bidang: 'TU Atas' },
-    { id: 21, username: 'Budi', password: '', nama: 'Nasip Budi Waluyo', role: 'tim', bidang: 'TU Atas' },
-    { id: 22, username: 'Cencen', password: '', nama: 'Yostryan Chenata', role: 'tim', bidang: 'Distribusi' },
-    { id: 23, username: 'Ardi', password: '', nama: 'Ardi Atmaja', role: 'tim', bidang: 'NWAS' },
-    { id: 24, username: 'Romulus', password: '', nama: 'Romulus Arjuna Nugraha Tambunan', role: 'tim', bidang: 'Sosial' },
-    { id: 25, username: 'Andre', password: '', nama: 'Andre Ridho Perdana Hutapea', role: 'tim', bidang: 'Distribusi' },
-    { id: 26, username: 'Adji', password: '', nama: 'Adji Hasfiar', role: 'tim', bidang: 'Produksi' },
-    { id: 27, username: 'Levi', password: '', nama: 'Levi Alvaro Sarnosir', role: 'tim', bidang: 'TU Atas' },
-    { id: 29, username: 'Ibrahim', password: '', nama: 'Ibrahim', role: 'tim', bidang: 'TU Atas' },
-    { id: 30, username: 'Zaky', password: '', nama: 'Muhammad Muzaky Ali Fikri', role: 'tim', bidang: 'TU Atas' },
-    { id: 31, username: 'Mawardi', password: '', nama: 'Mawardi', role: 'tim', bidang: 'Tim Umum dan Humas' },
-    { id: 32, username: 'koordinator', password: 'password', nama: 'Azhari (Koordinator)', role: 'koordinator', bidang: 'Humas' },
-    { id: 33, username: 'kepala', password: 'password', nama: 'Kepala BPS Kalbar', role: 'kepala', bidang: 'Pimpinan' },
-    { id: 34, username: 'tim', password: 'password', nama: 'Staf Humas', role: 'tim', bidang: 'Humas' },
-    { id: 35, username: 'pemohon', password: 'password', nama: 'User Bidang', role: 'pemohon', bidang: 'Sosial' },
-    { id: 36, username: 'kabkot', password: 'password', nama: 'BPS Kab. Kubu Raya', role: 'kabkot', bidang: 'BPS Kab/Kota' }
-  ],
+  users: [],
   contentPlanner: [],
   brsSchedule: [],
-  team: [
-    { id: 1, nama: 'Azhari, S.Tr.Stat.', jabatan: 'Koordinator Tim Kehumasan & IPDS', seksi: 'Diseminasi & Humas', email: 'azhari@bps.go.id', kontak: '0812-3456-7890', status: 'Aktif' },
-    { id: 2, nama: 'Rina Marlina, S.Si.', jabatan: 'Staf Kehumasan & Media Publikasi', seksi: 'Publikasi & Komunikasi', email: 'rina.marlina@bps.go.id', kontak: '0813-4567-8901', status: 'Aktif' },
-    { id: 3, nama: 'Dedi Irawan, A.Md.', jabatan: 'Desainer Grafis & Infografis', seksi: 'Visual & Multimedia', email: 'dedi.irawan@bps.go.id', kontak: '0814-5678-9012', status: 'Aktif' },
-    { id: 4, nama: 'Sarah Salsabila, S.Stat.', jabatan: 'Pengelola Konten & Media Sosial', seksi: 'Digital & Media Sosial', email: 'sarah.s@bps.go.id', kontak: '0815-6789-0123', status: 'Aktif' },
-    { id: 5, nama: 'Wahyu Pratama, S.Tr.Stat.', jabatan: 'Protokoler & Dokumentasi Acara', seksi: 'Protokol & Hubungan Lembaga', email: 'wahyu.p@bps.go.id', kontak: '0816-7890-1234', status: 'Aktif' },
-    { id: 6, nama: 'Nurul Hidayah, S.E.', jabatan: 'Layanan Hubungan Masyarakat & BRS', seksi: 'Layanan Publik & BRS', email: 'nurul.h@bps.go.id', kontak: '0817-8901-2345', status: 'Aktif' }
-  ],
+  team: [],
   tickets: [],
   assets: [],
   monitoring: Array.isArray(bundledMonitoringData) ? bundledMonitoringData
@@ -255,8 +224,8 @@ if (candidateUsersFile) {
     const rawUsers = fs.readFileSync(candidateUsersFile, 'utf8');
     const parsedUsers = JSON.parse(rawUsers);
     if (Array.isArray(parsedUsers) && parsedUsers.length > 0) {
-      database.users = parsedUsers;
-      console.log(`[DB] Restored custom users from ${candidateUsersFile} (${database.users.length} users).`);
+      database.users = parsedUsers.filter(u => !isDummyUserAccount(u));
+      console.log(`[DB] Restored users cache from ${candidateUsersFile} (${database.users.length} users).`);
     }
   } catch (uErr) {
     console.warn('[DB] Could not load users.json:', uErr.message);
@@ -384,7 +353,7 @@ async function refreshUsersFromSheets() {
         const sheetsUsersMap = new Map();
         
         data.users.forEach(u => {
-          if (!u) return;
+          if (!u || isDummyUserAccount(u)) return;
           const uId = u.id !== undefined && u.id !== null ? Number(u.id) : undefined;
           const uUsername = String(u.username !== undefined && u.username !== null ? u.username : '').trim();
           const uPassword = String(u.password !== undefined && u.password !== null ? u.password : '').trim();
@@ -393,7 +362,7 @@ async function refreshUsersFromSheets() {
           const uBidang = String(u.bidang || '').trim();
 
           const key = uId || uUsername.toLowerCase();
-          if (key) {
+          if (key && uUsername) {
             sheetsUsersMap.set(key, {
               id: uId || u.id,
               username: uUsername,
@@ -403,15 +372,6 @@ async function refreshUsersFromSheets() {
               role: uRole,
               bidang: uBidang
             });
-          }
-        });
-
-        // Pertahankan juga pengguna yang baru dibuat secara lokal di memory jika belum sempat masuk ke spreadsheet
-        (database.users || []).forEach(localUser => {
-          if (!localUser) return;
-          const key = Number(localUser.id) || (localUser.username ? String(localUser.username).toLowerCase().trim() : null);
-          if (key && !sheetsUsersMap.has(key)) {
-            sheetsUsersMap.set(key, localUser);
           }
         });
 
@@ -500,9 +460,9 @@ app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
     const rawPass = String(password);
     const cleanPass = rawPass.trim();
 
-    // Helper untuk mencocokkan akun berdasarkan username (Kolom B) atau nama (Kolom D)
+    // Helper untuk mencocokkan akun berdasarkan username (Kolom B) atau nama (Kolom D) dari spreadsheet
     const matchUser = (userList) => {
-      return (userList || []).find(u => {
+      return (userList || []).filter(u => !isDummyUserAccount(u)).find(u => {
         if (!u) return false;
         const uUser = String(u.username || '').toLowerCase().trim();
         const uNama = String(u.nama || u.name || '').toLowerCase().trim();
@@ -510,24 +470,13 @@ app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
       });
     };
 
-    // Helper untuk memvalidasi kata sandi dari spreadsheet (sheet users Kolom C)
+    // Helper untuk memvalidasi kata sandi murni dari spreadsheet (sheet users Kolom C)
     const checkPassword = (u) => {
       if (!u) return false;
       const expected = String(u.password !== undefined && u.password !== null ? u.password : '');
       const expectedTrim = expected.trim();
 
-      // Cocokkan langsung kata sandi dari spreadsheet (sheet users kolom C)
-      if (expected && (rawPass === expected || cleanPass === expectedTrim)) {
-        return true;
-      }
-
-      // Default 'password' jika kolom password di spreadsheet kosong
-      if (!expected && (cleanPass === 'password' || rawPass === 'password')) {
-        return true;
-      }
-
-      // Fallback darurat admin
-      if (cleanUser === 'admin' && (cleanPass === 'admin123' || cleanPass === 'password')) {
+      if (expectedTrim && (rawPass === expected || cleanPass === expectedTrim)) {
         return true;
       }
 
@@ -541,9 +490,7 @@ app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
     if (!user || !checkPassword(user)) {
       const refreshedUsers = await refreshUsersFromSheets();
       const liveUser = matchUser(refreshedUsers);
-      if (liveUser && checkPassword(liveUser)) {
-        user = liveUser;
-      } else if (!user && liveUser) {
+      if (liveUser) {
         user = liveUser;
       }
     }
@@ -601,7 +548,7 @@ function getAdminSession(req) {
 }
 
 // 1. Get full users list with credential status (Admin, Ketua Tim, and Tim)
-app.get(['/api/admin/users', '/admin/users', '/api/users/list'], (req, res) => {
+app.get(['/api/admin/users', '/admin/users', '/api/users/list'], async (req, res) => {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : ((req.body && req.body.token) || (req.query && req.query.token));
   const session = verifySessionToken(token);
@@ -620,13 +567,17 @@ app.get(['/api/admin/users', '/admin/users', '/api/users/list'], (req, res) => {
     });
   }
 
-  const users = (database.users || []).map(u => ({
+  if (!database.users || database.users.length === 0) {
+    await refreshUsersFromSheets();
+  }
+
+  const users = (database.users || []).filter(u => !isDummyUserAccount(u)).map(u => ({
     id: u.id,
     nama: u.nama || u.name || '',
     username: u.username || '',
     role: String(u.role || 'tim').toLowerCase().trim(),
     bidang: u.bidang || '',
-    password: u.password !== undefined && u.password !== null && u.password !== '' ? u.password : 'password',
+    password: u.password !== undefined && u.password !== null ? u.password : '',
     isDefaultPassword: !u.password || u.password === 'password'
   }));
 

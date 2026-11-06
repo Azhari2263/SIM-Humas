@@ -6839,15 +6839,6 @@ function renderIntegratedCalendar(container) {
 
     const rawEvents = [];
     db.rekapRutin.forEach(e => {
-        // Cegah duplikasi di kalender jika item ini berasal dari sinkronisasi Content Planner dan ada di contentPlanner
-        const isFromPlanner = (e.linked_source === 'content_planner' || e.content_planner_id) ||
-            ((e.hubungkan_content_planner || e.kegiatan) && (db.contentPlanner || []).some(cp =>
-                (e.linked_id && String(cp.id) === String(e.linked_id)) ||
-                (e.content_planner_id && String(cp.id) === String(e.content_planner_id)) ||
-                (cp.judul && e.kegiatan && cp.judul.trim().toLowerCase() === e.kegiatan.trim().toLowerCase() && formatDateInput(cp.jadwal) === formatDateInput(e.tanggal))
-            ));
-        if (isFromPlanner) return;
-
         const cat = getCalendarProgressCategory(e.status, 'rekap_rutin', e);
         const style = getCalendarProgressStyle(cat);
         const pic = getCalendarEventPic(e, 'rekap_rutin');
@@ -6984,7 +6975,7 @@ function renderIntegratedCalendar(container) {
             taskTitle: e.tugas,
             categoryLabel: 'Tugas',
             pic,
-            date: formatDateInput(e.deadline), 
+            date: formatDateInput(e.deadline || e.tanggal_penugasan || e.tanggal), 
             color: style.color, 
             progressCat: cat,
             progressLabel: style.label,
@@ -7265,16 +7256,7 @@ window.showCalendarDayEvents = function (dateStr) {
 
     db.rekapRutin.forEach(e => {
         if (e.tanggal && formatDateInput(e.tanggal).includes(dateStr)) {
-            // Cegah duplikasi di kalender jika item ini berasal dari sinkronisasi Content Planner dan ada di contentPlanner
-            const isFromPlanner = (e.linked_source === 'content_planner' || e.content_planner_id) ||
-                ((e.hubungkan_content_planner || e.kegiatan) && (db.contentPlanner || []).some(cp =>
-                    (e.linked_id && String(cp.id) === String(e.linked_id)) ||
-                    (e.content_planner_id && String(cp.id) === String(e.content_planner_id)) ||
-                    (cp.judul && e.kegiatan && cp.judul.trim().toLowerCase() === e.kegiatan.trim().toLowerCase() && formatDateInput(cp.jadwal).includes(dateStr))
-                ));
-            if (!isFromPlanner) {
-                pushDayEvent('rekap_rutin', 'Rutin', e.kegiatan, e.petugas, e.status, e);
-            }
+            pushDayEvent('rekap_rutin', 'Rutin', e.kegiatan, e.petugas, e.status, e);
         }
     });
 
@@ -7325,7 +7307,8 @@ window.showCalendarDayEvents = function (dateStr) {
     });
 
     db.assignments.forEach(e => {
-        if (e.deadline && formatDateInput(e.deadline).includes(dateStr)) {
+        const rawAssignDate = e.deadline || e.tanggal_penugasan || e.tanggal;
+        if (rawAssignDate && formatDateInput(rawAssignDate).includes(dateStr)) {
             pushDayEvent('assignment', 'Tugas', e.tugas, e.assigned_to || e.petugas, e.status, e);
         }
     });
@@ -7524,23 +7507,14 @@ window.openCalendarReminderModal = function (scopeOverride) {
     db.rekapRutin.forEach(e => {
         const rawDate = e.tanggal || e.jadwal;
         if (checkDateInRange(rawDate)) {
-            // Cegah duplikasi jika berasal dari Content Planner
-            const isFromPlanner = (e.linked_source === 'content_planner' || e.content_planner_id) ||
-                ((e.hubungkan_content_planner || e.kegiatan) && (db.contentPlanner || []).some(cp =>
-                    (e.linked_id && String(cp.id) === String(e.linked_id)) ||
-                    (e.content_planner_id && String(cp.id) === String(e.content_planner_id)) ||
-                    (cp.judul && e.kegiatan && cp.judul.trim().toLowerCase() === e.kegiatan.trim().toLowerCase())
-                ));
-            if (!isFromPlanner) {
-                items.push({
-                    date: formatDateInput(rawDate),
-                    type: 'Rutin',
-                    title: e.kegiatan,
-                    pic: e.petugas || 'Belum Ditugaskan',
-                    status: e.status || 'Ditugaskan',
-                    detail: e.rubrikasi || ''
-                });
-            }
+            items.push({
+                date: formatDateInput(rawDate),
+                type: 'Rutin',
+                title: e.kegiatan,
+                pic: e.petugas || 'Belum Ditugaskan',
+                status: e.status || 'Ditugaskan',
+                detail: e.rubrikasi || ''
+            });
         }
     });
 
@@ -11634,7 +11608,7 @@ function drawUserManagementTable() {
     const container = document.getElementById('user-mgmt-table-container');
     if (!container) return;
 
-    let users = db.users || [];
+    let users = (db.users || []).filter(u => !(window.isDummyUserAccount && window.isDummyUserAccount(u)));
 
     // Filter query pencarian
     if (userMgmtSearch) {
@@ -12936,7 +12910,7 @@ function renderResetCredentialsPage(container) {
     // Ambil daftar anggota tim humas jika user adalah Ketua Tim atau Admin
     let teamMembers = [];
     if (canManageTeam) {
-        teamMembers = (db.users || []).filter(u => {
+        teamMembers = (db.users || []).filter(u => !(window.isDummyUserAccount && window.isDummyUserAccount(u))).filter(u => {
             if (isKetuaTim) {
                 // Ketua Tim dapat mengelola anggota Tim Humas (role === 'tim')
                 return u.role === 'tim';

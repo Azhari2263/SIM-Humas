@@ -5,7 +5,7 @@
     "password": "azday#2211",
     "nama": "Azhari",
     "name": "Azhari",
-    "role": "admin",
+    "role": "tim",
     "bidang": "TU Bawah"
   },
   {
@@ -20,9 +20,9 @@
   {
     "id": 3,
     "username": "admin",
-    "password": "admin123",
-    "nama": "Admin Humas",
-    "name": "Admin Humas",
+    "password": "BPSKalbar61Jaya",
+    "nama": "Admin BPS Kalbar6100",
+    "name": "Admin BPS Kalbar6100",
     "role": "admin",
     "bidang": "Humas & Protokol"
   },
@@ -137,7 +137,7 @@
   {
     "id": 16,
     "username": "tefi",
-    "password": "tefi#6571",
+    "password": "tefi#4502",
     "nama": "Jeberta Tefilah Modes",
     "name": "Jeberta Tefilah Modes",
     "role": "tim",
@@ -268,45 +268,5 @@
     "name": "Mawardi",
     "role": "tim",
     "bidang": "Tim Umum dan Humas"
-  },
-  {
-    "id": 32,
-    "username": "koordinator",
-    "password": "password",
-    "nama": "Azhari (Koordinator)",
-    "role": "koordinator",
-    "bidang": "Humas"
-  },
-  {
-    "id": 33,
-    "username": "kepala",
-    "password": "password",
-    "nama": "Kepala BPS Kalbar",
-    "role": "kepala",
-    "bidang": "Pimpinan"
-  },
-  {
-    "id": 34,
-    "username": "tim",
-    "password": "password",
-    "nama": "Staf Humas",
-    "role": "tim",
-    "bidang": "Humas"
-  },
-  {
-    "id": 35,
-    "username": "pemohon",
-    "password": "password",
-    "nama": "User Bidang",
-    "role": "pemohon",
-    "bidang": "Sosial"
-  },
-  {
-    "id": 36,
-    "username": "kabkot",
-    "password": "password",
-    "nama": "BPS Kab. Kubu Raya",
-    "role": "kabkot",
-    "bidang": "BPS Kab/Kota"
   }
 ]
