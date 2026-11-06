@@ -2962,6 +2962,9 @@ window.handleExcelUpload = function(event, type) {
 
 // Helper untuk mendeteksi apakah pengguna sedang aktif mengedit/menginput atau membuka formulir/modal
 window.isUserEditingOrInputting = function() {
+    if (typeof window.isUserBusyEditing === 'function') {
+        return window.isUserBusyEditing();
+    }
     // 1. Cek apakah ada modal yang sedang terbuka / aktif di layar
     if (document.getElementById('dynamic-modal')) return true;
     if (document.getElementById('excel-import-status-modal')) return true;
@@ -2995,10 +2998,23 @@ function closeModal() {
     currentModalType = null;
     isSubmitting = false;
 
-    // Jika ada pembaruan view yang ditunda saat proses input/edit berlangsung, jalankan sekarang secara aman
-    if (window._pendingViewRefresh && typeof router === 'function' && typeof currentState !== 'undefined') {
+    // Bersihkan penanda dirty input lokal setelah modal ditutup
+    try {
+        document.querySelectorAll('[data-user-dirty="true"]').forEach(el => el.removeAttribute('data-user-dirty'));
+    } catch (_) {}
+
+    // Jika ada pembaruan view tabel yang ditunda saat modal dibuka, terapkan secara selektif tanpa full page reload
+    if (window._deferredSelectiveTables && window._deferredSelectiveTables.size > 0) {
+        const deferred = Array.from(window._deferredSelectiveTables);
+        window._deferredSelectiveTables.clear();
         window._pendingViewRefresh = false;
-        router(currentState);
+        if (typeof applySelectiveBackgroundUpdate === 'function') {
+            applySelectiveBackgroundUpdate(deferred);
+        } else if (typeof window.applySelectiveBackgroundUpdate === 'function') {
+            window.applySelectiveBackgroundUpdate(deferred);
+        }
+    } else {
+        window._pendingViewRefresh = false;
     }
 }
 

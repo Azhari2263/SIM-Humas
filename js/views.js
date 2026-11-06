@@ -13250,3 +13250,23 @@ function renderResetCredentialsPage(container) {
 }
 window.renderResetCredentialsPage = renderResetCredentialsPage;
 
+// Expose granular draw and render functions for non-destructive background synchronization
+if (typeof window !== 'undefined') {
+    if (typeof drawPlannerBoard === 'function') window.drawPlannerBoard = drawPlannerBoard;
+    if (typeof drawRutinTable === 'function') window.drawRutinTable = drawRutinTable;
+    if (typeof drawAdHocTable === 'function') window.drawAdHocTable = drawAdHocTable;
+    if (typeof drawProtokolerTable === 'function') window.drawProtokolerTable = drawProtokolerTable;
+    if (typeof drawMcTable === 'function') window.drawMcTable = drawMcTable;
+    if (typeof drawBrsGrid === 'function') window.drawBrsGrid = drawBrsGrid;
+    if (typeof drawHariBesarTable === 'function') window.drawHariBesarTable = drawHariBesarTable;
+    if (typeof drawTeamGrid === 'function') window.drawTeamGrid = drawTeamGrid;
+    if (typeof drawTicketsGrid === 'function') window.drawTicketsGrid = drawTicketsGrid;
+    if (typeof drawMonitoringCurrentView === 'function') window.drawMonitoringCurrentView = drawMonitoringCurrentView;
+    if (typeof drawRepositoryContent === 'function') window.drawRepositoryContent = drawRepositoryContent;
+    if (typeof drawMasterDataLists === 'function') window.drawMasterDataLists = drawMasterDataLists;
+    if (typeof drawUserManagementTable === 'function') window.drawUserManagementTable = drawUserManagementTable;
+    if (typeof drawAssignmentTable === 'function') window.drawAssignmentTable = drawAssignmentTable;
+    if (typeof renderRekapKegiatan === 'function') window.renderRekapKegiatan = renderRekapKegiatan;
+    if (typeof renderIntegratedCalendar === 'function') window.renderIntegratedCalendar = renderIntegratedCalendar;
+    if (typeof renderDashboard === 'function') window.renderDashboard = renderDashboard;
+}

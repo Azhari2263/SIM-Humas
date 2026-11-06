@@ -436,6 +436,261 @@ function loadLocalFallbacks() {
     }
 }
 
+// ===================================================================
+// MEKANISME SINKRONISASI LATAR BELAKANG & PROTEKSI AKTIVITAS PENGGUNA
+// ===================================================================
+window._deferredSelectiveTables = window._deferredSelectiveTables || new Set();
+window._lastUserTypingTime = 0;
+
+// Track aktivitas mengetik/fokus pengguna agar sinkronisasi latar belakang tidak menginterupsi input
+if (typeof document !== 'undefined') {
+    document.addEventListener('input', (e) => {
+        window._lastUserTypingTime = Date.now();
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+            // Jangan tandai input search filter global sebagai dirty form
+            if (!e.target.id || (!e.target.id.includes('search') && !e.target.id.includes('filter'))) {
+                e.target.setAttribute('data-user-dirty', 'true');
+            }
+        }
+    }, true);
+
+    document.addEventListener('focusin', (e) => {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
+            window._lastUserTypingTime = Date.now();
+        }
+    }, true);
+}
+
+// Deteksi komprehensif apakah pengguna sedang aktif mengetik, mengisi form, membuka modal, atau mengedit data
+function isUserBusyEditing() {
+    // 1. Cek apakah ada modal, dialog, atau popup aktif di layar
+    const modalEl = document.querySelector('.modal:not(.hidden), [id$="-modal"]:not(.hidden), [role="dialog"], .confirm-modal');
+    if (modalEl && modalEl.offsetParent !== null && modalEl.style.display !== 'none') return true;
+    if (document.getElementById('dynamic-modal')) return true;
+    if (document.getElementById('reset-credentials-modal')) return true;
+    if (document.getElementById('excel-import-status-modal')) return true;
+    if (document.getElementById('custom-confirm-modal')) return true;
+    if (document.getElementById('scraper-progress-modal')) return true;
+
+    // 2. Cek apakah pengguna sedang memfokuskan elemen input, textarea, select, atau contenteditable
+    const activeEl = document.activeElement;
+    if (activeEl) {
+        const tag = activeEl.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || activeEl.isContentEditable) {
+            return true;
+        }
+    }
+
+    // 3. Cek apakah pengguna baru saja mengetik dalam 4 detik terakhir
+    if (window._lastUserTypingTime && (Date.now() - window._lastUserTypingTime < 4000)) {
+        return true;
+    }
+
+    // 4. Status submit form sedang berlangsung
+    if (typeof isSubmitting !== 'undefined' && isSubmitting) return true;
+
+    // 5. Cek apakah ada input dengan data lokal yang belum tersimpan
+    const dirty = document.querySelector('input[data-user-dirty="true"], textarea[data-user-dirty="true"]');
+    if (dirty) return true;
+
+    return false;
+}
+window.isUserBusyEditing = isUserBusyEditing;
+window.isUserEditingOrInputting = isUserBusyEditing;
+
+// Pembaruan UI Selektif di Latar Belakang (Tanpa Full Page Reload, Tanpa Reset Form / Input / Modal / Scroll)
+function applySelectiveBackgroundUpdate(changedTables = []) {
+    if (!Array.isArray(changedTables)) changedTables = [changedTables];
+    if (changedTables.length === 0) return;
+
+    // 1. Perbarui indikator live sync & waktu sinkronisasi secara silent
+    if (typeof updateLiveIndicator === 'function') {
+        updateLiveIndicator();
+    }
+
+    // 2. Perbarui badge dan panel notifikasi jika tabel notifications berubah
+    if (changedTables.includes('notifications') || changedTables.includes('all')) {
+        if (typeof renderNotificationsUI === 'function') renderNotificationsUI();
+        if (typeof updateNotificationBadge === 'function') updateNotificationBadge();
+    }
+
+    // 3. JIKA PENGGUNA SEDANG AKTIF MENGETIK / MENGISI FORM / MEMBUKA MODAL:
+    // Jangan ubah DOM tampilan saat ini agar input tidak hilang, fokus tidak lepas, dan form tidak ter-reset.
+    if (isUserBusyEditing()) {
+        console.log(`[RealTime] Perubahan data [${changedTables.join(', ')}] telah tersimpan di memory database. Pembaruan tampilan ditunda agar tidak mengganggu proses input/edit.`);
+        window._deferredSelectiveTables = window._deferredSelectiveTables || new Set();
+        changedTables.forEach(t => window._deferredSelectiveTables.add(t));
+        return;
+    }
+
+    if (typeof currentState === 'undefined' || !currentState) return;
+
+    // 4. PEMETAAN DEPENDENSI TABEL KE VIEW:
+    // Periksa apakah halaman yang sedang dilihat pengguna terpengaruh oleh tabel yang berubah
+    const TABLE_VIEW_DEPENDENCIES = {
+        'dashboard': ['contentPlanner', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'tickets', 'monitoring', 'assignments', 'team', 'users'],
+        'planner': ['contentPlanner'],
+        'rekap_rutin': ['rekapRutin'],
+        'ad_hoc': ['adHoc'],
+        'protokoler_sep': ['protokoler'],
+        'mc_sep': ['mc'],
+        'brs_rilis': ['brsRilis'],
+        'hari_besar': ['hariBesar'],
+        'tickets': ['tickets'],
+        'monitoring': ['monitoring'],
+        'team': ['team', 'users'],
+        'assignment': ['assignments', 'contentPlanner', 'rekapRutin', 'adHoc', 'tickets'],
+        'rekap_kegiatan': ['rekapKegiatan', 'assignments', 'contentPlanner', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'tickets', 'team'],
+        'calendar': ['contentPlanner', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'assignments', 'tickets'],
+        'repository': ['repository'],
+        'user_management': ['users'],
+        'settings': ['masterData']
+    };
+
+    const relevant = TABLE_VIEW_DEPENDENCIES[currentState] || [];
+    const isAffected = changedTables.includes('all') || changedTables.some(t => relevant.includes(t));
+
+    if (!isAffected) {
+        console.log(`[RealTime] Perubahan [${changedTables.join(', ')}] tidak mempengaruhi tampilan '${currentState}'. Lewati pembaruan DOM.`);
+        return;
+    }
+
+    console.log(`[RealTime] Menerapkan pembaruan selektif pada '${currentState}' untuk tabel:`, changedTables);
+
+    try {
+        switch (currentState) {
+            case 'planner':
+                if (typeof window.drawPlannerBoard === 'function') {
+                    window.drawPlannerBoard();
+                }
+                break;
+            case 'rekap_rutin':
+                if (typeof window.drawRutinTable === 'function') {
+                    window.drawRutinTable();
+                }
+                break;
+            case 'ad_hoc':
+                if (typeof window.drawAdHocTable === 'function') {
+                    window.drawAdHocTable();
+                }
+                break;
+            case 'protokoler_sep':
+                if (typeof window.drawProtokolerTable === 'function') {
+                    window.drawProtokolerTable();
+                }
+                break;
+            case 'mc_sep':
+                if (typeof window.drawMcTable === 'function') {
+                    window.drawMcTable();
+                }
+                break;
+            case 'brs_rilis':
+                if (typeof window.drawBrsGrid === 'function') {
+                    window.drawBrsGrid();
+                }
+                break;
+            case 'hari_besar':
+                if (typeof window.drawHariBesarTable === 'function') {
+                    window.drawHariBesarTable();
+                }
+                break;
+            case 'tickets':
+                if (typeof window.drawTicketsGrid === 'function') {
+                    window.drawTicketsGrid();
+                }
+                break;
+            case 'team':
+                if (typeof window.drawTeamGrid === 'function') {
+                    window.drawTeamGrid();
+                }
+                break;
+            case 'monitoring':
+                if (typeof window.drawMonitoringCurrentView === 'function') {
+                    window.drawMonitoringCurrentView();
+                }
+                break;
+            case 'assignment':
+                if (typeof window.drawAssignmentTable === 'function') {
+                    window.drawAssignmentTable();
+                }
+                break;
+            case 'repository':
+                if (typeof window.drawRepositoryContent === 'function') {
+                    window.drawRepositoryContent();
+                }
+                break;
+            case 'user_management':
+                if (typeof window.drawUserManagementTable === 'function') {
+                    window.drawUserManagementTable();
+                }
+                break;
+            case 'settings':
+                if (typeof window.drawMasterDataLists === 'function') {
+                    window.drawMasterDataLists();
+                }
+                break;
+            case 'rekap_kegiatan': {
+                const container = document.getElementById('app-content');
+                if (container && typeof window.renderRekapKegiatan === 'function') {
+                    const scrollY = container.scrollTop;
+                    const searchInput = document.getElementById('rekap-search-input');
+                    const savedSearch = searchInput ? searchInput.value : null;
+                    const isSearchFocused = (document.activeElement === searchInput);
+                    const pos = searchInput ? searchInput.selectionStart : 0;
+
+                    window.renderRekapKegiatan(container);
+
+                    container.scrollTop = scrollY;
+                    const restoredSearch = document.getElementById('rekap-search-input');
+                    if (restoredSearch && savedSearch !== null) {
+                        restoredSearch.value = savedSearch;
+                        if (isSearchFocused) {
+                            restoredSearch.focus();
+                            try { restoredSearch.setSelectionRange(pos, pos); } catch (_) {}
+                        }
+                    }
+                }
+                break;
+            }
+            case 'calendar': {
+                const container = document.getElementById('app-content');
+                if (container && typeof window.renderIntegratedCalendar === 'function') {
+                    const scrollY = container.scrollTop;
+                    window.renderIntegratedCalendar(container);
+                    container.scrollTop = scrollY;
+                }
+                break;
+            }
+            case 'dashboard': {
+                const container = document.getElementById('app-content');
+                if (container && typeof window.renderDashboard === 'function') {
+                    const scrollY = container.scrollTop;
+                    window.renderDashboard(container);
+                    container.scrollTop = scrollY;
+                }
+                break;
+            }
+        }
+    } catch (err) {
+        console.warn('[RealTime] Error pembaruan selektif tampilan:', err);
+    }
+}
+window.applySelectiveBackgroundUpdate = applySelectiveBackgroundUpdate;
+
+// Idle watcher: jika ada pembaruan selektif yang sempat ditunda, terapkan begitu user selesai mengetik/idle
+if (typeof setInterval !== 'undefined') {
+    setInterval(() => {
+        if (window._deferredSelectiveTables && window._deferredSelectiveTables.size > 0) {
+            if (!isUserBusyEditing()) {
+                const deferred = Array.from(window._deferredSelectiveTables);
+                window._deferredSelectiveTables.clear();
+                console.log('[RealTime] Pengguna telah idle, menerapkan pembaruan selektif yang tertunda:', deferred);
+                applySelectiveBackgroundUpdate(deferred);
+            }
+        }
+    }, 3000);
+}
+
 function saveLocalFallback(tb) {
     const data = (db && db[tb] !== undefined) ? db[tb] : [];
     localStorage.setItem('sim_humas_db_' + tb, JSON.stringify(data));
@@ -502,14 +757,16 @@ async function fetchDataFromSheets(silent = false) {
         console.warn('[Sync] Menampilkan data offline lokal (Koneksi Sheets terhambat/offline).');
         if (!silent) {
             showToast('Menampilkan data offline lokal (Koneksi Sheets terhambat)', 'info');
-        }
-        if (typeof currentUser !== 'undefined' && currentUser) {
-            router(currentState);
-        }
-        isLoading = false;
-        if (!silent) {
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                if (typeof applySelectiveBackgroundUpdate === 'function') {
+                    applySelectiveBackgroundUpdate(['all']);
+                } else {
+                    router(currentState);
+                }
+            }
             updateLoadingStateUI(false);
         }
+        isLoading = false;
         return;
     }
 
@@ -687,39 +944,54 @@ async function fetchDataFromSheets(silent = false) {
             });
         }
 
-        // Detect if any table has changed
-        let hasChanges = false;
+        // Deteksi secara presisi tabel mana saja yang mengalami perubahan data
+        const changedTables = [];
         for (let i = 0; i < TABLES.length; i++) {
             const tb = TABLES[i];
             if (!areTablesEqual(db[tb], tempDb[tb])) {
-                hasChanges = true;
-                break;
+                changedTables.push(tb);
             }
         }
+        const hasChanges = changedTables.length > 0;
 
-        // If changes detected or initial non-silent sync, update and re-render
+        // Jika terdapat perubahan data atau sinkronisasi manual dipicu
         if (hasChanges || !silent) {
+            // Perbarui data in-memory secara transparan
             db = tempDb;
 
-            // Cache all synced data
-            TABLES.forEach(tb => {
+            // Cache data yang berubah ke local storage
+            const tablesToSave = hasChanges ? changedTables : TABLES;
+            tablesToSave.forEach(tb => {
                 saveLocalFallback(tb);
             });
 
             if (!silent) {
                 showToast('Data berhasil disinkronkan!');
             }
+
             if (typeof currentUser !== 'undefined' && currentUser) {
-                // Auto refresh jangan mengganggu proses edit / input atau modal yang sedang aktif
-                if (silent && typeof window.isUserEditingOrInputting === 'function' && window.isUserEditingOrInputting()) {
-                    console.log('[RealTime] Auto-refresh data diperbarui di background, penataan ulang UI ditunda agar tidak mengganggu proses input/edit.');
-                    window._pendingViewRefresh = true;
+                // Background auto-polling / silent sync: perbarui hanya komponen yang terpengaruh tanpa reload full
+                if (silent) {
+                    if (hasChanges) {
+                        if (typeof applySelectiveBackgroundUpdate === 'function') {
+                            applySelectiveBackgroundUpdate(changedTables);
+                        } else {
+                            console.log('[RealTime] Data diperbarui di background untuk tabel:', changedTables);
+                        }
+                    } else {
+                        console.log('[RealTime] Tidak ada perubahan data di database, lewati pembaruan.');
+                    }
                 } else {
-                    router(currentState);
+                    // Manual sync yang ditekan user: terapkan pembaruan selektif secara aman
+                    if (typeof applySelectiveBackgroundUpdate === 'function') {
+                        applySelectiveBackgroundUpdate(hasChanges ? changedTables : ['all']);
+                    } else {
+                        router(currentState);
+                    }
                 }
             }
         } else {
-            console.log('[RealTime] Tidak ada perubahan data di database, lewati re-render.');
+            console.log('[RealTime] Tidak ada perubahan data di database, lewati pembaruan tampilan.');
         }
 
         const nowWIB = typeof getNowWIB === 'function' ? getNowWIB() : new Date();
@@ -735,9 +1007,13 @@ async function fetchDataFromSheets(silent = false) {
         console.warn('[Sync] Error processing database payload, using local fallback:', parseError);
         if (!silent) {
             showToast('Menampilkan data offline lokal', 'info');
-        }
-        if (typeof currentUser !== 'undefined' && currentUser) {
-            router(currentState);
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                if (typeof applySelectiveBackgroundUpdate === 'function') {
+                    applySelectiveBackgroundUpdate(['all']);
+                } else {
+                    router(currentState);
+                }
+            }
         }
     } finally {
         isLoading = false;
@@ -1136,7 +1412,11 @@ async function sendDataToServer(action, sheetName, item) {
 
     saveLocalFallback(varName);
     if (typeof currentUser !== 'undefined' && currentUser) {
-        router(currentState); // Instantly update view
+        if (typeof applySelectiveBackgroundUpdate === 'function') {
+            applySelectiveBackgroundUpdate([varName]);
+        } else {
+            router(currentState);
+        }
     }
 
     // Add task to sync queue
