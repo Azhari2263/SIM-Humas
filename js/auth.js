@@ -17,7 +17,12 @@ function checkAuth() {
         document.getElementById('login-layout').classList.add('hidden');
         document.getElementById('app-layout').classList.remove('hidden');
         updateUserProfileUI();
-        fetchDataFromSheets();
+        if (typeof router === 'function') {
+            router(typeof currentState !== 'undefined' && currentState ? currentState : 'dashboard');
+        }
+        if (typeof fetchDataFromSheets === 'function') {
+            fetchDataFromSheets(true);
+        }
     }
 }
 
@@ -435,6 +440,9 @@ async function handleLogin(event) {
         logActivity('Login', `User ${currentUser.name} masuk sebagai ${getRoleLabel(currentUser.role)}.`);
     }
 
+    if (typeof currentState !== 'undefined') {
+        currentState = 'dashboard';
+    }
     checkAuth();
     if (typeof startRealtimePolling === 'function') {
         startRealtimePolling();

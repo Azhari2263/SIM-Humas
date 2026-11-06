@@ -753,11 +753,11 @@ app.post(['/api/admin/users/reset', '/api/users/reset', '/admin/users/reset'], a
     }
 
     persistUsersData();
-    await syncUserToGoogleSheets('update', user);
+    syncUserToGoogleSheets('update', user).catch(err => console.warn('[Reset Sync Background]:', err.message));
 
     return res.json({
       success: true,
-      message: `Kredensial untuk akun "${user.nama || user.username}" berhasil diperbarui.`,
+      message: 'Username dan password berhasil diperbarui',
       user: {
         id: user.id,
         nama: user.nama,
@@ -813,7 +813,7 @@ app.post(['/api/admin/users', '/admin/users'], async (req, res) => {
 
       database.users = database.users.filter(u => Number(u.id) !== Number(targetId));
       persistUsersData();
-      await syncUserToGoogleSheets('delete', { id: targetId });
+      syncUserToGoogleSheets('delete', { id: targetId }).catch(() => {});
       return res.json({ success: true, message: `Akun "${targetUser.nama || targetUser.username}" berhasil dihapus.` });
     }
 
@@ -839,7 +839,7 @@ app.post(['/api/admin/users', '/admin/users'], async (req, res) => {
 
       database.users.push(newUser);
       persistUsersData();
-      await syncUserToGoogleSheets('add', newUser);
+      syncUserToGoogleSheets('add', newUser).catch(() => {});
       return res.json({ success: true, user: newUser, message: `Akun baru "${newUser.nama}" berhasil dibuat.` });
     }
 
@@ -870,7 +870,7 @@ app.post(['/api/admin/users', '/admin/users'], async (req, res) => {
       }
 
       persistUsersData();
-      await syncUserToGoogleSheets('update', existing);
+      syncUserToGoogleSheets('update', existing).catch(() => {});
       return res.json({ success: true, user: existing, message: `Data akun "${existing.nama}" berhasil diperbarui.` });
     }
 
@@ -914,12 +914,20 @@ app.post(['/api/sheets', '/sheets'], async (req, res) => {
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : (body && body.token);
     const session = token ? verifySessionToken(token) : null;
 
-    // User management through sheets: allowed for admin only
+    // User management through sheets: allowed for admin, or self/koordinator on update
     if (collectionName === 'users' || sheet === 'users' || String(sheet).toLowerCase().includes('user')) {
-      if (!session || String(session.role).toLowerCase().trim() !== 'admin') {
+      const sessionRole = session ? String(session.role || '').toLowerCase().trim() : '';
+      const isAdmin = sessionRole === 'admin';
+      const isSelfUpdate = action === 'update' && session && item && (
+        Number(session.sub) === Number(item.id) ||
+        (session.username && item.username && String(session.username).toLowerCase().trim() === String(item.username).toLowerCase().trim())
+      );
+      const isKetuaTimUpdate = action === 'update' && sessionRole === 'koordinator' && item;
+
+      if (!isAdmin && !isSelfUpdate && !isKetuaTimUpdate) {
         return res.status(403).json({
           success: false,
-          error: 'Akses Ditolak (403 Forbidden): Koleksi data pengguna dilindungi dan hanya dapat dimodifikasi oleh Administrator.'
+          error: 'Akses Ditolak (403 Forbidden): Koleksi data pengguna dilindungi dan hanya dapat dimodifikasi oleh pengguna terkait atau Administrator.'
         });
       }
 
@@ -930,7 +938,7 @@ app.post(['/api/sheets', '/sheets'], async (req, res) => {
         if (!item.password) item.password = 'password';
         database.users.push(item);
         persistUsersData();
-        await syncUserToGoogleSheets('add', item);
+        syncUserToGoogleSheets('add', item).catch(() => {});
         return res.json({ success: true, item });
       }
 
@@ -940,7 +948,7 @@ app.post(['/api/sheets', '/sheets'], async (req, res) => {
         if (idx !== -1) {
           database.users[idx] = { ...database.users[idx], ...item };
           persistUsersData();
-          await syncUserToGoogleSheets('update', database.users[idx]);
+          syncUserToGoogleSheets('update', database.users[idx]).catch(() => {});
           return res.json({ success: true, item: database.users[idx] });
         }
       }
@@ -953,7 +961,7 @@ app.post(['/api/sheets', '/sheets'], async (req, res) => {
         }
         database.users = database.users.filter(u => Number(u.id) !== Number(item.id));
         persistUsersData();
-        await syncUserToGoogleSheets('delete', { id: item.id });
+        syncUserToGoogleSheets('delete', { id: item.id }).catch(() => {});
         return res.json({ success: true });
       }
     }
@@ -1014,10 +1022,13 @@ app.post(['/api/sheets', '/sheets'], async (req, res) => {
 
       item.jam_posting = item.jam_posting || '09:00';
 
-      const cloud = item.tautan_cloud || item.link_cloud || item.link_konten || '';
+      const cloud = item.tautan_cloud || item.tautan_dokumentasi || item.link_cloud || '';
+      const konten = item.tautan_konten || item.link_konten || cloud || '';
       item.tautan_cloud = cloud;
+      item.tautan_dokumentasi = cloud;
       item.link_cloud = cloud;
-      item.link_konten = cloud;
+      item.tautan_konten = konten;
+      item.link_konten = konten;
 
       if (item.status === 'Posted') {
         item.progres = 100;

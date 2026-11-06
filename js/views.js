@@ -311,7 +311,7 @@ function renderDashboard(container) {
     const mcSrc = db.mc.filter(isTaskForCurrentUser);
     const brsSrc = db.brsRilis.filter(isTaskForCurrentUser);
     const hbSrc = db.hariBesar.filter(isTaskForCurrentUser);
-    const plannerSrc = db.contentPlanner.filter(isTaskForCurrentUser);
+    const plannerSrc = db.contentPlanner.filter(c => !(window.isDuplicatePlannerFromRutin && window.isDuplicatePlannerFromRutin(c, db.rekapRutin))).filter(isTaskForCurrentUser);
     const assignmentSrc = db.assignments.filter(isTaskForCurrentUser);
     const ticketSrc = (db.tickets || []).filter(t => t.status === 'Approved').filter(isTaskForCurrentUser);
 
@@ -1095,7 +1095,7 @@ window.renderTeamWorkloadChart = function(targetMonthParam) {
     const mcInMonth = (db.mc || []).filter(isTaskInSelectedMonth);
     const brsInMonth = (db.brsRilis || []).filter(isTaskInSelectedMonth);
     const hbInMonth = (db.hariBesar || []).filter(isTaskInSelectedMonth);
-    const plannerInMonth = (db.contentPlanner || []).filter(isTaskInSelectedMonth);
+    const plannerInMonth = (db.contentPlanner || []).filter(c => !(window.isDuplicatePlannerFromRutin && window.isDuplicatePlannerFromRutin(c, db.rekapRutin))).filter(isTaskInSelectedMonth);
     const assignInMonth = (db.assignments || []).filter(isTaskInSelectedMonth);
     const ticketsInMonth = (db.tickets || []).filter(t => t.status === 'Approved').filter(isTaskInSelectedMonth);
 
@@ -1379,7 +1379,7 @@ window.renderTargetAchievementChart = function(selectedMonthParam) {
         (db.mc || []).forEach(i => processItem(i, 'tanggal', i.rubrikasi || 'Master of Ceremony'));
         (db.brsRilis || []).forEach(i => processItem(i, 'tanggal_rilis', i.rubrikasi || 'Rilis Statistik (BRS)'));
         (db.hariBesar || []).forEach(i => processItem(i, 'tanggal', i.rubrikasi || 'Hari Besar & Medsos'));
-        (db.contentPlanner || []).forEach(i => processItem(i, 'jadwal', i.rubrikasi || i.jenis_konten || 'Konten Publikasi'));
+        (db.contentPlanner || []).filter(c => !(window.isDuplicatePlannerFromRutin && window.isDuplicatePlannerFromRutin(c, db.rekapRutin))).forEach(i => processItem(i, 'jadwal', i.rubrikasi || i.jenis_konten || 'Konten Publikasi'));
         (db.assignments || []).forEach(i => processItem(i, 'deadline', i.rubrikasi || 'Penugasan Tim'));
         (db.tickets || []).filter(t => t.status === 'Approved').forEach(i => processItem(i, 'deadline', i.rubrikasi || 'Layanan Humas'));
 
@@ -1626,7 +1626,7 @@ window.renderTimDashboardCharts = function() {
     const userMc = (db.mc || []).filter(isTaskForCurrentUser);
     const userBrs = (db.brsRilis || []).filter(isTaskForCurrentUser);
     const userHb = (db.hariBesar || []).filter(isTaskForCurrentUser);
-    const userPlanner = (db.contentPlanner || []).filter(isTaskForCurrentUser);
+    const userPlanner = (db.contentPlanner || []).filter(c => !(window.isDuplicatePlannerFromRutin && window.isDuplicatePlannerFromRutin(c, db.rekapRutin))).filter(isTaskForCurrentUser);
     const userAssign = (db.assignments || []).filter(isTaskForCurrentUser);
     const userTickets = (db.tickets || []).filter(t => t.status === 'Approved').filter(isTaskForCurrentUser);
 
@@ -4537,12 +4537,13 @@ function getAllIntegratedTasks() {
         });
     });
 
-    // 5. Content Planner (Mencegah double counting jika sudah disinkronisasi ke Rekap Rutin)
+    // 5. Content Planner (Mencegah double counting jika sudah disinkronisasi / terhubung ke Rekap Rutin)
     (db.contentPlanner || []).forEach((item, idx) => {
-        const isAlreadyInRutin = (db.rekapRutin || []).some(r => 
-            (r.linked_source === 'content_planner' && Number(r.linked_id) === Number(item.id)) ||
-            (r.content_planner_id && Number(r.content_planner_id) === Number(item.id))
-        );
+        const isAlreadyInRutin = (window.isDuplicatePlannerFromRutin && window.isDuplicatePlannerFromRutin(item, db.rekapRutin)) ||
+            (db.rekapRutin || []).some(r => 
+                (r.linked_source === 'content_planner' && Number(r.linked_id) === Number(item.id)) ||
+                (r.content_planner_id && Number(r.content_planner_id) === Number(item.id))
+            );
         if (isAlreadyInRutin) return;
 
         safePush({
@@ -6950,11 +6951,12 @@ function renderIntegratedCalendar(container) {
     });
     db.contentPlanner.forEach(e => {
         // Cegah duplikasi jika berasal dari tautan rekap_rutin yang sudah terdaftar
-        const isFromRutin = (e.linked_source === 'rekap_rutin') &&
+        const isFromRutin = (window.isDuplicatePlannerFromRutin && window.isDuplicatePlannerFromRutin(e, db.rekapRutin)) ||
+            ((e.linked_source === 'rekap_rutin') &&
             (db.rekapRutin || []).some(r =>
                 (e.linked_id && String(r.id) === String(e.linked_id)) ||
                 (r.kegiatan && e.judul && r.kegiatan.trim().toLowerCase() === e.judul.trim().toLowerCase() && formatDateInput(r.tanggal) === formatDateInput(e.jadwal))
-            );
+            ));
         if (isFromRutin) return;
 
         const cat = getCalendarProgressCategory(e.status, 'content', e);
@@ -7309,11 +7311,12 @@ window.showCalendarDayEvents = function (dateStr) {
 
     db.contentPlanner.forEach(e => {
         if (e.jadwal && formatDateInput(e.jadwal).includes(dateStr)) {
-            const isFromRutin = (e.linked_source === 'rekap_rutin') &&
+            const isFromRutin = (window.isDuplicatePlannerFromRutin && window.isDuplicatePlannerFromRutin(e, db.rekapRutin)) ||
+                ((e.linked_source === 'rekap_rutin') &&
                 (db.rekapRutin || []).some(r =>
                     (e.linked_id && String(r.id) === String(e.linked_id)) ||
                     (r.kegiatan && e.judul && r.kegiatan.trim().toLowerCase() === e.judul.trim().toLowerCase() && formatDateInput(r.tanggal).includes(dateStr))
-                );
+                ));
             if (!isFromRutin) {
                 const pic = e['assign To'] || e.assignTo || e.assignedTo || e.pic || e.petugas || '-';
                 pushDayEvent('content', 'Konten', e.judul, pic, e.status, e);
@@ -7615,11 +7618,12 @@ window.openCalendarReminderModal = function (scopeOverride) {
     db.contentPlanner.forEach(e => {
         const rawDate = e.jadwal || e.tanggal_posting || e.tanggal;
         if (checkDateInRange(rawDate)) {
-            const isFromRutin = (e.linked_source === 'rekap_rutin') &&
+            const isFromRutin = (window.isDuplicatePlannerFromRutin && window.isDuplicatePlannerFromRutin(e, db.rekapRutin)) ||
+                ((e.linked_source === 'rekap_rutin') &&
                 (db.rekapRutin || []).some(r =>
                     (e.linked_id && String(r.id) === String(e.linked_id)) ||
                     (r.kegiatan && e.judul && r.kegiatan.trim().toLowerCase() === e.judul.trim().toLowerCase())
-                );
+                ));
             if (!isFromRutin) {
                 const pic = e['assign To'] || e.assignTo || e.assignedTo || e.pic || e.petugas || 'Belum Ditugaskan';
                 items.push({
@@ -9898,55 +9902,78 @@ window.drawAssignmentTable = function() {
             originalType: 'assignment',
             originalId: item.id,
             tugas: item.tugas,
-            deskripsi: item.deskripsi || '-',
+            deskripsi: (window.cleanAutoGeneratedDesc ? window.cleanAutoGeneratedDesc(item.deskripsi) : item.deskripsi) || '-',
             prioritas: item.prioritas || 'Sedang',
             status: item.status || 'Belum Mulai',
             tanggal_penugasan: item.tanggal_penugasan,
             deadline: item.deadline,
             progres: item.progres || 0,
-            lampiran: item.lampiran || '',
+            lampiran: item.tautan_dokumentasi || item.lampiran || '',
+            tautan_dokumentasi: item.tautan_dokumentasi || item.lampiran || '',
+            tautan_konten: item.tautan_konten || '',
+            keterangan: (window.cleanAutoGeneratedDesc ? window.cleanAutoGeneratedDesc(item.keterangan) : item.keterangan) || '',
             assigned_to: item.assigned_to || '-'
         })),
-        ...db.contentPlanner.filter(isTaskForCurrentUser).map(item => ({
-            id: `planner-${item.id}`,
-            originalType: 'content',
-            originalId: item.id,
-            tugas: `[Rencana Konten] ${item.judul}`,
-            deskripsi: item.konsep || '-',
-            prioritas: 'Sedang',
-            status: item.status || 'Draft',
-            tanggal_penugasan: item.jadwal,
-            deadline: item.jadwal,
-            progres: item.progres || 0,
-            lampiran: item.lampiran || '',
-            assigned_to: item['assign To'] || item.assignTo || item.assignedTo || item.pic || '-'
-        })),
-        ...db.rekapRutin.filter(isTaskForCurrentUser).map(item => ({
-            id: `rutin-${item.id}`,
-            originalType: 'rekap_rutin',
-            originalId: item.id,
-            tugas: `[Rutin] ${item.kegiatan}`,
-            deskripsi: item.rubrikasi || '-',
-            prioritas: 'Sedang',
-            status: item.status || 'Ditugaskan',
-            tanggal_penugasan: item.tanggal,
-            deadline: item.tanggal,
-            progres: item.status === 'Selesai' ? 100 : 0,
-            lampiran: '',
-            assigned_to: item.petugas || '-'
-        })),
+        ...db.contentPlanner
+            .filter(item => !(window.isDuplicatePlannerFromRutin && window.isDuplicatePlannerFromRutin(item, db.rekapRutin)))
+            .filter(isTaskForCurrentUser)
+            .map(item => {
+                const cleanNotes = window.cleanAutoGeneratedDesc
+                    ? window.cleanAutoGeneratedDesc(item.konsep || item.keterangan || '')
+                    : (item.konsep || item.keterangan || '');
+                return {
+                    id: `planner-${item.id}`,
+                    originalType: 'content',
+                    originalId: item.id,
+                    tugas: `[Rencana Konten] ${item.judul}`,
+                    deskripsi: cleanNotes || '-',
+                    prioritas: 'Sedang',
+                    status: item.status || 'Draft',
+                    tanggal_penugasan: item.jadwal,
+                    deadline: item.jadwal,
+                    progres: item.progres || 0,
+                    lampiran: item.tautan_dokumentasi || item.tautan_cloud || item.lampiran || '',
+                    tautan_dokumentasi: item.tautan_dokumentasi || item.tautan_cloud || item.link_cloud || '',
+                    tautan_konten: item.tautan_konten || item.link_konten || '',
+                    keterangan: cleanNotes || '',
+                    assigned_to: item['assign To'] || item.assignTo || item.assignedTo || item.pic || '-'
+                };
+            }),
+        ...db.rekapRutin.filter(isTaskForCurrentUser).map(item => {
+            const cleanKet = window.cleanAutoGeneratedDesc ? window.cleanAutoGeneratedDesc(item.keterangan || '') : (item.keterangan || '');
+            return {
+                id: `rutin-${item.id}`,
+                originalType: 'rekap_rutin',
+                originalId: item.id,
+                tugas: `[Rutin] ${item.kegiatan}`,
+                deskripsi: item.rubrikasi || cleanKet || '-',
+                prioritas: 'Sedang',
+                status: item.status || 'Ditugaskan',
+                tanggal_penugasan: item.tanggal,
+                deadline: item.tanggal,
+                progres: item.status === 'Selesai' ? 100 : (Number(item.progres) || 0),
+                lampiran: item.tautan_dokumentasi || '',
+                tautan_dokumentasi: item.tautan_dokumentasi || '',
+                tautan_konten: item.tautan_konten || '',
+                keterangan: cleanKet,
+                assigned_to: item.petugas || '-'
+            };
+        }),
         ...db.adHoc.filter(isTaskForCurrentUser).map(item => ({
             id: `adhoc-${item.id}`,
             originalType: 'ad_hoc',
             originalId: item.id,
             tugas: `[AdHoc] ${item.kegiatan}`,
-            deskripsi: item.keterangan || '-',
+            deskripsi: (window.cleanAutoGeneratedDesc ? window.cleanAutoGeneratedDesc(item.keterangan) : item.keterangan) || '-',
             prioritas: 'Sedang',
             status: item.status || 'Ditugaskan',
             tanggal_penugasan: item.tanggal,
             deadline: item.tanggal,
-            progres: item.status === 'Selesai' ? 100 : 0,
-            lampiran: '',
+            progres: item.status === 'Selesai' ? 100 : (Number(item.progres) || 0),
+            lampiran: item.tautan_dokumentasi || '',
+            tautan_dokumentasi: item.tautan_dokumentasi || '',
+            tautan_konten: item.tautan_konten || '',
+            keterangan: item.keterangan || '',
             assigned_to: item.petugas || '-'
         })),
         ...db.protokoler.filter(isTaskForCurrentUser).map(item => ({
@@ -9959,8 +9986,11 @@ window.drawAssignmentTable = function() {
             status: item.status || 'Ditugaskan',
             tanggal_penugasan: item.tanggal,
             deadline: item.tanggal,
-            progres: item.status === 'Selesai' ? 100 : 0,
-            lampiran: '',
+            progres: item.status === 'Selesai' ? 100 : (Number(item.progres) || 0),
+            lampiran: item.tautan_dokumentasi || '',
+            tautan_dokumentasi: item.tautan_dokumentasi || '',
+            tautan_konten: item.tautan_konten || '',
+            keterangan: item.keterangan || '',
             assigned_to: item.petugas || '-'
         })),
         ...db.mc.filter(isTaskForCurrentUser).map(item => ({
@@ -9973,8 +10003,11 @@ window.drawAssignmentTable = function() {
             status: item.status || 'Ditugaskan',
             tanggal_penugasan: item.tanggal,
             deadline: item.tanggal,
-            progres: item.status === 'Selesai' ? 100 : 0,
-            lampiran: '',
+            progres: item.status === 'Selesai' ? 100 : (Number(item.progres) || 0),
+            lampiran: item.tautan_dokumentasi || '',
+            tautan_dokumentasi: item.tautan_dokumentasi || '',
+            tautan_konten: item.tautan_konten || '',
+            keterangan: item.keterangan || '',
             assigned_to: item.petugas || '-'
         })),
         ...db.brsRilis.filter(isTaskForCurrentUser).map(item => ({
@@ -9982,13 +10015,16 @@ window.drawAssignmentTable = function() {
             originalType: 'brs_rilis',
             originalId: item.id,
             tugas: `[BRS] ${item.judul}`,
-            deskripsi: `Poster: ${item.pic_poster_info || '-'}. Dok: ${item.pic_doc_ruang || '-'}. Zoom/YT: ${item.pic_doc_yt_zoom || '-'}`,
+            deskripsi: item.keterangan ? `${item.keterangan} (Poster: ${item.pic_poster_info || '-'}, Dok: ${item.pic_doc_ruang || '-'}, Zoom/YT: ${item.pic_doc_yt_zoom || '-'})` : `Poster: ${item.pic_poster_info || '-'}. Dok: ${item.pic_doc_ruang || '-'}. Zoom/YT: ${item.pic_doc_yt_zoom || '-'}`,
             prioritas: 'Tinggi',
-            status: 'Rilis',
+            status: item.status || 'Rilis',
             tanggal_penugasan: item.tanggal_rilis,
             deadline: item.tanggal_rilis,
-            progres: 100,
-            lampiran: item.highlight || '',
+            progres: item.progres !== undefined ? Number(item.progres) : 100,
+            lampiran: item.tautan_dokumentasi || item.highlight || '',
+            tautan_dokumentasi: item.tautan_dokumentasi || item.highlight || '',
+            tautan_konten: item.tautan_konten || '',
+            keterangan: item.keterangan || '',
             assigned_to: `${item.pic_poster_info || ''} ${item.pic_doc_ruang || ''} ${item.pic_doc_yt_zoom || ''}`.trim() || '-'
         })),
         ...db.hariBesar.filter(isTaskForCurrentUser).map(item => ({
@@ -9996,13 +10032,16 @@ window.drawAssignmentTable = function() {
             originalType: 'hari_besar',
             originalId: item.id,
             tugas: `[HariBesar] ${item.hari_besar}`,
-            deskripsi: `Ucapan Hari Besar`,
+            deskripsi: item.keterangan || `Ucapan Hari Besar`,
             prioritas: 'Sedang',
             status: item.status || 'Draft',
             tanggal_penugasan: item.tanggal,
             deadline: item.tanggal,
-            progres: item.status === 'Posted' ? 100 : 0,
-            lampiran: item.data_pendukung || '',
+            progres: (item.status === 'Posted' || item.status === 'Selesai') ? 100 : (Number(item.progres) || 0),
+            lampiran: item.data_pendukung || item.tautan_dokumentasi || '',
+            tautan_dokumentasi: item.data_pendukung || item.tautan_dokumentasi || '',
+            tautan_konten: item.tautan_konten || '',
+            keterangan: item.keterangan || '',
             assigned_to: item.pembuat_konten || '-'
         }))
     ];
@@ -10391,7 +10430,7 @@ window.triggerAssignmentH1Reminders = function(isManual = false) {
 
     const rawSources = [
         ...(db.assignments || []).map(i => ({ ...i, originalType: 'assignment', tugas: i.tugas, deadline: i.deadline || i.tanggal_penugasan, assigned_to: i.assigned_to || '-' })),
-        ...(db.contentPlanner || []).map(i => ({ ...i, originalType: 'content', tugas: `[Konten] ${i.judul}`, deadline: i.jadwal || i.tanggal_posting, assigned_to: i['assign To'] || i.assignTo || i.assignedTo || i.pic || '-' })),
+        ...(db.contentPlanner || []).filter(i => !(window.isDuplicatePlannerFromRutin && window.isDuplicatePlannerFromRutin(i, db.rekapRutin))).map(i => ({ ...i, originalType: 'content', tugas: `[Konten] ${i.judul}`, deadline: i.jadwal || i.tanggal_posting, assigned_to: i['assign To'] || i.assignTo || i.assignedTo || i.pic || '-' })),
         ...(db.rekapRutin || []).map(i => ({ ...i, originalType: 'rekap_rutin', tugas: `[Rutin] ${i.kegiatan}`, deadline: i.tanggal, assigned_to: i.petugas || '-' })),
         ...(db.adHoc || []).map(i => ({ ...i, originalType: 'ad_hoc', tugas: `[AdHoc] ${i.kegiatan}`, deadline: i.tanggal, assigned_to: i.petugas || '-' })),
         ...(db.protokoler || []).map(i => ({ ...i, originalType: 'protokoler', tugas: `[Protokol] ${i.kegiatan}`, deadline: i.tanggal, assigned_to: i.petugas || '-' })),
@@ -10848,7 +10887,9 @@ function drawRepositoryContent() {
     const pagination = document.getElementById('repo-pagination');
     if (!contentArea) return;
 
-    let rawItems = (db.repository && Array.isArray(db.repository)) ? [...db.repository] : [];
+    let rawItems = (db.repository && Array.isArray(db.repository))
+        ? db.repository.filter(item => !(window.isUserGuideDoc && window.isUserGuideDoc(item)))
+        : [];
     
     // Normalisasi setiap kategori dokumen
     let items = rawItems.map(item => ({
@@ -12225,8 +12266,10 @@ async function submitResetCredentials(event, userId) {
             oldPasswordInput?.focus();
             return;
         }
-        const expectedOld = user.password !== undefined && user.password !== null && user.password !== '' ? String(user.password).trim() : 'password';
-        if (oldPassword !== expectedOld && !(expectedOld === 'password' && !user.password && oldPassword === 'password')) {
+        const knownPassword = (user.password !== undefined && user.password !== null && String(user.password).trim() !== '')
+            ? String(user.password).trim()
+            : ((currentUser && Number(currentUser.id) === Number(userId) && currentUser.password) ? String(currentUser.password).trim() : null);
+        if (knownPassword !== null && oldPassword !== knownPassword) {
             showToast('Kata sandi sebelumnya tidak sesuai! Validasi akun gagal.', 'error');
             oldPasswordInput?.focus();
             return;
@@ -12257,15 +12300,18 @@ async function submitResetCredentials(event, userId) {
         const oldName = user.nama;
         const token = localStorage.getItem('sim_humas_token') || '';
 
-        // Panggil endpoint backend /api/admin/users/reset
+        // Panggil endpoint backend /api/admin/users/reset dengan timeout agar tidak berputar terus
         let apiSuccess = false;
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 6000);
             const resp = await fetch('/api/admin/users/reset', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
+                signal: controller.signal,
                 body: JSON.stringify({
                     id: user.id,
                     nama: newNama || user.nama,
@@ -12274,6 +12320,7 @@ async function submitResetCredentials(event, userId) {
                     password: newPassword
                 })
             });
+            clearTimeout(timeoutId);
 
             if (resp.ok) {
                 const resData = await resp.json();
@@ -12292,18 +12339,17 @@ async function submitResetCredentials(event, userId) {
             console.warn('[Reset] API call fallback to local:', fetchErr);
         }
 
-        // Jika API tidak merespons update lengkap, update local state
+        // Pastikan state lokal terupdate
         if (newNama) user.nama = newNama;
-        if (!apiSuccess) {
-            user.username = newUsername;
-            user.password = newPassword;
-        } else {
-            // Pastikan referensi user terupdate
+        user.username = newUsername;
+        user.password = newPassword;
+
+        if (apiSuccess) {
             const updatedUser = db.users.find(u => Number(u.id) === Number(userId));
             if (updatedUser) {
-                user.nama = updatedUser.nama;
-                user.username = updatedUser.username;
-                user.password = updatedUser.password;
+                updatedUser.nama = newNama || updatedUser.nama;
+                updatedUser.username = newUsername;
+                updatedUser.password = newPassword;
             }
         }
 
@@ -12328,6 +12374,7 @@ async function submitResetCredentials(event, userId) {
                 currentUser.name = newNama;
             }
             currentUser.username = newUsername;
+            currentUser.password = newPassword;
             localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
             if (typeof updateUserProfileUI === 'function') updateUserProfileUI();
         }
@@ -12357,14 +12404,16 @@ async function submitResetCredentials(event, userId) {
             }
         }
 
+        // Hentikan loading sebelum menutup modal
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Simpan & Terapkan Kredensial';
+        }
+
         // Tutup modal
         document.getElementById('reset-credentials-modal')?.remove();
 
-        showToast(
-            copyClipboard
-                ? `Kredensial @${newUsername} berhasil direset dan disalin ke clipboard!`
-                : `Kredensial @${newUsername} berhasil direset!`
-        );
+        showToast('Username dan password berhasil diperbarui');
 
         // Re-draw table jika di halaman manajemen akun
         if (typeof drawUserManagementTable === 'function' && document.getElementById('user-table-body')) {
@@ -12373,7 +12422,7 @@ async function submitResetCredentials(event, userId) {
 
         // Re-render jika di halaman reset kredensial
         if (typeof currentState !== 'undefined' && currentState === 'reset_credentials') {
-            const container = document.getElementById('main-content');
+            const container = document.getElementById('app-content') || document.getElementById('main-content');
             if (container && typeof renderResetCredentialsPage === 'function') {
                 renderResetCredentialsPage(container);
             }
@@ -12382,6 +12431,7 @@ async function submitResetCredentials(event, userId) {
     } catch (err) {
         console.error('Reset credentials error:', err);
         showToast('Gagal mereset kredensial: ' + err.message, 'error');
+    } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Simpan & Terapkan Kredensial';
@@ -12676,8 +12726,12 @@ async function submitSelfResetCredentials(event, userId) {
         return;
     }
 
-    const expectedOld = targetUser.password !== undefined && targetUser.password !== null && targetUser.password !== '' ? String(targetUser.password).trim() : 'password';
-    if (oldPassword !== expectedOld && !(expectedOld === 'password' && !targetUser.password && oldPassword === 'password')) {
+    const knownSelfPassword = (targetUser.password !== undefined && targetUser.password !== null && String(targetUser.password).trim() !== '')
+        ? String(targetUser.password).trim()
+        : ((currentUser && currentUser.password !== undefined && currentUser.password !== null && String(currentUser.password).trim() !== '')
+            ? String(currentUser.password).trim()
+            : null);
+    if (knownSelfPassword !== null && oldPassword !== knownSelfPassword) {
         showToast('Kata sandi sebelumnya tidak sesuai! Validasi akun gagal.', 'error');
         oldPasswordInput?.focus();
         return;
@@ -12709,12 +12763,15 @@ async function submitSelfResetCredentials(event, userId) {
 
         let apiSuccess = false;
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 6000);
             const resp = await fetch('/api/admin/users/reset', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
+                signal: controller.signal,
                 body: JSON.stringify({
                     id: targetUser.id,
                     nama: newNama,
@@ -12723,6 +12780,7 @@ async function submitSelfResetCredentials(event, userId) {
                     password: newPassword
                 })
             });
+            clearTimeout(timeoutId);
 
             if (resp.ok) {
                 const resData = await resp.json();
@@ -12742,15 +12800,15 @@ async function submitSelfResetCredentials(event, userId) {
         }
 
         targetUser.nama = newNama;
-        if (!apiSuccess) {
-            targetUser.username = newUsername;
-            targetUser.password = newPassword;
-        } else {
+        targetUser.username = newUsername;
+        targetUser.password = newPassword;
+
+        if (apiSuccess) {
             const updatedUser = db.users.find(u => Number(u.id) === Number(userId));
             if (updatedUser) {
-                targetUser.nama = updatedUser.nama;
-                targetUser.username = updatedUser.username;
-                targetUser.password = updatedUser.password;
+                updatedUser.nama = newNama;
+                updatedUser.username = newUsername;
+                updatedUser.password = newPassword;
             }
         }
 
@@ -12771,6 +12829,7 @@ async function submitSelfResetCredentials(event, userId) {
         currentUser.nama = newNama;
         currentUser.name = newNama;
         currentUser.username = newUsername;
+        currentUser.password = newPassword;
         localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
         if (typeof updateUserProfileUI === 'function') updateUserProfileUI();
 
@@ -12788,24 +12847,27 @@ async function submitSelfResetCredentials(event, userId) {
             }
         }
 
-        showToast(
-            copyClipboard
-                ? `Kredensial akun ${newNama} berhasil diperbarui dan disalin ke clipboard!`
-                : `Kredensial akun ${newNama} berhasil diperbarui!`
-        );
+        // Hentikan loading segera setelah penyimpanan berhasil
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-check"></i><span>Simpan & Perbarui Kredensial Saya</span>';
+        }
+
+        showToast('Username dan password berhasil diperbarui');
 
         // Re-render halaman
-        const container = document.getElementById('main-content');
-        if (container) {
+        const container = document.getElementById('app-content') || document.getElementById('main-content');
+        if (container && typeof renderResetCredentialsPage === 'function') {
             renderResetCredentialsPage(container);
         }
 
     } catch (err) {
         console.error('Self reset error:', err);
         showToast('Gagal mereset kredensial: ' + err.message, 'error');
+    } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Simpan & Perbarui Kredensial Saya';
+            submitBtn.innerHTML = '<i class="fa-solid fa-check"></i><span>Simpan & Perbarui Kredensial Saya</span>';
         }
     }
 }
