@@ -12335,6 +12335,17 @@ async function submitResetCredentials(event, userId) {
         // Simpan local fallback
         saveLocalFallback('users');
 
+        if (typeof sendDataToServer === 'function') {
+            sendDataToServer('update', 'users', {
+                id: Number(user.id),
+                nama: user.nama,
+                username: user.username,
+                password: user.password,
+                role: user.role,
+                bidang: user.bidang
+            }).catch(console.warn);
+        }
+
         // Jika user yang diubah adalah user yang sedang login, update sesi lokal
         if (currentUser && Number(currentUser.id) === Number(userId)) {
             if (newNama) {
@@ -12769,6 +12780,17 @@ async function submitSelfResetCredentials(event, userId) {
         }
 
         saveLocalFallback('users');
+
+        if (typeof sendDataToServer === 'function') {
+            sendDataToServer('update', 'users', {
+                id: Number(targetUser.id),
+                nama: targetUser.nama,
+                username: targetUser.username,
+                password: targetUser.password,
+                role: targetUser.role,
+                bidang: targetUser.bidang
+            }).catch(console.warn);
+        }
 
         // Perbarui sesi aktif saat ini
         currentUser.nama = newNama;

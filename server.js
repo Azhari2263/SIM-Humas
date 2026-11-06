@@ -296,6 +296,43 @@ function persistUsersData() {
   }
 }
 
+// Synchronize user updates to Google Sheets database (Sheet: 'users' - Kolom B: username, Kolom C: password, Kolom D: nama, Kolom E: role, Kolom F: bidang)
+async function syncUserToGoogleSheets(action, userItem) {
+  if (!GOOGLE_SHEETS_API_URL || !userItem) return false;
+  try {
+    const payload = {
+      action,
+      sheet: 'users',
+      item: {
+        id: Number(userItem.id),
+        username: userItem.username ? String(userItem.username).trim() : '',
+        password: userItem.password !== undefined && userItem.password !== null && String(userItem.password).trim() !== '' ? String(userItem.password).trim() : 'password',
+        nama: userItem.nama || userItem.name || userItem.username || '',
+        role: String(userItem.role || 'tim').toLowerCase().trim(),
+        bidang: userItem.bidang || ''
+      }
+    };
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
+    const resp = await fetch(GOOGLE_SHEETS_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      redirect: 'follow',
+      signal: controller.signal,
+      body: JSON.stringify(payload)
+    });
+    clearTimeout(timer);
+    if (resp.ok) {
+      const resJson = await resp.json().catch(() => null);
+      console.log(`[DB] Successfully synced user ${action} to Google Sheets:`, userItem.username, resJson);
+      return true;
+    }
+  } catch (e) {
+    console.warn(`[DB] Failed to sync user ${action} to Google Sheets:`, e.message);
+  }
+  return false;
+}
+
 // Map sheet name in requests to database property
 const SHEET_TO_PROP = {
   'content_planner': 'contentPlanner',
@@ -330,36 +367,57 @@ const SHEET_TO_PROP = {
   'repository': 'repository'
 };
 
-// Background sync of users from Google Sheets
+// Background sync of users from Google Sheets (Authoritative source: Sheet users Kolom B: username, Kolom C: password)
 async function refreshUsersFromSheets() {
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6000);
-    const resp = await fetch(GOOGLE_SHEETS_API_URL, { signal: controller.signal });
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const resp = await fetch(GOOGLE_SHEETS_API_URL, { 
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: { 'Accept': 'application/json' }
+    });
     clearTimeout(timer);
     if (resp.ok) {
       const data = await resp.json();
       if (data && Array.isArray(data.users) && data.users.length > 0) {
-        const existingMap = new Map();
-        (database.users || []).forEach(u => {
-          if (u.id) existingMap.set(Number(u.id), u);
-          else if (u.username) existingMap.set(u.username.toLowerCase().trim(), u);
-        });
+        const sheetsUsersMap = new Map();
+        
         data.users.forEach(u => {
-          const key = Number(u.id) || (u.username && u.username.toLowerCase().trim());
+          if (!u) return;
+          const uId = u.id !== undefined && u.id !== null ? Number(u.id) : undefined;
+          const uUsername = String(u.username !== undefined && u.username !== null ? u.username : '').trim();
+          const uPassword = String(u.password !== undefined && u.password !== null ? u.password : '').trim();
+          const uNama = String(u.nama || u.name || uUsername || '').trim();
+          const uRole = String(u.role || 'tim').toLowerCase().trim();
+          const uBidang = String(u.bidang || '').trim();
+
+          const key = uId || uUsername.toLowerCase();
           if (key) {
-            const existing = existingMap.get(key);
-            if (existing) {
-              // Preserve locally edited password/username if existing in database.users
-              existingMap.set(key, { ...u, ...existing });
-            } else {
-              existingMap.set(key, u);
-            }
+            sheetsUsersMap.set(key, {
+              id: uId || u.id,
+              username: uUsername,
+              password: uPassword,
+              nama: uNama,
+              name: uNama,
+              role: uRole,
+              bidang: uBidang
+            });
           }
         });
-        database.users = Array.from(existingMap.values());
+
+        // Pertahankan juga pengguna yang baru dibuat secara lokal di memory jika belum sempat masuk ke spreadsheet
+        (database.users || []).forEach(localUser => {
+          if (!localUser) return;
+          const key = Number(localUser.id) || (localUser.username ? String(localUser.username).toLowerCase().trim() : null);
+          if (key && !sheetsUsersMap.has(key)) {
+            sheetsUsersMap.set(key, localUser);
+          }
+        });
+
+        database.users = Array.from(sheetsUsersMap.values());
         persistUsersData();
-        console.log(`[DB] Successfully refreshed users from Google Sheets (${database.users.length} total).`);
+        console.log(`[DB] Successfully refreshed users from Google Sheets (${database.users.length} total users).`);
         return database.users;
       }
     }
@@ -434,58 +492,75 @@ function verifySessionToken(token) {
 app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
   try {
     const { username, password } = req.body || {};
-    if (!username || !password) {
+    if (!username || password === undefined || password === null) {
       return res.status(400).json({ success: false, error: 'Nama pengguna dan kata sandi wajib diisi.' });
     }
-    const cleanUser = String(username).toLowerCase().trim();
-    let user = (database.users || []).find(u => 
-      (u.username && u.username.toLowerCase().trim() === cleanUser) ||
-      (u.nama && u.nama.toLowerCase().trim() === cleanUser)
-    );
+    const rawUser = String(username).trim();
+    const cleanUser = rawUser.toLowerCase();
+    const rawPass = String(password);
+    const cleanPass = rawPass.trim();
 
-    // If not found in current memory cache, try refreshing from Google Sheets
-    if (!user) {
-      const refreshed = await refreshUsersFromSheets();
-      user = refreshed.find(u => 
-        (u.username && u.username.toLowerCase().trim() === cleanUser) ||
-        (u.nama && u.nama.toLowerCase().trim() === cleanUser)
-      );
-    }
+    // Helper untuk mencocokkan akun berdasarkan username (Kolom B) atau nama (Kolom D)
+    const matchUser = (userList) => {
+      return (userList || []).find(u => {
+        if (!u) return false;
+        const uUser = String(u.username || '').toLowerCase().trim();
+        const uNama = String(u.nama || u.name || '').toLowerCase().trim();
+        return uUser === cleanUser || uNama === cleanUser;
+      });
+    };
 
-    if (!user) {
-      return res.status(401).json({ success: false, error: 'Nama pengguna tidak terdaftar dalam database.' });
-    }
+    // Helper untuk memvalidasi kata sandi dari spreadsheet (sheet users Kolom C)
+    const checkPassword = (u) => {
+      if (!u) return false;
+      const expected = String(u.password !== undefined && u.password !== null ? u.password : '');
+      const expectedTrim = expected.trim();
 
-    const expectedPassword = String(user.password !== undefined && user.password !== null && user.password !== '' ? user.password : 'password');
-    let isMatch = (String(password) === expectedPassword) ||
-                  (String(password) === 'password' && !user.password) ||
-                  (cleanUser === 'admin' && (String(password) === 'admin123' || String(password) === 'password'));
+      // Cocokkan langsung kata sandi dari spreadsheet (sheet users kolom C)
+      if (expected && (rawPass === expected || cleanPass === expectedTrim)) {
+        return true;
+      }
 
-    if (!isMatch) {
-      // Re-verify against live Google Sheets
-      const refreshed = await refreshUsersFromSheets();
-      const liveUser = refreshed.find(u => 
-        (u.username && u.username.toLowerCase().trim() === cleanUser) ||
-        (u.nama && u.nama.toLowerCase().trim() === cleanUser)
-      );
-      if (liveUser) {
-        const liveExpected = String(liveUser.password !== undefined && liveUser.password !== null && liveUser.password !== '' ? liveUser.password : 'password');
-        if (String(password) === liveExpected || (String(password) === 'password' && !liveUser.password)) {
-          user = liveUser;
-          isMatch = true;
-        }
+      // Default 'password' jika kolom password di spreadsheet kosong
+      if (!expected && (cleanPass === 'password' || rawPass === 'password')) {
+        return true;
+      }
+
+      // Fallback darurat admin
+      if (cleanUser === 'admin' && (cleanPass === 'admin123' || cleanPass === 'password')) {
+        return true;
+      }
+
+      return false;
+    };
+
+    let user = matchUser(database.users);
+
+    // Jika pengguna belum ada di memory ATAU kata sandi tidak cocok,
+    // langsung sinkronkan secara real-time dengan Google Sheets (sheet users kolom B & C)
+    if (!user || !checkPassword(user)) {
+      const refreshedUsers = await refreshUsersFromSheets();
+      const liveUser = matchUser(refreshedUsers);
+      if (liveUser && checkPassword(liveUser)) {
+        user = liveUser;
+      } else if (!user && liveUser) {
+        user = liveUser;
       }
     }
 
-    if (!isMatch) {
-      return res.status(401).json({ success: false, error: 'Kata sandi tidak sesuai. Silakan periksa kembali.' });
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Nama pengguna tidak terdaftar dalam database spreadsheet (sheet users).' });
+    }
+
+    if (!checkPassword(user)) {
+      return res.status(401).json({ success: false, error: 'Kata sandi tidak sesuai. Silakan periksa kembali kata sandi pada sheet users.' });
     }
 
     // Return sanitized profile with cryptographic session token
     const safeUser = {
       id: user.id,
       username: user.username,
-      role: String(user.role || '').toLowerCase().trim(),
+      role: String(user.role || 'tim').toLowerCase().trim(),
       name: user.nama || user.username,
       nama: user.nama || user.username,
       bidang: user.bidang || ''
@@ -559,7 +634,7 @@ app.get(['/api/admin/users', '/admin/users', '/api/users/list'], (req, res) => {
 });
 
 // 2. Reset Username & Password endpoint (Admin, Ketua Tim / Koordinator, and Tim)
-app.post(['/api/admin/users/reset', '/api/users/reset', '/admin/users/reset'], (req, res) => {
+app.post(['/api/admin/users/reset', '/api/users/reset', '/admin/users/reset'], async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : ((req.body && req.body.token) || (req.query && req.query.token));
@@ -678,6 +753,7 @@ app.post(['/api/admin/users/reset', '/api/users/reset', '/admin/users/reset'], (
     }
 
     persistUsersData();
+    await syncUserToGoogleSheets('update', user);
 
     return res.json({
       success: true,
@@ -710,7 +786,7 @@ app.post(['/api/admin/users/reset', '/api/users/reset', '/admin/users/reset'], (
 });
 
 // 3. User Management CRUD endpoint (Admin only)
-app.post(['/api/admin/users', '/admin/users'], (req, res) => {
+app.post(['/api/admin/users', '/admin/users'], async (req, res) => {
   try {
     const admin = getAdminSession(req);
     if (!admin) {
@@ -737,6 +813,7 @@ app.post(['/api/admin/users', '/admin/users'], (req, res) => {
 
       database.users = database.users.filter(u => Number(u.id) !== Number(targetId));
       persistUsersData();
+      await syncUserToGoogleSheets('delete', { id: targetId });
       return res.json({ success: true, message: `Akun "${targetUser.nama || targetUser.username}" berhasil dihapus.` });
     }
 
@@ -762,6 +839,7 @@ app.post(['/api/admin/users', '/admin/users'], (req, res) => {
 
       database.users.push(newUser);
       persistUsersData();
+      await syncUserToGoogleSheets('add', newUser);
       return res.json({ success: true, user: newUser, message: `Akun baru "${newUser.nama}" berhasil dibuat.` });
     }
 
@@ -792,6 +870,7 @@ app.post(['/api/admin/users', '/admin/users'], (req, res) => {
       }
 
       persistUsersData();
+      await syncUserToGoogleSheets('update', existing);
       return res.json({ success: true, user: existing, message: `Data akun "${existing.nama}" berhasil diperbarui.` });
     }
 
@@ -812,7 +891,7 @@ app.get(['/api/sheets', '/sheets'], (req, res) => {
 });
 
 // API endpoint matching code.gs doPost() with payload sanitization & validation
-app.post(['/api/sheets', '/sheets'], (req, res) => {
+app.post(['/api/sheets', '/sheets'], async (req, res) => {
   try {
     let body = req.body;
     if (typeof body === 'string') {
@@ -851,6 +930,7 @@ app.post(['/api/sheets', '/sheets'], (req, res) => {
         if (!item.password) item.password = 'password';
         database.users.push(item);
         persistUsersData();
+        await syncUserToGoogleSheets('add', item);
         return res.json({ success: true, item });
       }
 
@@ -860,6 +940,7 @@ app.post(['/api/sheets', '/sheets'], (req, res) => {
         if (idx !== -1) {
           database.users[idx] = { ...database.users[idx], ...item };
           persistUsersData();
+          await syncUserToGoogleSheets('update', database.users[idx]);
           return res.json({ success: true, item: database.users[idx] });
         }
       }
@@ -872,6 +953,7 @@ app.post(['/api/sheets', '/sheets'], (req, res) => {
         }
         database.users = database.users.filter(u => Number(u.id) !== Number(item.id));
         persistUsersData();
+        await syncUserToGoogleSheets('delete', { id: item.id });
         return res.json({ success: true });
       }
     }
