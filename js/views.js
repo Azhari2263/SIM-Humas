@@ -6695,31 +6695,6 @@ window.exportRekapToPDF = function(scope = 'current') {
         }
     });
 
-    // 6. LEMBAR PENGESAHAN
-    let signY = doc.lastAutoTable.finalY + 25;
-    if (signY > 460) {
-        doc.addPage();
-        signY = 45;
-    }
-
-    const tglSign = nowWIB.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-    const signX = pageWidth - 240;
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(30, 41, 59);
-    doc.text(`Pontianak, ${tglSign}`, signX, signY);
-    doc.text('Mengetahui,', signX, signY + 12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Koordinator Tim Humas', signX, signY + 24);
-    doc.text('BPS Provinsi Kalimantan Barat', signX, signY + 36);
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Dara Septika Natalia Anggraeni, SST, M.Sos.', signX, signY + 85);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text('NIP. 198909112012112001', signX, signY + 97);
-
     // 7. FOOTER NOMOR HALAMAN RESMI
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
