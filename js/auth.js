@@ -198,43 +198,56 @@ function parseRoute(rawPath, rawSearch = '') {
         case 'protokol':
         case 'protokoler':
         case 'protokoler-sep':
+        case 'protokoler_sep':
             page = 'protokoler_sep';
             modalType = 'protokoler';
             break;
         case 'mc':
         case 'mc-sep':
+        case 'mc_sep':
+        case 'master-of-ceremony':
             page = 'mc_sep';
             modalType = 'mc';
             break;
         case 'brs':
         case 'brs-rilis':
+        case 'brs_rilis':
         case 'rilis-brs':
             page = 'brs_rilis';
             modalType = 'brs_rilis';
             break;
         case 'content-planner':
         case 'planner':
+        case 'content_planner':
         case 'konten':
             page = 'planner';
             modalType = 'content';
             break;
         case 'rekap':
         case 'rekap-kegiatan':
+        case 'rekap_kegiatan':
         case 'sla':
+        case 'sla-rekap':
             page = 'rekap_kegiatan';
             modalType = 'rekap_kegiatan';
             break;
         case 'rekap-rutin':
+        case 'rekap_rutin':
         case 'rutin':
             page = 'rekap_rutin';
             modalType = 'rekap_rutin';
             break;
+        case 'rekap-adhoc':
+        case 'rekap_adhoc':
         case 'ad-hoc':
+        case 'ad_hoc':
         case 'adhoc':
             page = 'ad_hoc';
             modalType = 'ad_hoc';
             break;
         case 'hari-besar':
+        case 'hari_besar':
+        case 'ucapan':
             page = 'hari_besar';
             modalType = 'hari_besar';
             break;
@@ -248,45 +261,53 @@ function parseRoute(rawPath, rawSearch = '') {
             break;
         case 'monitoring':
         case 'media-monitoring':
+        case 'media':
             page = 'monitoring';
             modalType = 'monitoring';
             break;
         case 'tim':
         case 'team':
         case 'direktori-tim':
+        case 'anggota':
             page = 'team';
             modalType = 'team';
             break;
         case 'kalender':
         case 'calendar':
+        case 'jadwal':
             page = 'calendar';
             break;
         case 'penugasan':
         case 'assignment':
         case 'tugas':
+        case 'penugasan-tim':
             page = 'assignment';
             modalType = 'assignment';
             break;
         case 'dokumen':
         case 'repository':
         case 'pusat-dokumen':
+        case 'arsip':
             page = 'repository';
             modalType = 'repository';
             break;
         case 'manajemen-pengguna':
         case 'user-management':
+        case 'user_management':
         case 'users':
             page = 'user_management';
             modalType = 'user_manager';
             break;
         case 'reset-akun':
         case 'reset-credentials':
+        case 'reset_credentials':
         case 'ganti-password':
             page = 'reset_credentials';
             break;
         case 'pengaturan':
         case 'settings':
         case 'master-data':
+        case 'master_data':
             page = 'settings';
             break;
         default:

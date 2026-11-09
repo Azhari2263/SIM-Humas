@@ -633,7 +633,11 @@ function executeRouteAction(action, id, modalType) {
 
     if (action === 'tambah') {
         setTimeout(() => {
-            if (typeof openModal === 'function') {
+            if (resolvedType === 'tickets' && typeof window.openTicketModal === 'function') {
+                window.openTicketModal(null, { skipUrlSync: true });
+            } else if (resolvedType === 'monitoring' && typeof window.openAddMonitoringModal === 'function') {
+                window.openAddMonitoringModal({ skipUrlSync: true });
+            } else if (typeof openModal === 'function') {
                 openModal(resolvedType, null, { skipUrlSync: true });
             }
         }, 50);
@@ -644,8 +648,14 @@ function executeRouteAction(action, id, modalType) {
         const item = (typeof getItemByTypeAndId === 'function') ? getItemByTypeAndId(resolvedType, id) : null;
         if (item) {
             setTimeout(() => {
-                if (action === 'edit' && typeof openModal === 'function') {
-                    openModal(resolvedType, item, { skipUrlSync: true });
+                if (action === 'edit') {
+                    if (resolvedType === 'tickets' && typeof window.openTicketModal === 'function') {
+                        window.openTicketModal(item, { skipUrlSync: true });
+                    } else if (resolvedType === 'monitoring' && typeof window.openEditMonitoringModal === 'function') {
+                        window.openEditMonitoringModal(item.id, { skipUrlSync: true });
+                    } else if (typeof openModal === 'function') {
+                        openModal(resolvedType, item, { skipUrlSync: true });
+                    }
                 } else if (action === 'detail' && typeof showDetail === 'function') {
                     showDetail(resolvedType, item, { skipUrlSync: true, skipNavigationThrottle: true });
                 }
@@ -3669,7 +3679,7 @@ function deleteItem(type, id) {
 
 
 // Tickets Subsystems
-window.openTicketModal = function (item = null) {
+window.openTicketModal = function (item = null, options = {}) {
     document.getElementById('dynamic-modal')?.remove();
     const uList = window.getCentralizedUserList ? window.getCentralizedUserList() : db.team.map(m => m.nama);
     const isEdit = !!item;
@@ -3835,6 +3845,24 @@ window.openTicketModal = function (item = null) {
         </div>
     `;
     document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    const modal = document.getElementById('dynamic-modal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+    }
+
+    if (!options.skipUrlSync) {
+        const targetUrl = (isEdit && item.id) ? `/ppid/edit/${item.id}` : `/ppid/tambah`;
+        const targetTitle = isEdit ? 'Edit Permintaan Layanan - SIM Humas BPS Kalbar' : 'Tambah Permintaan Layanan - SIM Humas BPS Kalbar';
+        try {
+            window.history.pushState({ modalOpen: true, modalType: 'tickets', itemId: item ? item.id : null, action: isEdit ? 'edit' : 'tambah', page: 'tickets' }, targetTitle, targetUrl);
+            document.title = targetTitle;
+        } catch (_) {}
+    }
 };
 
 window.saveTicketRequest = async function (event, editId = null) {
@@ -4110,16 +4138,44 @@ function _buildMonitoringModalHTML(item = null) {
     `;
 }
 
-window.openAddMonitoringModal = function () {
+window.openAddMonitoringModal = function (options = {}) {
     document.getElementById('dynamic-modal')?.remove();
     document.body.insertAdjacentHTML('beforeend', _buildMonitoringModalHTML(null));
+    const modal = document.getElementById('dynamic-modal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+    }
+    if (!options.skipUrlSync) {
+        try {
+            window.history.pushState({ modalOpen: true, modalType: 'monitoring', action: 'tambah', page: 'monitoring' }, 'Tambah Kliping Berita - SIM Humas BPS Kalbar', '/monitoring/tambah');
+            document.title = 'Tambah Kliping Berita - SIM Humas BPS Kalbar';
+        } catch (_) {}
+    }
 };
 
-window.openEditMonitoringModal = function (id) {
-    const item = db.monitoring.find(m => m.id === id);
+window.openEditMonitoringModal = function (id, options = {}) {
+    const item = (db.monitoring || []).find(m => Number(m.id) === Number(id));
     if (!item) return;
     document.getElementById('dynamic-modal')?.remove();
     document.body.insertAdjacentHTML('beforeend', _buildMonitoringModalHTML(item));
+    const modal = document.getElementById('dynamic-modal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+    }
+    if (!options.skipUrlSync) {
+        try {
+            window.history.pushState({ modalOpen: true, modalType: 'monitoring', itemId: id, action: 'edit', page: 'monitoring' }, 'Edit Kliping Berita - SIM Humas BPS Kalbar', `/monitoring/edit/${id}`);
+            document.title = 'Edit Kliping Berita - SIM Humas BPS Kalbar';
+        } catch (_) {}
+    }
 };
 
 window.saveMonitoringItem = async function (event, editId = null) {
