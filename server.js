@@ -1277,6 +1277,17 @@ app.post(['/api/monitoring/sync-drive', '/monitoring/sync-drive'], async (req, r
   }
 });
 
+// Route for downloading Buku Panduan Pengguna Word (.docx)
+app.get(['/api/download/panduan-docx', '/download/panduan-docx', '/panduan.docx'], (req, res) => {
+  const docxPath = path.join(__dirname, 'public', 'docs', 'Buku_Panduan_Pengguna_SIM-HUMAS_BPS_Kalbar.docx');
+  if (fs.existsSync(docxPath)) {
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', 'attachment; filename="Buku_Panduan_Pengguna_SIM-HUMAS_BPS_Kalbar.docx"');
+    return res.sendFile(docxPath);
+  }
+  res.status(404).json({ success: false, error: 'Berkas Word panduan pengguna belum tersedia.' });
+});
+
 // Serve static frontend assets and data files
 app.use('/data', express.static(DATA_DIR));
 app.use('/public', express.static(path.join(__dirname, 'public')));

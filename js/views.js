@@ -4190,6 +4190,7 @@ window.rekapKegiatanFilter = window.rekapKegiatanFilter || {
     kategori: 'all', // 'all', 'humas', 'protokoler'
     type: 'all',
     status: 'all', // 'all', 'selesai', 'belum', 'terlambat', 'mendekati'
+    quarter: 'all', // 'all', '1', '2', '3', '4' (Triwulan I - IV)
     month: 'all',  // 'all' atau 0 - 11
     year: 2026,    // 2026, 2025, atau 'all'
     search: '',
@@ -4724,6 +4725,15 @@ function filterIntegratedTasks(tasks, filter) {
             const filterYr = Number(filter.year);
             const taskYr = task.parsedDate ? task.parsedDate.getFullYear() : (task.parsedDeadline ? task.parsedDeadline.getFullYear() : 2026);
             if (taskYr !== filterYr) return false;
+        }
+
+        // Filter Triwulan (Quarter: Q1 = Jan-Mar, Q2 = Apr-Jun, Q3 = Jul-Sep, Q4 = Okt-Des)
+        if (filter.quarter && filter.quarter !== 'all') {
+            const filterQ = Number(filter.quarter);
+            const taskMo = task.parsedDate ? task.parsedDate.getMonth() : (task.parsedDeadline ? task.parsedDeadline.getMonth() : null);
+            if (taskMo === null) return false;
+            const taskQ = Math.floor(taskMo / 3) + 1;
+            if (taskQ !== filterQ) return false;
         }
 
         // 2. Filter Bulan
@@ -5451,6 +5461,14 @@ function renderRekapKegiatan(container) {
         'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
 
+    // Opsi bulan disesuaikan secara dinamis jika triwulan dipilih
+    let selectableMonths = monthNames.map((m, idx) => ({ name: m, idx }));
+    if (filter.quarter && filter.quarter !== 'all') {
+        const q = Number(filter.quarter);
+        const startMo = (q - 1) * 3;
+        selectableMonths = selectableMonths.filter(item => item.idx >= startMo && item.idx <= startMo + 2);
+    }
+
     const taskTypesList = [
         'Rutin', 'Ad Hoc', 'Protokoler', 'MC', 'Content Planner',
         'Assignment', 'BRS Rilis', 'Hari Besar', 'Layanan Humas'
@@ -5467,7 +5485,18 @@ function renderRekapKegiatan(container) {
                         </span>
                         <span class="text-xs text-slate-400 hidden sm:inline">·</span>
                         <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                            ${filter.month === 'all' ? (filter.year === 'all' ? 'Semua Periode' : `Tahun ${filter.year}`) : `${monthNames[filter.month]} ${filter.year === 'all' ? '' : filter.year}`}
+                            ${(() => {
+                                const qNames = { '1': 'Triwulan I (Q1)', '2': 'Triwulan II (Q2)', '3': 'Triwulan III (Q3)', '4': 'Triwulan IV (Q4)' };
+                                const qText = (filter.quarter && filter.quarter !== 'all') ? (qNames[filter.quarter] || `Triwulan ${filter.quarter}`) : '';
+                                const yText = filter.year === 'all' ? '' : `Tahun ${filter.year}`;
+                                if (filter.month !== 'all') {
+                                    return `${monthNames[filter.month]} ${qText ? `(${qText}) ` : ''}${yText || (filter.year === 'all' ? 'Semua Tahun' : '')}`.trim();
+                                }
+                                if (qText) {
+                                    return `${qText} ${yText || (filter.year === 'all' ? 'Semua Tahun' : '')}`.trim();
+                                }
+                                return filter.year === 'all' ? 'Semua Periode' : yText;
+                            })()}
                         </span>
                     </div>
                     <h2 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">SLA & Rekap Tugas Anggota Tim Humas</h2>
@@ -5535,7 +5564,7 @@ function renderRekapKegiatan(container) {
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 ${isUserTim ? 'xl:grid-cols-6' : 'xl:grid-cols-7'} gap-2.5 sm:gap-3">
+                <div class="${isUserTim ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6' : 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8'} gap-2.5 sm:gap-3">
                     ${!isUserTim ? `
                         <!-- 1. Filter Kategori Pegawai (Humas / Protokoler berdasarkan Kolom C Jabatan) -->
                         <div class="col-span-2 sm:col-span-1 md:col-span-1 xl:col-span-1">
@@ -5566,7 +5595,7 @@ function renderRekapKegiatan(container) {
                         </div>
                     ` : ''}
 
-                    <!-- 2. Filter Jenis Tugas (Full-width di Mobile) -->
+                    <!-- Filter Jenis Tugas -->
                     <div class="col-span-2 sm:col-span-1 md:col-span-1 xl:col-span-1">
                         <label class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Jenis Tugas</label>
                         <select onchange="updateRekapFilter('type', this.value)" class="w-full text-xs font-semibold py-2 px-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200">
@@ -5577,7 +5606,7 @@ function renderRekapKegiatan(container) {
                         </select>
                     </div>
 
-                    <!-- 3. Filter Status Penyelesaian / SLA (Full-width di Mobile) -->
+                    <!-- Filter Status Penyelesaian / SLA -->
                     <div class="col-span-2 sm:col-span-1 md:col-span-1 xl:col-span-1">
                         <label class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Status / SLA</label>
                         <select onchange="updateRekapFilter('status', this.value)" class="w-full text-xs font-semibold py-2 px-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200">
@@ -5589,18 +5618,30 @@ function renderRekapKegiatan(container) {
                         </select>
                     </div>
 
-                    <!-- 4. Filter Bulan (Kolom Kiri 50% di Mobile) -->
+                    <!-- Filter Triwulan (TW I - TW IV) -->
+                    <div class="col-span-1 sm:col-span-1 md:col-span-1 xl:col-span-1">
+                        <label class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Triwulan</label>
+                        <select onchange="updateRekapFilter('quarter', this.value)" class="w-full text-xs font-semibold py-2 px-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200">
+                            <option value="all" ${(!filter.quarter || filter.quarter === 'all') ? 'selected' : ''}>Semua TW</option>
+                            <option value="1" ${String(filter.quarter) === '1' ? 'selected' : ''}>Triwulan I (Q1)</option>
+                            <option value="2" ${String(filter.quarter) === '2' ? 'selected' : ''}>Triwulan II (Q2)</option>
+                            <option value="3" ${String(filter.quarter) === '3' ? 'selected' : ''}>Triwulan III (Q3)</option>
+                            <option value="4" ${String(filter.quarter) === '4' ? 'selected' : ''}>Triwulan IV (Q4)</option>
+                        </select>
+                    </div>
+
+                    <!-- Filter Bulan -->
                     <div class="col-span-1 sm:col-span-1 md:col-span-1 xl:col-span-1">
                         <label class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Bulan</label>
                         <select onchange="updateRekapFilter('month', this.value)" class="w-full text-xs font-semibold py-2 px-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200">
-                            <option value="all" ${filter.month === 'all' ? 'selected' : ''}>Semua Bulan</option>
-                            ${monthNames.map((m, idx) => `
-                                <option value="${idx}" ${String(filter.month) === String(idx) ? 'selected' : ''}>${m}</option>
+                            <option value="all" ${filter.month === 'all' ? 'selected' : ''}>${filter.quarter && filter.quarter !== 'all' ? `Semua (TW ${filter.quarter})` : 'Semua Bulan'}</option>
+                            ${selectableMonths.map(m => `
+                                <option value="${m.idx}" ${String(filter.month) === String(m.idx) ? 'selected' : ''}>${m.name}</option>
                             `).join('')}
                         </select>
                     </div>
 
-                    <!-- 5. Filter Tahun (Kolom Kanan 50% di Mobile) -->
+                    <!-- Filter Tahun -->
                     <div class="col-span-1 sm:col-span-1 md:col-span-1 xl:col-span-1">
                         <label class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Tahun</label>
                         <select onchange="updateRekapFilter('year', this.value)" class="w-full text-xs font-semibold py-2 px-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200">
@@ -5610,8 +5651,8 @@ function renderRekapKegiatan(container) {
                         </select>
                     </div>
 
-                    <!-- 6. Pencarian Cepat (Full-width di Mobile) -->
-                    <div class="col-span-2 sm:col-span-1 md:col-span-1 xl:col-span-1">
+                    <!-- Pencarian Cepat -->
+                    <div class="col-span-1 sm:col-span-1 md:col-span-1 xl:col-span-1">
                         <label class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Pencarian</label>
                         <div class="relative">
                             <input type="text" id="rekap-search-input" oninput="handleRekapSearchInput(this.value)" value="${filter.search || ''}" placeholder="Cari kegiatan / PIC..." class="w-full text-xs font-medium py-2 pl-7 pr-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200">
@@ -6064,6 +6105,26 @@ window.updateRekapFilter = function(key, val) {
     if (!window.rekapKegiatanFilter) return;
     window.rekapKegiatanFilter[key] = val;
 
+    // Jika Triwulan diubah, pastikan filter bulan tetap sinkron
+    if (key === 'quarter') {
+        if (val !== 'all') {
+            const q = Number(val);
+            if (window.rekapKegiatanFilter.month !== 'all') {
+                const currentM = Number(window.rekapKegiatanFilter.month);
+                const currentQ = Math.floor(currentM / 3) + 1;
+                if (currentQ !== q) {
+                    window.rekapKegiatanFilter.month = 'all';
+                }
+            }
+        }
+    } else if (key === 'month') {
+        // Jika Bulan dipilih spesifik, sesuaikan triwulan secara otomatis
+        if (val !== 'all') {
+            const m = Number(val);
+            window.rekapKegiatanFilter.quarter = String(Math.floor(m / 3) + 1);
+        }
+    }
+
     const container = document.getElementById('app-content') || document.getElementById('content') || document.querySelector('main');
     if (container) {
         renderRekapKegiatan(container);
@@ -6087,6 +6148,7 @@ window.resetRekapFilter = function() {
         kategori: 'all',
         type: 'all',
         status: 'all',
+        quarter: 'all',
         month: 'all',
         year: 2026,
         search: '',
@@ -6215,8 +6277,9 @@ window.exportRekapToExcel = function(scope = 'current') {
             tasksToExport = tasksToExport.filter(t => t.canonicalMember && t.canonicalMember.kategori === filter.kategori);
         }
         const mLabel = filter.month === 'all' ? 'Semua Bulan' : monthNames[filter.month];
+        const qLabel = (filter.quarter && filter.quarter !== 'all') ? `Triwulan ${filter.quarter}` : '';
         const yLabel = filter.year === 'all' ? 'Semua Tahun' : filter.year;
-        periodeLabel = `${mLabel} ${yLabel}`;
+        periodeLabel = qLabel ? (filter.month === 'all' ? `${qLabel} ${yLabel}` : `${qLabel} - ${mLabel} ${yLabel}`) : `${mLabel} ${yLabel}`;
     }
 
     const totalTasks = tasksToExport.length;
@@ -6241,7 +6304,7 @@ window.exportRekapToExcel = function(scope = 'current') {
         [''],
         ['Periode Laporan', periodeLabel],
         ['Waktu Ekspor', `${nowWIB.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} ${nowWIB.toLocaleTimeString('id-ID')} WIB`],
-        ['Filter Aktif', `Kategori: ${filter.kategori || 'Semua'} | Anggota: ${isUserTim && loggedInMember ? loggedInMember.rawName : (filter.member === 'all' ? 'Semua' : filter.member)} | Jenis: ${filter.type} | Status: ${filter.status}`],
+        ['Filter Aktif', `Kategori: ${filter.kategori || 'Semua'} | Anggota: ${isUserTim && loggedInMember ? loggedInMember.rawName : (filter.member === 'all' ? 'Semua' : filter.member)} | Triwulan: ${filter.quarter && filter.quarter !== 'all' ? `TW ${filter.quarter}` : 'Semua'} | Jenis: ${filter.type} | Status: ${filter.status}`],
         [''],
         ['RINGKASAN METRIK KINERJA EKSEKUTIF'],
         ['Total Seluruh Tugas', totalTasks],
@@ -6488,8 +6551,9 @@ window.exportRekapToPDF = function(scope = 'current') {
     } else {
         tasksToExport = filterIntegratedTasks(scopedTasks, filter);
         const mLabel = filter.month === 'all' ? 'Semua Bulan' : monthNames[filter.month];
+        const qLabel = (filter.quarter && filter.quarter !== 'all') ? `Triwulan ${filter.quarter}` : '';
         const yLabel = filter.year === 'all' ? 'Semua Tahun' : filter.year;
-        periodeLabel = `${mLabel} ${yLabel}`;
+        periodeLabel = qLabel ? (filter.month === 'all' ? `${qLabel} ${yLabel}` : `${qLabel} - ${mLabel} ${yLabel}`) : `${mLabel} ${yLabel}`;
     }
 
     const totalTasks = tasksToExport.length;
