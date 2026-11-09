@@ -8489,6 +8489,11 @@ const monitoringLimit = 10;
 let isScrapingInProgress = false;
 
 function renderMonitoring(container) {
+    if (window._initialRouteTab && ['media', 'topik', 'lampiran', 'sentimen'].includes(window._initialRouteTab)) {
+        monitoringActiveTab = window._initialRouteTab;
+        window._initialRouteTab = null;
+    }
+
     const isKepala = currentUser && currentUser.role === 'kepala';
     const canManageMonitoring = !!(currentUser && (currentUser.role === 'admin' || currentUser.role === 'koordinator'));
 
@@ -8649,7 +8654,7 @@ window.setQuickMonitoringPeriod = function (startM, endM) {
     changeMonitoringPeriod();
 };
 
-window.setMonitoringTab = function (tab) {
+window.setMonitoringTab = function (tab, skipUrlSync = false) {
     monitoringActiveTab = tab;
     ['media', 'topik', 'lampiran', 'sentimen'].forEach(t => {
         const btn = document.getElementById(`tab-btn-${t}`);
@@ -8661,6 +8666,16 @@ window.setMonitoringTab = function (tab) {
             }
         }
     });
+
+    if (!skipUrlSync && typeof window !== 'undefined' && window.history) {
+        try {
+            const tabUrl = `/monitoring/${tab}`;
+            const tabTitle = `Monitoring ${tab.charAt(0).toUpperCase() + tab.slice(1)} - SIM Humas BPS Kalbar`;
+            window.history.replaceState({ page: 'monitoring', tab }, tabTitle, tabUrl);
+            document.title = tabTitle;
+        } catch (_) {}
+    }
+
     drawMonitoringCurrentView();
 };
 

@@ -1,7 +1,7 @@
 // Main Application Controller and Router for SIM HUMAS BPS Kalbar
 
 // Global Navigation State
-var initialDetectedPage = (typeof getPageFromPath === 'function' && getPageFromPath(window.location.pathname) && getPageFromPath(window.location.pathname) !== 'login') 
+var initialDetectedPage = (typeof window !== 'undefined' && window.location && typeof getPageFromPath === 'function' && getPageFromPath(window.location.pathname) && getPageFromPath(window.location.pathname) !== 'login') 
     ? getPageFromPath(window.location.pathname) 
     : 'dashboard';
 var currentState = initialDetectedPage;
@@ -589,6 +589,96 @@ window.showDetailById = function (type, id) {
         showDetail(type, item);
     }
 };
+
+window._pendingRouteAction = null;
+
+function renderNotFoundPage(requestedPath) {
+    const contentDiv = document.getElementById('app-content');
+    if (!contentDiv) return;
+    document.title = '404 Halaman Tidak Ditemukan - SIM Humas BPS Kalbar';
+
+    // Deselect sidebar and mobile bar active states
+    document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('#mobile-bottom-bar .bottom-nav-btn').forEach(el => {
+        el.classList.remove('text-indigo-650', 'text-indigo-655', 'dark:text-indigo-400', 'font-black');
+        el.classList.add('text-slate-500', 'dark:text-slate-400');
+    });
+
+    const displayPath = requestedPath || (typeof window !== 'undefined' ? window.location.pathname : '');
+
+    contentDiv.innerHTML = `
+        <div class="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center animate-fade-in">
+            <div class="w-20 h-20 rounded-3xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 flex items-center justify-center text-rose-600 dark:text-rose-400 text-3xl mb-4 shadow-sm">
+                <i class="fa-solid fa-compass-slash"></i>
+            </div>
+            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-200 mb-2">404 - Halaman Tidak Ditemukan</span>
+            <h3 class="text-xl font-black text-slate-900 dark:text-white">Alamat Halaman Tidak Tersedia</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mt-2 leading-relaxed">
+                Rute <code class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 font-mono font-bold">${escapeHtml(displayPath)}</code> tidak ditemukan atau telah dipindahkan.
+            </p>
+            <div class="mt-6 flex gap-3">
+                <button onclick="router('dashboard')" class="btn-primary text-xs font-bold uppercase tracking-wider flex items-center gap-2 px-6 py-2.5 rounded-xl shadow-md">
+                    <i class="fa-solid fa-house"></i> Kembali ke Dashboard
+                </button>
+            </div>
+        </div>
+    `;
+}
+window.renderNotFoundPage = renderNotFoundPage;
+
+function executeRouteAction(action, id, modalType) {
+    if (!action) return;
+    const resolvedType = modalType || (typeof TYPE_ROUTE_MAPPING !== 'undefined' ? Object.keys(TYPE_ROUTE_MAPPING).find(k => TYPE_ROUTE_MAPPING[k].page === currentState) : null);
+    if (!resolvedType) return;
+
+    if (action === 'tambah') {
+        setTimeout(() => {
+            if (typeof openModal === 'function') {
+                openModal(resolvedType, null, { skipUrlSync: true });
+            }
+        }, 50);
+        return;
+    }
+
+    if (action === 'edit' || action === 'detail') {
+        const item = (typeof getItemByTypeAndId === 'function') ? getItemByTypeAndId(resolvedType, id) : null;
+        if (item) {
+            setTimeout(() => {
+                if (action === 'edit' && typeof openModal === 'function') {
+                    openModal(resolvedType, item, { skipUrlSync: true });
+                } else if (action === 'detail' && typeof showDetail === 'function') {
+                    showDetail(resolvedType, item, { skipUrlSync: true, skipNavigationThrottle: true });
+                }
+            }, 50);
+        } else {
+            // Check if DB is still loading
+            const cfg = (typeof getRouteConfigForType === 'function') ? getRouteConfigForType(resolvedType) : null;
+            const dbKey = cfg ? cfg.dbKey : resolvedType;
+            if (!db || !db[dbKey] || db[dbKey].length === 0) {
+                window._pendingRouteAction = { action, id, modalType: resolvedType };
+            } else {
+                if (typeof showToast === 'function') {
+                    showToast(`Data ID #${id} tidak ditemukan.`, 'warning');
+                }
+                const baseTargetUrl = (typeof getPathFromPage === 'function') ? getPathFromPage(currentState) : `/${currentState}`;
+                const pageTitle = (typeof getPageTitle === 'function') ? getPageTitle(currentState) : 'SIM Humas BPS Kalbar';
+                try {
+                    window.history.replaceState({ page: currentState }, pageTitle, baseTargetUrl);
+                    document.title = pageTitle;
+                } catch (_) {}
+            }
+        }
+    }
+}
+window.executeRouteAction = executeRouteAction;
+
+function executePendingRouteAction() {
+    if (!window._pendingRouteAction) return;
+    const pending = window._pendingRouteAction;
+    window._pendingRouteAction = null;
+    executeRouteAction(pending.action, pending.id, pending.modalType);
+}
+window.executePendingRouteAction = executePendingRouteAction;
 
 window.getIndonesianMonthName = function (dateStr) {
     if (!dateStr) return '';
@@ -2309,7 +2399,7 @@ function getModalFieldsHTML(type, item) {
 }
 
 // Modal Form Operations
-function openModal(type, item = null) {
+function openModal(type, item = null, options = {}) {
     currentModalType = type;
     currentEditItem = item;
     isSubmitting = false;
@@ -2452,6 +2542,31 @@ function openModal(type, item = null) {
             btn.disabled = true;
             btn.classList.add('pointer-events-none', 'opacity-60', 'cursor-not-allowed');
         });
+    }
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+
+    if (!options.skipUrlSync && type) {
+        const cfg = (typeof getRouteConfigForType === 'function') ? getRouteConfigForType(type) : null;
+        if (cfg && cfg.basePath) {
+            let targetUrl = '';
+            let targetTitle = '';
+            if (item && item.id !== undefined && item.id !== null) {
+                targetUrl = `${cfg.basePath}/edit/${item.id}`;
+                targetTitle = `Edit ${cfg.title || 'Data'} - SIM Humas BPS Kalbar`;
+            } else {
+                targetUrl = `${cfg.basePath}/tambah`;
+                targetTitle = `Tambah ${cfg.title || 'Data'} - SIM Humas BPS Kalbar`;
+            }
+            try {
+                window.history.pushState({ modalOpen: true, modalType: type, itemId: item ? item.id : null, action: item ? 'edit' : 'tambah', page: currentState }, targetTitle, targetUrl);
+                document.title = targetTitle;
+            } catch (_) {}
+        }
     }
 }
 
@@ -3068,7 +3183,7 @@ window.isUserEditingOrInputting = function() {
     return false;
 };
 
-function closeModal() {
+function closeModal(options = {}) {
     const modal = document.getElementById('dynamic-modal');
     if (modal) modal.remove();
     currentEditItem = null;
@@ -3079,6 +3194,18 @@ function closeModal() {
     try {
         document.querySelectorAll('[data-user-dirty="true"]').forEach(el => el.removeAttribute('data-user-dirty'));
     } catch (_) {}
+
+    // Sinkronisasi kembali URL ke halaman utama modul saat modal ditutup
+    if (!options.skipUrlSync && currentState) {
+        const baseTargetUrl = (typeof getPathFromPage === 'function') ? getPathFromPage(currentState) : `/${currentState}`;
+        const pageTitle = (typeof getPageTitle === 'function') ? getPageTitle(currentState) : 'SIM Humas BPS Kalbar';
+        if (window.location.pathname !== baseTargetUrl) {
+            try {
+                window.history.replaceState({ page: currentState }, pageTitle, baseTargetUrl);
+                document.title = pageTitle;
+            } catch (_) {}
+        }
+    }
 
     // Jika ada pembaruan view tabel yang ditunda saat modal dibuka, terapkan secara selektif tanpa full page reload
     if (window._deferredSelectiveTables && window._deferredSelectiveTables.size > 0) {
@@ -4039,8 +4166,8 @@ window.saveMonitoringItem = async function (event, editId = null) {
 };
 
 // Detail modal builder
-function showDetail(type, item) {
-    if (Date.now() - lastNavigationTime < 450) {
+function showDetail(type, item, options = {}) {
+    if (!options.skipNavigationThrottle && Date.now() - lastNavigationTime < 450) {
         return;
     }
     // Remove any existing detail modal
@@ -4199,20 +4326,55 @@ function showDetail(type, item) {
 
     const modal = document.createElement('div');
     modal.className = 'modal';
+    modal.id = 'detail-info-modal';
     modal.innerHTML = `
         <div class="modal-content p-6 max-w-md border border-slate-150 dark:border-slate-700 shadow-2xl">
             <div class="flex justify-between items-center mb-5 border-b border-slate-100 dark:border-slate-700 pb-3">
                 <h3 class="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5 uppercase tracking-wider"><i class="fa-solid fa-circle-info text-indigo-650 dark:text-indigo-455"></i> Rincian Informasi</h3>
-                <button onclick="this.closest('.modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
+                <button onclick="closeDetailModal()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all"><i class="fa-solid fa-times text-lg"></i></button>
             </div>
             ${content}
             <div class="mt-8 flex justify-end">
-                <button onclick="this.closest('.modal').remove()" class="btn-primary px-6 py-2 text-xs font-bold uppercase tracking-wider">Tutup</button>
+                <button onclick="closeDetailModal()" class="btn-primary px-6 py-2 text-xs font-bold uppercase tracking-wider">Tutup</button>
             </div>
         </div>
     `;
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeDetailModal();
+        }
+    });
     document.body.appendChild(modal);
+
+    // Sinkronisasi URL untuk tampilan detail jika tidak diskip
+    if (!options.skipUrlSync && type && item && item.id !== undefined && item.id !== null) {
+        const cfg = (typeof getRouteConfigForType === 'function') ? getRouteConfigForType(type) : null;
+        if (cfg && cfg.basePath) {
+            const targetUrl = `${cfg.basePath}/detail/${item.id}`;
+            const targetTitle = `Detail ${cfg.title || 'Data'} - SIM Humas BPS Kalbar`;
+            try {
+                window.history.pushState({ modalOpen: true, modalType: type, itemId: item.id, action: 'detail', page: currentState }, targetTitle, targetUrl);
+                document.title = targetTitle;
+            } catch (_) {}
+        }
+    }
 }
+
+function closeDetailModal(options = {}) {
+    const modal = document.getElementById('detail-info-modal') || document.querySelector('.modal:not(#dynamic-modal)');
+    if (modal) modal.remove();
+    if (!options.skipUrlSync && currentState) {
+        const baseTargetUrl = (typeof getPathFromPage === 'function') ? getPathFromPage(currentState) : `/${currentState}`;
+        const pageTitle = (typeof getPageTitle === 'function') ? getPageTitle(currentState) : 'SIM Humas BPS Kalbar';
+        if (window.location.pathname !== baseTargetUrl) {
+            try {
+                window.history.replaceState({ page: currentState }, pageTitle, baseTargetUrl);
+                document.title = pageTitle;
+            } catch (_) {}
+        }
+    }
+}
+window.closeDetailModal = closeDetailModal;
 
 // =====================================================
 // DEBOUNCE UTILITY
@@ -4252,24 +4414,45 @@ function router(page, options = {}) {
     currentState = page;
     lastNavigationTime = Date.now();
 
-    // Sinkronisasi URL Address Bar dan Document Title
-    const targetUrl = (typeof getPathFromPage === 'function') ? getPathFromPage(page) : `/${page}`;
-    const pageTitle = (typeof getPageTitle === 'function') ? getPageTitle(page) : 'SIM Humas BPS Kalbar';
+    // Sinkronisasi URL Address Bar dan Document Title dengan rute hierarkis & query/action
+    const targetUrl = (typeof getPathFromPage === 'function') 
+        ? getPathFromPage(page, {
+            sub: options.routeSub,
+            action: options.routeAction,
+            id: options.routeId,
+            tab: options.routeTab
+        }) 
+        : `/${page}`;
+    const pageTitle = (typeof getPageTitle === 'function') 
+        ? getPageTitle(page, { sub: options.routeSub, action: options.routeAction }) 
+        : 'SIM Humas BPS Kalbar';
     document.title = pageTitle;
 
-    const currentPath = window.location.pathname;
+    const currentFullPath = window.location.pathname + window.location.search;
     if (!options.skipHistoryPush) {
-        if (options.replaceUrl || isSamePage || currentPath === targetUrl) {
-            if (currentPath !== targetUrl || !window.history.state || window.history.state.page !== page) {
+        const historyState = {
+            page,
+            sub: options.routeSub || null,
+            action: options.routeAction || null,
+            id: options.routeId || null,
+            tab: options.routeTab || null,
+            modalType: options.routeModalType || null
+        };
+        if (options.replaceUrl || isSamePage || currentFullPath === targetUrl) {
+            if (currentFullPath !== targetUrl || !window.history.state || window.history.state.page !== page) {
                 try {
-                    window.history.replaceState({ page }, pageTitle, targetUrl);
+                    window.history.replaceState(historyState, pageTitle, targetUrl);
                 } catch (_) {}
             }
         } else {
             try {
-                window.history.pushState({ page }, pageTitle, targetUrl);
+                window.history.pushState(historyState, pageTitle, targetUrl);
             } catch (_) {}
         }
+    }
+
+    if (options.routeTab) {
+        window._initialRouteTab = options.routeTab;
     }
 
     // Reset Search query
@@ -4424,6 +4607,17 @@ function router(page, options = {}) {
         case 'reset_credentials': renderResetCredentialsPage(contentDiv); break;
     }
 
+    // Terapkan tab khusus atau jalankan aksi rute (tambah/edit/detail) jika diminta
+    if (page === 'monitoring' && options.routeTab) {
+        if (typeof window.setMonitoringTab === 'function') {
+            window.setMonitoringTab(options.routeTab, true);
+        }
+    }
+
+    if (options.routeAction) {
+        executeRouteAction(options.routeAction, options.routeId, options.routeModalType || page);
+    }
+
     // Restore scroll position if re-rendering same page (after save/delete)
     if (isSamePage && savedScroll > 0) {
         requestAnimationFrame(() => {
@@ -4449,9 +4643,25 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Tutup modal aktif jika ada tanpa memicu perubahan URL tambahan
+        const dynModal = document.getElementById('dynamic-modal');
+        if (dynModal) closeModal({ skipUrlSync: true });
+        const detModal = document.getElementById('detail-info-modal') || document.querySelector('.modal');
+        if (detModal) closeDetailModal({ skipUrlSync: true });
+
+        const currentPath = window.location.pathname;
+        const currentSearch = window.location.search;
+        const parsed = (typeof parseRoute === 'function') ? parseRoute(currentPath, currentSearch) : null;
+
+        if (parsed && !parsed.isValid) {
+            if (typeof renderNotFoundPage === 'function') {
+                renderNotFoundPage(currentPath);
+            }
+            return;
+        }
+
         const statePage = event.state && event.state.page;
-        const pathPage = (typeof getPageFromPath === 'function') ? getPageFromPath(window.location.pathname) : null;
-        const targetPage = statePage || pathPage || (typeof getRoleDefaultPage === 'function' ? getRoleDefaultPage(currentUser.role) : 'dashboard');
+        const targetPage = (parsed && parsed.page) || statePage || (typeof getPageFromPath === 'function' ? getPageFromPath(currentPath) : null) || (typeof getRoleDefaultPage === 'function' ? getRoleDefaultPage(currentUser.role) : 'dashboard');
 
         if (targetPage === 'login') {
             const defaultPage = (typeof getRoleDefaultPage === 'function') ? getRoleDefaultPage(currentUser.role) : 'dashboard';
@@ -4459,7 +4669,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        router(targetPage, { skipHistoryPush: true });
+        router(targetPage, {
+            skipHistoryPush: true,
+            routeAction: parsed ? parsed.action : (event.state && event.state.action),
+            routeId: parsed ? parsed.id : (event.state && event.state.id),
+            routeSub: parsed ? parsed.sub : (event.state && event.state.sub),
+            routeTab: parsed ? parsed.tab : (event.state && event.state.tab),
+            routeModalType: parsed ? parsed.modalType : (event.state && event.state.modalType)
+        });
     });
 
     checkAuth();

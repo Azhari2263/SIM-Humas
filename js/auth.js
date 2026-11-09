@@ -20,13 +20,13 @@ const PAGE_ROUTES = {
         title: 'Content Planner - SIM Humas BPS Kalbar'
     },
     'rekap_rutin': {
-        path: '/rekap-rutin',
-        aliases: ['/rekap-rutin', '/rekap_rutin', '/rutin'],
+        path: '/rekap/rutin',
+        aliases: ['/rekap/rutin', '/rekap-rutin', '/rekap_rutin', '/rutin'],
         title: 'Rekap Rutin - SIM Humas BPS Kalbar'
     },
     'ad_hoc': {
-        path: '/ad-hoc',
-        aliases: ['/ad-hoc', '/ad_hoc', '/adhoc'],
+        path: '/rekap/adhoc',
+        aliases: ['/rekap/adhoc', '/rekap-adhoc', '/ad-hoc', '/ad_hoc', '/adhoc'],
         title: 'Kegiatan AdHoc - SIM Humas BPS Kalbar'
     },
     'protokoler_sep': {
@@ -110,6 +110,26 @@ const ROLE_ALLOWED_PAGES = {
     kabkot: ['repository', 'team']
 };
 
+const TYPE_ROUTE_MAPPING = {
+    'content': { page: 'planner', basePath: '/content-planner', dbKey: 'contentPlanner', title: 'Rencana Konten' },
+    'assignment': { page: 'assignment', basePath: '/penugasan', dbKey: 'assignments', title: 'Assignment Tugas' },
+    'rekap_rutin': { page: 'rekap_rutin', basePath: '/rekap/rutin', dbKey: 'rekapRutin', title: 'Kegiatan Rutin' },
+    'ad_hoc': { page: 'ad_hoc', basePath: '/ad-hoc', dbKey: 'adHoc', title: 'Kegiatan Ad Hoc' },
+    'protokoler': { page: 'protokoler_sep', basePath: '/protokol', dbKey: 'protokoler', title: 'Agenda Protokol' },
+    'mc': { page: 'mc_sep', basePath: '/mc', dbKey: 'mc', title: 'Agenda MC' },
+    'brs_rilis': { page: 'brs_rilis', basePath: '/brs', dbKey: 'brsRilis', title: 'Kegiatan BRS' },
+    'hari_besar': { page: 'hari_besar', basePath: '/hari-besar', dbKey: 'hariBesar', title: 'Kalender Ucapan' },
+    'team': { page: 'team', basePath: '/tim', dbKey: 'team', title: 'Anggota Tim' },
+    'user_manager': { page: 'user_management', basePath: '/manajemen-pengguna', dbKey: 'users', title: 'Akun Pengguna' },
+    'repository': { page: 'repository', basePath: '/dokumen', dbKey: 'repository', title: 'Dokumen' },
+    'tickets': { page: 'tickets', basePath: '/ppid', dbKey: 'tickets', title: 'Permintaan Layanan' },
+    'monitoring': { page: 'monitoring', basePath: '/monitoring', dbKey: 'monitoring', title: 'Media Monitoring' }
+};
+
+function getRouteConfigForType(type) {
+    return TYPE_ROUTE_MAPPING[type] || null;
+}
+
 function normalizePathname(rawPath) {
     if (!rawPath) return '/';
     let p = String(rawPath).split('?')[0].split('#')[0].trim();
@@ -119,27 +139,230 @@ function normalizePathname(rawPath) {
     return p.toLowerCase();
 }
 
-function getPageFromPath(rawPath) {
-    const p = normalizePathname(rawPath);
-    if (p === '/login') return 'login';
-    for (const [pageKey, config] of Object.entries(PAGE_ROUTES)) {
-        if (config.path === p || (Array.isArray(config.aliases) && config.aliases.includes(p))) {
-            return pageKey;
+function parseRoute(rawPath, rawSearch = '') {
+    const cleanPath = normalizePathname(rawPath);
+    let searchTab = null;
+    try {
+        const qs = rawSearch || (typeof window !== 'undefined' ? window.location.search : '');
+        if (qs) {
+            const sp = new URLSearchParams(qs);
+            searchTab = sp.get('tab') || null;
+        }
+    } catch (_) {}
+
+    if (cleanPath === '/login') {
+        return { isValid: true, page: 'login', action: null, id: null, sub: null, tab: null, rawPath: cleanPath };
+    }
+    if (cleanPath === '/' || cleanPath === '/dashboard' || cleanPath === '/beranda') {
+        return { isValid: true, page: 'dashboard', action: null, id: null, sub: null, tab: null, rawPath: cleanPath };
+    }
+
+    const segments = cleanPath.split('/').filter(Boolean);
+    if (segments.length === 0) {
+        return { isValid: true, page: 'dashboard', action: null, id: null, sub: null, tab: null, rawPath: cleanPath };
+    }
+
+    const first = segments[0];
+    const second = segments[1] || null;
+    const third = segments[2] || null;
+    const fourth = segments[3] || null;
+
+    // Khusus sub-hierarki /rekap/rutin/... atau /rekap/adhoc/...
+    if (first === 'rekap' && second === 'rutin') {
+        let action = null;
+        let id = null;
+        if (third === 'tambah') {
+            action = 'tambah';
+        } else if ((third === 'edit' || third === 'detail') && fourth) {
+            action = third;
+            id = fourth;
+        }
+        return { isValid: true, page: 'rekap_rutin', action, id, sub: 'rutin', tab: null, modalType: 'rekap_rutin', rawPath: cleanPath };
+    }
+    if (first === 'rekap' && (second === 'adhoc' || second === 'ad-hoc')) {
+        let action = null;
+        let id = null;
+        if (third === 'tambah') {
+            action = 'tambah';
+        } else if ((third === 'edit' || third === 'detail') && fourth) {
+            action = third;
+            id = fourth;
+        }
+        return { isValid: true, page: 'ad_hoc', action, id, sub: 'adhoc', tab: null, modalType: 'ad_hoc', rawPath: cleanPath };
+    }
+
+    let page = null;
+    let modalType = null;
+
+    switch (first) {
+        case 'protokol':
+        case 'protokoler':
+        case 'protokoler-sep':
+            page = 'protokoler_sep';
+            modalType = 'protokoler';
+            break;
+        case 'mc':
+        case 'mc-sep':
+            page = 'mc_sep';
+            modalType = 'mc';
+            break;
+        case 'brs':
+        case 'brs-rilis':
+        case 'rilis-brs':
+            page = 'brs_rilis';
+            modalType = 'brs_rilis';
+            break;
+        case 'content-planner':
+        case 'planner':
+        case 'konten':
+            page = 'planner';
+            modalType = 'content';
+            break;
+        case 'rekap':
+        case 'rekap-kegiatan':
+        case 'sla':
+            page = 'rekap_kegiatan';
+            modalType = 'rekap_kegiatan';
+            break;
+        case 'rekap-rutin':
+        case 'rutin':
+            page = 'rekap_rutin';
+            modalType = 'rekap_rutin';
+            break;
+        case 'ad-hoc':
+        case 'adhoc':
+            page = 'ad_hoc';
+            modalType = 'ad_hoc';
+            break;
+        case 'hari-besar':
+            page = 'hari_besar';
+            modalType = 'hari_besar';
+            break;
+        case 'ppid':
+        case 'layanan-humas':
+        case 'tickets':
+        case 'tiket':
+        case 'layanan':
+            page = 'tickets';
+            modalType = 'tickets';
+            break;
+        case 'monitoring':
+        case 'media-monitoring':
+            page = 'monitoring';
+            modalType = 'monitoring';
+            break;
+        case 'tim':
+        case 'team':
+        case 'direktori-tim':
+            page = 'team';
+            modalType = 'team';
+            break;
+        case 'kalender':
+        case 'calendar':
+            page = 'calendar';
+            break;
+        case 'penugasan':
+        case 'assignment':
+        case 'tugas':
+            page = 'assignment';
+            modalType = 'assignment';
+            break;
+        case 'dokumen':
+        case 'repository':
+        case 'pusat-dokumen':
+            page = 'repository';
+            modalType = 'repository';
+            break;
+        case 'manajemen-pengguna':
+        case 'user-management':
+        case 'users':
+            page = 'user_management';
+            modalType = 'user_manager';
+            break;
+        case 'reset-akun':
+        case 'reset-credentials':
+        case 'ganti-password':
+            page = 'reset_credentials';
+            break;
+        case 'pengaturan':
+        case 'settings':
+        case 'master-data':
+            page = 'settings';
+            break;
+        default:
+            return { isValid: false, page: null, action: null, id: null, sub: null, tab: null, rawPath: cleanPath };
+    }
+
+    let action = null;
+    let id = null;
+    let sub = null;
+    let tab = searchTab || null;
+
+    if (second === 'tambah') {
+        action = 'tambah';
+    } else if ((second === 'edit' || second === 'detail') && third) {
+        action = second;
+        id = third;
+    } else if (page === 'monitoring' && ['media', 'topik', 'sentimen', 'lampiran'].includes(second)) {
+        tab = second;
+        sub = second;
+        if (third === 'detail' && fourth) {
+            action = 'detail';
+            id = fourth;
+        }
+    } else if (second) {
+        sub = second;
+        if (third === 'tambah') {
+            action = 'tambah';
+        } else if ((third === 'edit' || third === 'detail') && fourth) {
+            action = third;
+            id = fourth;
         }
     }
-    return null;
+
+    return { isValid: true, page, action, id, sub, tab, modalType, rawPath: cleanPath };
 }
 
-function getPathFromPage(page) {
+function getPageFromPath(rawPath) {
+    const res = parseRoute(rawPath);
+    return res.isValid ? res.page : null;
+}
+
+function getPathFromPage(page, options = {}) {
     if (page === 'login') return '/login';
     const config = PAGE_ROUTES[page];
-    return config ? config.path : '/dashboard';
+    let base = config ? config.path : '/dashboard';
+
+    if (options.sub) {
+        base += `/${options.sub}`;
+    }
+    if (options.action === 'tambah') {
+        base += '/tambah';
+    } else if (options.action === 'edit' && options.id !== undefined && options.id !== null) {
+        base += `/edit/${options.id}`;
+    } else if (options.action === 'detail' && options.id !== undefined && options.id !== null) {
+        base += `/detail/${options.id}`;
+    }
+    if (options.tab && page === 'monitoring' && !options.sub) {
+        base += `/${options.tab}`;
+    }
+    return base;
 }
 
-function getPageTitle(page) {
+function getPageTitle(page, options = {}) {
     if (page === 'login') return 'Masuk - SIM Humas BPS Kalbar';
     const config = PAGE_ROUTES[page];
-    return config ? config.title : 'SIM Humas BPS Kalbar';
+    let title = config ? config.title : 'SIM Humas BPS Kalbar';
+    if (options && options.action) {
+        if (options.action === 'tambah') {
+            title = `Tambah Data - ${title}`;
+        } else if (options.action === 'edit') {
+            title = `Edit Data - ${title}`;
+        } else if (options.action === 'detail') {
+            title = `Detail Data - ${title}`;
+        }
+    }
+    return title;
 }
 
 function getRoleAllowedPages(role) {
@@ -162,7 +385,10 @@ function isPageAllowedForUser(page, user) {
 if (typeof window !== 'undefined') {
     window.PAGE_ROUTES = PAGE_ROUTES;
     window.ROLE_ALLOWED_PAGES = ROLE_ALLOWED_PAGES;
+    window.TYPE_ROUTE_MAPPING = TYPE_ROUTE_MAPPING;
+    window.getRouteConfigForType = getRouteConfigForType;
     window.normalizePathname = normalizePathname;
+    window.parseRoute = parseRoute;
     window.getPageFromPath = getPageFromPath;
     window.getPathFromPage = getPathFromPage;
     window.getPageTitle = getPageTitle;
@@ -173,17 +399,18 @@ if (typeof window !== 'undefined') {
 
 function checkAuth() {
     const currentPath = window.location.pathname;
+    const currentSearch = window.location.search;
 
     if (!currentUser) {
         document.getElementById('app-layout').classList.add('hidden');
         document.getElementById('login-layout').classList.remove('hidden');
         renderLoginScreen();
 
-        // Jika pengguna mencoba mengakses halaman internal tertentu saat belum login, simpan path tujuan
-        const pageFromPath = getPageFromPath(currentPath);
-        if (pageFromPath && pageFromPath !== 'login') {
+        // Jika pengguna mencoba mengakses rute internal tertentu saat belum login, simpan rute tujuan lengkap
+        const parsed = parseRoute(currentPath, currentSearch);
+        if (parsed.isValid && parsed.page !== 'login') {
             try {
-                sessionStorage.setItem('sim_humas_intended_path', currentPath);
+                sessionStorage.setItem('sim_humas_intended_path', currentPath + currentSearch);
             } catch (_) {}
         }
 
@@ -195,7 +422,6 @@ function checkAuth() {
         }
         document.title = 'Masuk - SIM Humas BPS Kalbar';
 
-        // Fetch database (including users) in the background so that they can log in
         if (typeof fetchDataFromSheets === 'function') {
             fetchDataFromSheets(true);
         }
@@ -204,19 +430,27 @@ function checkAuth() {
         document.getElementById('app-layout').classList.remove('hidden');
         updateUserProfileUI();
 
-        // Tentukan halaman yang harus dibuka berdasarkan URL saat ini (atau intended path)
-        let targetPage = null;
-        const requestedPage = getPageFromPath(currentPath);
+        const parsed = parseRoute(currentPath, currentSearch);
 
-        if (requestedPage && requestedPage !== 'login') {
-            targetPage = requestedPage;
-        } else if (typeof currentState !== 'undefined' && currentState && currentState !== 'login') {
-            targetPage = currentState;
-        } else {
+        // Jika rute tidak valid (Not Found)
+        if (!parsed.isValid) {
+            if (typeof renderNotFoundPage === 'function') {
+                renderNotFoundPage(currentPath);
+            } else if (typeof router === 'function') {
+                router('dashboard', { replaceUrl: true });
+            }
+            if (typeof fetchDataFromSheets === 'function') {
+                fetchDataFromSheets(true);
+            }
+            return;
+        }
+
+        let targetPage = parsed.page;
+        if (targetPage === 'login') {
             targetPage = getRoleDefaultPage(currentUser.role);
         }
 
-        // Validasi hak akses role terhadap halaman
+        // Validasi hak akses role terhadap halaman yang dituju
         if (!isPageAllowedForUser(targetPage, currentUser)) {
             const fallbackPage = getRoleDefaultPage(currentUser.role);
             if (targetPage !== fallbackPage && typeof showToast === 'function') {
@@ -230,7 +464,14 @@ function checkAuth() {
         }
 
         if (typeof router === 'function') {
-            router(targetPage, { replaceUrl: true });
+            router(targetPage, {
+                replaceUrl: true,
+                routeAction: parsed.action,
+                routeId: parsed.id,
+                routeSub: parsed.sub,
+                routeTab: parsed.tab,
+                routeModalType: parsed.modalType
+            });
         }
         if (typeof fetchDataFromSheets === 'function') {
             fetchDataFromSheets(true);

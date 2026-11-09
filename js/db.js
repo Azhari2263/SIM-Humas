@@ -794,6 +794,9 @@ async function fetchDataFromSheets(silent = false) {
                     router(currentState);
                 }
             }
+            if (typeof window.executePendingRouteAction === 'function') {
+                window.executePendingRouteAction();
+            }
             updateLoadingStateUI(false);
         }
         isLoading = false;
@@ -1035,6 +1038,10 @@ async function fetchDataFromSheets(silent = false) {
         const mobileSyncEl = document.getElementById('mobile-last-sync-date');
         if (mobileSyncEl) mobileSyncEl.textContent = dateStr;
 
+        if (typeof window.executePendingRouteAction === 'function') {
+            window.executePendingRouteAction();
+        }
+
     } catch (parseError) {
         console.warn('[Sync] Error processing database payload, using local fallback:', parseError);
         if (!silent) {
@@ -1045,6 +1052,9 @@ async function fetchDataFromSheets(silent = false) {
                 } else {
                     router(currentState);
                 }
+            }
+            if (typeof window.executePendingRouteAction === 'function') {
+                window.executePendingRouteAction();
             }
         }
     } finally {
