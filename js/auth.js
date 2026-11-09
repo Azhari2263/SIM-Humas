@@ -4,11 +4,197 @@ if (currentUser && !currentUser.nama && currentUser.name) {
     currentUser.nama = currentUser.name;
 }
 
+// ===================================================================
+// SISTEM ROUTING & URL PER HALAMAN SIM HUMAS BPS PROVINSI KALIMANTAN BARAT
+// ===================================================================
+
+const PAGE_ROUTES = {
+    'dashboard': {
+        path: '/dashboard',
+        aliases: ['/', '/beranda', '/dashboard'],
+        title: 'Dashboard - SIM Humas BPS Kalbar'
+    },
+    'planner': {
+        path: '/content-planner',
+        aliases: ['/content-planner', '/planner', '/content_planner', '/konten'],
+        title: 'Content Planner - SIM Humas BPS Kalbar'
+    },
+    'rekap_rutin': {
+        path: '/rekap-rutin',
+        aliases: ['/rekap-rutin', '/rekap_rutin', '/rutin'],
+        title: 'Rekap Rutin - SIM Humas BPS Kalbar'
+    },
+    'ad_hoc': {
+        path: '/ad-hoc',
+        aliases: ['/ad-hoc', '/ad_hoc', '/adhoc'],
+        title: 'Kegiatan AdHoc - SIM Humas BPS Kalbar'
+    },
+    'protokoler_sep': {
+        path: '/protokol',
+        aliases: ['/protokol', '/protokoler', '/protokoler-sep', '/protokoler_sep'],
+        title: 'Protokol - SIM Humas BPS Kalbar'
+    },
+    'mc_sep': {
+        path: '/mc',
+        aliases: ['/mc', '/mc-sep', '/mc_sep', '/master-of-ceremony'],
+        title: 'Master of Ceremony (MC) - SIM Humas BPS Kalbar'
+    },
+    'brs_rilis': {
+        path: '/brs',
+        aliases: ['/brs', '/brs-rilis', '/brs_rilis', '/rilis-brs'],
+        title: 'Rilis BRS - SIM Humas BPS Kalbar'
+    },
+    'hari_besar': {
+        path: '/hari-besar',
+        aliases: ['/hari-besar', '/hari_besar', '/ucapan'],
+        title: 'Ucapan Hari Besar - SIM Humas BPS Kalbar'
+    },
+    'rekap_kegiatan': {
+        path: '/rekap',
+        aliases: ['/rekap', '/rekap-kegiatan', '/rekap_kegiatan', '/sla', '/sla-rekap'],
+        title: 'SLA & Rekap Tugas - SIM Humas BPS Kalbar'
+    },
+    'tickets': {
+        path: '/ppid',
+        aliases: ['/ppid', '/layanan-humas', '/tickets', '/tiket', '/layanan'],
+        title: 'Layanan Humas (PPID) - SIM Humas BPS Kalbar'
+    },
+    'monitoring': {
+        path: '/monitoring',
+        aliases: ['/monitoring', '/media-monitoring', '/media'],
+        title: 'Media Monitoring - SIM Humas BPS Kalbar'
+    },
+    'team': {
+        path: '/tim',
+        aliases: ['/tim', '/team', '/direktori-tim', '/anggota'],
+        title: 'Direktori Tim - SIM Humas BPS Kalbar'
+    },
+    'calendar': {
+        path: '/kalender',
+        aliases: ['/kalender', '/calendar', '/jadwal'],
+        title: 'Kalender Terintegrasi - SIM Humas BPS Kalbar'
+    },
+    'settings': {
+        path: '/pengaturan',
+        aliases: ['/pengaturan', '/settings', '/master-data', '/master_data'],
+        title: 'Pengaturan Sistem - SIM Humas BPS Kalbar'
+    },
+    'assignment': {
+        path: '/penugasan',
+        aliases: ['/penugasan', '/assignment', '/tugas', '/penugasan-tim'],
+        title: 'Penugasan Tim - SIM Humas BPS Kalbar'
+    },
+    'repository': {
+        path: '/dokumen',
+        aliases: ['/dokumen', '/repository', '/pusat-dokumen', '/arsip'],
+        title: 'Pusat Dokumen - SIM Humas BPS Kalbar'
+    },
+    'user_management': {
+        path: '/manajemen-pengguna',
+        aliases: ['/manajemen-pengguna', '/user-management', '/user_management', '/users'],
+        title: 'Manajemen Pengguna - SIM Humas BPS Kalbar'
+    },
+    'reset_credentials': {
+        path: '/reset-akun',
+        aliases: ['/reset-akun', '/reset-credentials', '/reset_credentials', '/ganti-password'],
+        title: 'Reset Kredensial - SIM Humas BPS Kalbar'
+    }
+};
+
+const ROLE_ALLOWED_PAGES = {
+    admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'settings', 'assignment', 'repository', 'user_management', 'reset_credentials'],
+    kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository'],
+    koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository', 'reset_credentials'],
+    tim: ['dashboard', 'calendar', 'assignment', 'rekap_kegiatan', 'monitoring', 'repository', 'reset_credentials'],
+    pemohon: ['dashboard', 'tickets'],
+    kabkot: ['repository', 'team']
+};
+
+function normalizePathname(rawPath) {
+    if (!rawPath) return '/';
+    let p = String(rawPath).split('?')[0].split('#')[0].trim();
+    if (p.length > 1 && p.endsWith('/')) {
+        p = p.slice(0, -1);
+    }
+    return p.toLowerCase();
+}
+
+function getPageFromPath(rawPath) {
+    const p = normalizePathname(rawPath);
+    if (p === '/login') return 'login';
+    for (const [pageKey, config] of Object.entries(PAGE_ROUTES)) {
+        if (config.path === p || (Array.isArray(config.aliases) && config.aliases.includes(p))) {
+            return pageKey;
+        }
+    }
+    return null;
+}
+
+function getPathFromPage(page) {
+    if (page === 'login') return '/login';
+    const config = PAGE_ROUTES[page];
+    return config ? config.path : '/dashboard';
+}
+
+function getPageTitle(page) {
+    if (page === 'login') return 'Masuk - SIM Humas BPS Kalbar';
+    const config = PAGE_ROUTES[page];
+    return config ? config.title : 'SIM Humas BPS Kalbar';
+}
+
+function getRoleAllowedPages(role) {
+    const cleanRole = String(role || '').toLowerCase().trim();
+    return ROLE_ALLOWED_PAGES[cleanRole] || ROLE_ALLOWED_PAGES['pemohon'];
+}
+
+function getRoleDefaultPage(role) {
+    const cleanRole = String(role || '').toLowerCase().trim();
+    if (cleanRole === 'kabkot') return 'repository';
+    return 'dashboard';
+}
+
+function isPageAllowedForUser(page, user) {
+    if (!user) return false;
+    const allowed = getRoleAllowedPages(user.role);
+    return allowed.includes(page);
+}
+
+if (typeof window !== 'undefined') {
+    window.PAGE_ROUTES = PAGE_ROUTES;
+    window.ROLE_ALLOWED_PAGES = ROLE_ALLOWED_PAGES;
+    window.normalizePathname = normalizePathname;
+    window.getPageFromPath = getPageFromPath;
+    window.getPathFromPage = getPathFromPage;
+    window.getPageTitle = getPageTitle;
+    window.getRoleAllowedPages = getRoleAllowedPages;
+    window.getRoleDefaultPage = getRoleDefaultPage;
+    window.isPageAllowedForUser = isPageAllowedForUser;
+}
+
 function checkAuth() {
+    const currentPath = window.location.pathname;
+
     if (!currentUser) {
         document.getElementById('app-layout').classList.add('hidden');
         document.getElementById('login-layout').classList.remove('hidden');
         renderLoginScreen();
+
+        // Jika pengguna mencoba mengakses halaman internal tertentu saat belum login, simpan path tujuan
+        const pageFromPath = getPageFromPath(currentPath);
+        if (pageFromPath && pageFromPath !== 'login') {
+            try {
+                sessionStorage.setItem('sim_humas_intended_path', currentPath);
+            } catch (_) {}
+        }
+
+        // Pastikan URL di address bar browser berubah ke /login
+        if (currentPath !== '/login') {
+            try {
+                window.history.replaceState({ page: 'login' }, 'Masuk - SIM Humas BPS Kalbar', '/login');
+            } catch (_) {}
+        }
+        document.title = 'Masuk - SIM Humas BPS Kalbar';
+
         // Fetch database (including users) in the background so that they can log in
         if (typeof fetchDataFromSheets === 'function') {
             fetchDataFromSheets(true);
@@ -17,8 +203,34 @@ function checkAuth() {
         document.getElementById('login-layout').classList.add('hidden');
         document.getElementById('app-layout').classList.remove('hidden');
         updateUserProfileUI();
+
+        // Tentukan halaman yang harus dibuka berdasarkan URL saat ini (atau intended path)
+        let targetPage = null;
+        const requestedPage = getPageFromPath(currentPath);
+
+        if (requestedPage && requestedPage !== 'login') {
+            targetPage = requestedPage;
+        } else if (typeof currentState !== 'undefined' && currentState && currentState !== 'login') {
+            targetPage = currentState;
+        } else {
+            targetPage = getRoleDefaultPage(currentUser.role);
+        }
+
+        // Validasi hak akses role terhadap halaman
+        if (!isPageAllowedForUser(targetPage, currentUser)) {
+            const fallbackPage = getRoleDefaultPage(currentUser.role);
+            if (targetPage !== fallbackPage && typeof showToast === 'function') {
+                showToast('Anda tidak memiliki akses ke halaman tersebut.', 'warning');
+            }
+            targetPage = fallbackPage;
+        }
+
+        if (typeof currentState !== 'undefined') {
+            currentState = targetPage;
+        }
+
         if (typeof router === 'function') {
-            router(typeof currentState !== 'undefined' && currentState ? currentState : 'dashboard');
+            router(targetPage, { replaceUrl: true });
         }
         if (typeof fetchDataFromSheets === 'function') {
             fetchDataFromSheets(true);
@@ -440,8 +652,22 @@ async function handleLogin(event) {
         logActivity('Login', `User ${currentUser.name} masuk sebagai ${getRoleLabel(currentUser.role)}.`);
     }
 
+    // Periksa apakah ada halaman tujuan yang disimpan sebelum login (intended path)
+    let redirectPage = null;
+    try {
+        const savedIntended = sessionStorage.getItem('sim_humas_intended_path');
+        if (savedIntended) {
+            sessionStorage.removeItem('sim_humas_intended_path');
+            const parsedPage = typeof getPageFromPath === 'function' ? getPageFromPath(savedIntended) : null;
+            if (parsedPage && parsedPage !== 'login' && typeof isPageAllowedForUser === 'function' && isPageAllowedForUser(parsedPage, currentUser)) {
+                redirectPage = parsedPage;
+            }
+        }
+    } catch (_) {}
+
+    const targetPage = redirectPage || (typeof getRoleDefaultPage === 'function' ? getRoleDefaultPage(currentUser.role) : 'dashboard');
     if (typeof currentState !== 'undefined') {
-        currentState = 'dashboard';
+        currentState = targetPage;
     }
     checkAuth();
     if (typeof startRealtimePolling === 'function') {
@@ -471,6 +697,9 @@ async function handleLogout() {
     currentUser = null;
     localStorage.removeItem('sim_humas_token');
     localStorage.removeItem('sim_humas_user');
+    try {
+        sessionStorage.removeItem('sim_humas_intended_path');
+    } catch (_) {}
     if (window.chartInstance) {
         window.chartInstance.destroy();
         window.chartInstance = null;

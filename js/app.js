@@ -1,7 +1,10 @@
 // Main Application Controller and Router for SIM HUMAS BPS Kalbar
 
 // Global Navigation State
-var currentState = 'dashboard';
+var initialDetectedPage = (typeof getPageFromPath === 'function' && getPageFromPath(window.location.pathname) && getPageFromPath(window.location.pathname) !== 'login') 
+    ? getPageFromPath(window.location.pathname) 
+    : 'dashboard';
+var currentState = initialDetectedPage;
 var currentEditItem = null;
 var currentModalType = null;
 var isSubmitting = false;
@@ -4224,28 +4227,50 @@ function debounce(fn, delay = 300) {
 window.debounce = debounce;
 
 // Navigation & Routing System
-function router(page) {
-    if (!currentUser) return;
-    const allowedPages = {
-        admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'settings', 'assignment', 'repository', 'user_management', 'reset_credentials'],
-        kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository'],
-        koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository', 'reset_credentials'],
-        tim: ['dashboard', 'calendar', 'assignment', 'rekap_kegiatan', 'monitoring', 'repository', 'reset_credentials'],
-        pemohon: ['dashboard', 'tickets'],
-        kabkot: ['repository', 'team']
-    };
+function router(page, options = {}) {
+    if (!currentUser) {
+        if (typeof checkAuth === 'function') checkAuth();
+        return;
+    }
 
     const userRole = currentUser ? currentUser.role : 'pemohon';
-    const roleAllowed = allowedPages[userRole] || allowedPages['pemohon'];
+    const roleAllowed = (typeof getRoleAllowedPages === 'function')
+        ? getRoleAllowedPages(userRole)
+        : ['dashboard'];
 
     // Safety redirect to first permitted page if role doesn't have access
     if (!roleAllowed.includes(page)) {
-        page = roleAllowed[0] || 'dashboard';
+        console.warn(`[Router] Akses ditolak untuk role '${userRole}' ke halaman '${page}'. Mengalihkan ke default.`);
+        const fallbackPage = (typeof getRoleDefaultPage === 'function') 
+            ? getRoleDefaultPage(userRole) 
+            : (roleAllowed[0] || 'dashboard');
+        page = fallbackPage;
+        options.replaceUrl = true;
     }
 
     const isSamePage = (page === currentState);
     currentState = page;
     lastNavigationTime = Date.now();
+
+    // Sinkronisasi URL Address Bar dan Document Title
+    const targetUrl = (typeof getPathFromPage === 'function') ? getPathFromPage(page) : `/${page}`;
+    const pageTitle = (typeof getPageTitle === 'function') ? getPageTitle(page) : 'SIM Humas BPS Kalbar';
+    document.title = pageTitle;
+
+    const currentPath = window.location.pathname;
+    if (!options.skipHistoryPush) {
+        if (options.replaceUrl || isSamePage || currentPath === targetUrl) {
+            if (currentPath !== targetUrl || !window.history.state || window.history.state.page !== page) {
+                try {
+                    window.history.replaceState({ page }, pageTitle, targetUrl);
+                } catch (_) {}
+            }
+        } else {
+            try {
+                window.history.pushState({ page }, pageTitle, targetUrl);
+            } catch (_) {}
+        }
+    }
 
     // Reset Search query
     const searchInput = document.getElementById('global-search-input');
@@ -4407,7 +4432,8 @@ function router(page) {
     }
 }
 
-// Expose showDetail globally
+// Expose router & showDetail globally
+window.router = router;
 window.showDetail = showDetail;
 
 // App Initialization
@@ -4415,6 +4441,27 @@ document.addEventListener('DOMContentLoaded', () => {
     initRealtimeWIBClock();
     initTheme();
     initSidebarState();
+
+    // Browser History Navigation (Back / Forward button handler)
+    window.addEventListener('popstate', (event) => {
+        if (!currentUser) {
+            if (typeof checkAuth === 'function') checkAuth();
+            return;
+        }
+
+        const statePage = event.state && event.state.page;
+        const pathPage = (typeof getPageFromPath === 'function') ? getPageFromPath(window.location.pathname) : null;
+        const targetPage = statePage || pathPage || (typeof getRoleDefaultPage === 'function' ? getRoleDefaultPage(currentUser.role) : 'dashboard');
+
+        if (targetPage === 'login') {
+            const defaultPage = (typeof getRoleDefaultPage === 'function') ? getRoleDefaultPage(currentUser.role) : 'dashboard';
+            router(defaultPage, { replaceUrl: true });
+            return;
+        }
+
+        router(targetPage, { skipHistoryPush: true });
+    });
+
     checkAuth();
 
     // Responsive viewport listener for mobile/tablet rotation and layout adjustments
