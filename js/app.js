@@ -2539,7 +2539,7 @@ function openModal(type, item = null, options = {}) {
         'konsep'
     ]);
 
-    if (item !== null && currentUser && currentUser.role === 'tim') {
+    if (type !== 'repository' && item !== null && currentUser && currentUser.role === 'tim') {
         const modalInputs = modal.querySelectorAll('input, select, textarea');
         modalInputs.forEach(input => {
             const id = input.id;
@@ -2607,7 +2607,7 @@ window.renderManualForm = function(type) {
     }
 
     // Enforce Tim Humas restrictions if they click manual form
-    if (currentUser && currentUser.role === 'tim') {
+    if (type !== 'repository' && currentUser && currentUser.role === 'tim') {
         const timAllowedFieldIds = new Set([
             'status',
             'progres',
@@ -2679,7 +2679,8 @@ window.downloadExcelTemplate = function(type) {
         'hari_besar': ["tanggal", "hari_besar", "data_pendukung", "pembuat_konten", "status"],
         'team': ["nama", "jabatan", "bidang", "tugas", "kontak"],
         'user_manager': ["nama", "username", "role", "bidang"],
-        'assignment': ["tugas", "deskripsi", "prioritas", "status", "tanggal_penugasan", "deadline", "progres", "lampiran", "assigned_to"]
+        'assignment': ["tugas", "deskripsi", "prioritas", "status", "tanggal_penugasan", "deadline", "progres", "lampiran", "assigned_to"],
+        'repository': ["nama_dokumen", "kategori", "versi", "tanggal", "pic", "link_cloud", "deskripsi", "status"]
     };
 
     const examples = {
@@ -2698,7 +2699,8 @@ window.downloadExcelTemplate = function(type) {
         'hari_besar': ["2026-08-17", "Hari Kemerdekaan Republik Indonesia", "Link materi desain", "Azhari", "Draft"],
         'team': ["Azhari", "Pranata Komputer", "IPDS", "Penanggung Jawab Website BPS Kalbar", "08123456789"],
         'user_manager': ["Dian Pratama", "dian_pratama", "tim", "IPDS"],
-        'assignment': ["Membuat Naskah BRS Inflasi", "Tulis draf rilis untuk persetujuan kepala", "Tinggi", "Dalam Proses", "2026-06-24", "2026-06-30", 30, "link_drive", "Rian"]
+        'assignment': ["Membuat Naskah BRS Inflasi", "Tulis draf rilis untuk persetujuan kepala", "Tinggi", "Dalam Proses", "2026-06-24", "2026-06-30", 30, "link_drive", "Rian"],
+        'repository': ["Pedoman Standar Kehumasan BPS 2026", "Pedoman", "v1.0", "2026-06-24", defaultPicName, "https://drive.google.com/drive/folders/sample", "Pedoman resmi kehumasan BPS Kalbar", "Aktif"]
     };
 
     const guidance = {
@@ -2808,6 +2810,17 @@ window.downloadExcelTemplate = function(type) {
             ["progres", "Opsional. Angka kemajuan tugas (0-100).", "0 s/d 100"],
             ["lampiran", "Opsional. Link materi pendukung / instruksi.", "Bebas"],
             ["assigned_to", "Wajib. Nama anggota tim pelaksana tugas.", "Bebas (Sesuai nama tim)"]
+        ],
+        'repository': [
+            ["Nama Kolom", "Keterangan Aturan", "Pilihan Nilai Valid"],
+            ["nama_dokumen", "Wajib. Nama atau judul berkas dokumen.", "Bebas"],
+            ["kategori", "Wajib. Kategori/folder berkas.", "Pedoman, Template, Surat Masuk Humas, Surat Keluar Humas, Kontak Partner, Dokumen lainnya"],
+            ["versi", "Opsional. Versi atau edisi berkas.", "Contoh: v1.0"],
+            ["tanggal", "Wajib. Tanggal penerbitan/pembaruan (Format: YYYY-MM-DD).", "Contoh: 2026-06-24"],
+            ["pic", "Opsional. Penanggung jawab/pemilik dokumen.", "Bebas (Nama anggota tim)"],
+            ["link_cloud", "Wajib. Tautan penyimpanan berkas Cloud/Google Drive.", "Contoh: https://drive.google.com/..."],
+            ["deskripsi", "Opsional. Uraian ringkas berkas.", "Bebas"],
+            ["status", "Opsional. Status dokumen.", "Aktif, Diarsipkan"]
         ]
     };
 
@@ -3017,7 +3030,8 @@ window.handleExcelUpload = function(event, type) {
                 'hari_besar': 'hari_besar',
                 'team': 'team',
                 'user_manager': 'users',
-                'assignment': 'assignments'
+                'assignment': 'assignments',
+                'repository': 'repository'
             };
             const sheetName = sheetMapping[type];
             const varName = SHEET_TO_VAR[sheetName] || type;
@@ -3037,7 +3051,8 @@ window.handleExcelUpload = function(event, type) {
                 'hari_besar': ["tanggal", "hari_besar", "data_pendukung", "pembuat_konten", "status"],
                 'team': ["nama", "jabatan", "bidang", "tugas", "kontak"],
                 'user_manager': ["nama", "username", "role", "bidang"],
-                'assignment': ["tugas", "deskripsi", "prioritas", "status", "tanggal_penugasan", "deadline", "progres", "lampiran", "assigned_to"]
+                'assignment': ["tugas", "deskripsi", "prioritas", "status", "tanggal_penugasan", "deadline", "progres", "lampiran", "assigned_to"],
+                'repository': ["nama_dokumen", "kategori", "versi", "tanggal", "pic", "link_cloud", "deskripsi", "status"]
             };
             const fields = schemas[type];
 
@@ -3554,11 +3569,12 @@ async function saveData(event) {
         'hari_besar': 'Ucapan Hari Besar',
         'team': 'Profil Anggota Tim',
         'assignment': 'Assignment Tugas',
-        'user_manager': 'Akun Pengguna'
+        'user_manager': 'Akun Pengguna',
+        'repository': 'Dokumen Pusat Arsip'
     };
 
-    const label = auditLabels[currentModalType];
-    const itemDesc = item.judul || item.kegiatan || item.nama || item.hari_besar;
+    const label = auditLabels[currentModalType] || 'Dokumen / Berkas';
+    const itemDesc = item.judul || item.kegiatan || item.nama || item.hari_besar || item.nama_dokumen || `ID ${item.id || ''}`;
 
     logActivity(
         action === 'add' ? 'Tambah Data' : 'Ubah Data',
