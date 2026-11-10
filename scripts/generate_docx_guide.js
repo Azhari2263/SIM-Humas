@@ -28,6 +28,12 @@ const COLOR_MUTED = '64748B'; // Slate 500
 const COLOR_BG_LIGHT = 'F1F5F9'; // Slate 100
 const COLOR_BORDER = 'CBD5E1'; // Slate 300
 
+function createPageBreak() {
+  return new Paragraph({
+    children: [new PageBreak()]
+  });
+}
+
 function createTitlePara(text) {
   return new Paragraph({
     alignment: AlignmentType.CENTER,
@@ -344,7 +350,7 @@ async function buildWordDocument() {
               new TextRun({ text: '2026', size: 20, font: 'Arial' })
             ]
           }),
-          new PageBreak(),
+          createPageBreak(),
 
           // ==========================================
           // KATA PENGANTAR
@@ -367,7 +373,7 @@ async function buildWordDocument() {
               new TextRun({ text: 'Tim Penyusun SIM-HUMAS BPS Kalbar', bold: true, font: 'Arial', size: 21 })
             ]
           }),
-          new PageBreak(),
+          createPageBreak(),
 
           // ==========================================
           // DAFTAR ISI RINGKAS
@@ -381,7 +387,7 @@ async function buildWordDocument() {
           createBullet('BAB VI: PROSEDUR EKSPOR, IMPOR MASSAL EXCEL, & CETAK LAPORAN', '6.'),
           createBullet('BAB VII: SINKRONISASI LATAR BELAKANG & INTEGRITAS DATA', '7.'),
           createBullet('BAB VIII: TANYA JAWAB UMUM (FAQ) & DUKUNGAN TEKNIS', '8.'),
-          new PageBreak(),
+          createPageBreak(),
 
           // ==========================================
           // BAB I
@@ -402,7 +408,7 @@ async function buildWordDocument() {
           createBullet('Database Terpusat: Penyimpanan primer terkoneksi ke Google Workspace Spreadsheet terenkripsi.', '1.'),
           createBullet('Background Data Synchronization: Pembaruan data terjadi di latar belakang secara otomatis tanpa menyebabkan full page reload, form ter-reset, atau input pengguna yang sedang diketik terhapus.', '2.'),
           createBullet('Optimistic Local Cache: Perubahan data langsung direspon di layar peramban seketika sambil menyinkronkan tugas ke antrean server.', '3.'),
-          new PageBreak(),
+          createPageBreak(),
 
           // ==========================================
           // BAB II
@@ -440,7 +446,7 @@ async function buildWordDocument() {
               ['Reset Password', '/reset-akun', 'Mandiri', '-', 'Mandiri', 'Mandiri', '-', '-']
             ]
           ),
-          new PageBreak(),
+          createPageBreak(),
 
           // ==========================================
           // BAB III
@@ -468,7 +474,7 @@ async function buildWordDocument() {
           createBullet('Ketikkan kata sandi baru (minimal 6 karakter alfanumerik) pada kolom "Kata Sandi Baru".', '3.'),
           createBullet('Ulangi pengetikan kata sandi baru pada kolom "Konfirmasi Kata Sandi Baru".', '4.'),
           createBullet('Klik tombol "Simpan & Perbarui Akun". Sistem memverifikasi ke database dan memperbarui kredensial Anda secara permanen.', '5.'),
-          new PageBreak(),
+          createPageBreak(),
 
           // ==========================================
           // BAB IV
@@ -539,7 +545,7 @@ async function buildWordDocument() {
 
           createH2('4.17 Modul Manajemen Pengguna (/manajemen-pengguna)'),
           createPara('Khusus Administrator untuk menambah pengguna baru, menyunting profil, mengatur role akun, mereset password pengguna, dan menonaktifkan akun yang sudah mutasi.'),
-          new PageBreak(),
+          createPageBreak(),
 
           // ==========================================
           // BAB V
@@ -575,7 +581,7 @@ async function buildWordDocument() {
           createH2('5.6 SOP Role BPS Kabupaten/Kota (Kabkot)'),
           createBullet('Mengakses menu Pusat Dokumen untuk mengunduh template materi promosi sensus dan pedoman rilis pers resmi.', '1.'),
           createBullet('Melihat kontak personil tim humas provinsi pada menu Direktori Tim jika memerlukan konsultasi.', '2.'),
-          new PageBreak(),
+          createPageBreak(),
 
           // ==========================================
           // BAB VI
@@ -598,7 +604,7 @@ async function buildWordDocument() {
           createBullet('Pilih opsi "Impor Excel" lalu klik "Unduh Template Excel".', '2.'),
           createBullet('Buka template di Microsoft Excel, isi baris data sesuai aturan kolom pada sheet Panduan, lalu simpan berkas.', '3.'),
           createBullet('Unggah berkas tersebut kembali ke aplikasi SIM-HUMAS. Jendela status bar interaktif akan memvalidasi data hingga sukses tersimpan.', '4.'),
-          new PageBreak(),
+          createPageBreak(),
 
           // ==========================================
           // BAB VII
@@ -613,7 +619,7 @@ async function buildWordDocument() {
           createH2('7.2 Keamanan & Integritas Data'),
           createBullet('Proteksi Akun Utama: Akun Administrator utama dilindungi sistem dari penghapusan tidak disengaja.', '•'),
           createBullet('Pemisahan Akses: Pembatasan hak akses berbasis peran (RBAC) diterapkan di sisi peramban dan server.', '•'),
-          new PageBreak(),
+          createPageBreak(),
 
           // ==========================================
           // BAB VIII

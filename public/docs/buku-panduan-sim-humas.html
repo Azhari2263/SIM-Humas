@@ -1426,47 +1426,14 @@
         }
 
         function downloadAsDocx() {
-            const docWrapper = document.getElementById('gdocs-document-content');
-            if (!docWrapper) return;
-            
-            const docTitle = 'Buku-Panduan-SIM-Humas-BPS-Kalbar-2026';
-            const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-            <head>
-                <meta charset='utf-8'>
-                <title>${docTitle}</title>
-                <style>
-                    @page WordSection1 { size: 595.3pt 841.9pt; margin: 54pt 54pt 54pt 54pt; }
-                    div.WordSection1 { page: WordSection1; }
-                    body { font-family: 'Arial', sans-serif; font-size: 11pt; line-height: 1.35; color: #202124; }
-                    h1 { color: #1a73e8; font-size: 18pt; margin-top: 18pt; }
-                    h2 { color: #1e3a8a; font-size: 14pt; margin-top: 14pt; border-bottom: 1pt solid #dadce0; padding-bottom: 4pt; }
-                    h3 { color: #202124; font-size: 12pt; margin-top: 10pt; }
-                    table { border-collapse: collapse; width: 100%; margin: 12pt 0; }
-                    th, td { border: 1pt solid #cbd5e1; padding: 6pt 8pt; font-size: 10pt; text-align: left; }
-                    th { background-color: #f1f3f4; font-weight: bold; }
-                    .badge { padding: 2pt 6pt; border-radius: 4pt; font-size: 8.5pt; font-weight: bold; }
-                </style>
-            </head>
-            <body>
-                <div class='WordSection1'>
-                    ${docWrapper.innerHTML}
-                </div>
-            </body>
-            </html>`;
-
-            const blob = new Blob(['\ufeff', header], {
-                type: 'application/msword'
-            });
-            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = `${docTitle}.doc`;
+            a.href = '/api/download/panduan-docx';
+            a.download = 'Buku_Panduan_Pengguna_SIM-HUMAS_BPS_Kalbar.docx';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            URL.revokeObjectURL(url);
 
-            showToast('Berkas dokumen berhasil diunduh! Anda dapat langsung mengunggahnya ke Google Drive atau membukanya di Google Docs.', 5000);
+            showToast('<strong>Mengunduh Buku Panduan Resmi (.docx)...</strong><br>Berkas binary Microsoft Word OpenXML asli sedang diunduh. Berkas dapat langsung dibuka di Microsoft Word maupun Google Docs.', 5000);
         }
 
         function copyDocumentLink() {
