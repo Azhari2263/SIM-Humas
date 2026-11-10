@@ -618,14 +618,33 @@
         }
 
         function downloadAsDocx() {
+            const docWrapper = document.getElementById('gdocs-document-content');
+            if (!docWrapper) return;
+            const docTitle = 'Buku-Panduan-Tim-Pelaksana-SIM-Humas-2026';
+            const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head><meta charset='utf-8'><title>${docTitle}</title>
+            <style>
+                @page WordSection1 { size: 595.3pt 841.9pt; margin: 54pt 54pt 54pt 54pt; }
+                div.WordSection1 { page: WordSection1; }
+                body { font-family: 'Arial', sans-serif; font-size: 11pt; line-height: 1.35; color: #202124; }
+                h1 { color: #0d9488; font-size: 18pt; margin-top: 18pt; }
+                h2 { color: #0d9488; font-size: 14pt; margin-top: 14pt; border-bottom: 1pt solid #dadce0; padding-bottom: 4pt; }
+                table { border-collapse: collapse; width: 100%; margin: 12pt 0; }
+                th, td { border: 1pt solid #cbd5e1; padding: 6pt 8pt; font-size: 10pt; text-align: left; }
+                th { background-color: #f1f3f4; font-weight: bold; }
+            </style>
+            </head><body><div class='WordSection1'>${docWrapper.innerHTML}</div></body></html>`;
+
+            const blob = new Blob(['\ufeff', header], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = '/api/download/panduan-docx';
-            a.download = 'Buku_Panduan_Pengguna_SIM-HUMAS_BPS_Kalbar.docx';
+            a.href = url;
+            a.download = `${docTitle}.doc`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-
-            showToast('<strong>Mengunduh Buku Panduan Resmi (.docx)...</strong><br>Berkas binary Microsoft Word OpenXML asli sedang diunduh. Berkas dapat langsung dibuka di Microsoft Word maupun Google Docs.', 5000);
+            URL.revokeObjectURL(url);
+            showToast('Berkas dokumen berhasil diunduh! Siap dibuka di Google Docs / Word.', 5000);
         }
 
         function copyDocumentLink() {
