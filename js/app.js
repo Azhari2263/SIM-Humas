@@ -3452,8 +3452,9 @@ async function saveData(event) {
         item.tugas = document.getElementById('tugas').value;
         item.kontak = document.getElementById('kontak').value;
     } else if (currentModalType === 'user_manager') {
-        item.nama = document.getElementById('nama').value;
-        item.username = document.getElementById('username').value;
+        item.nama = String(document.getElementById('nama').value || '').trim();
+        item.name = item.nama;
+        item.username = String(document.getElementById('username').value || '').trim();
         item.bidang = document.getElementById('bidang').value;
         item.role = document.getElementById('role').value;
         const pwdInput = document.getElementById('user_password');
@@ -3581,29 +3582,51 @@ async function saveData(event) {
         `${action === 'add' ? 'Menambahkan' : 'Mengubah'} ${label}: "${itemDesc}".`
     );
 
-    // Simpan secara asinkron ke Google Sheets di latar belakang
-    sendDataToServer(action, sheetName, item).catch(err => {
-        console.error('Sync error:', err);
-    });
-
-    // Sinkronisasi khusus akun pengguna ke endpoint admin server
+    // Simpan akun pengguna melalui endpoint admin server terlebih dahulu agar id/validasi/Sheets konsisten
     if (currentModalType === 'user_manager' || sheetName === 'users') {
+        let adminSynced = false;
         const adminToken = localStorage.getItem('sim_humas_token');
         if (adminToken) {
-            fetch('/api/admin/users', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${adminToken}`
-                },
-                body: JSON.stringify({ action, user: item })
-            }).then(r => r.json()).then(res => {
+            try {
+                const adminResp = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminToken}`
+                    },
+                    body: JSON.stringify({ action, user: item })
+                });
+                const res = await adminResp.json().catch(() => null);
+                if (!adminResp.ok) {
+                    setSubmitLoading(false);
+                    showToast((res && res.error) || 'Gagal menyimpan data pengguna.', 'error');
+                    return;
+                }
                 if (res && res.users) {
                     db.users = res.users;
                     saveLocalFallback('users');
                 }
-            }).catch(e => console.warn('[Admin User Sync] Background error:', e));
+                if (res && res.user && res.user.id) {
+                    item.id = res.user.id;
+                }
+                adminSynced = Boolean(res && res.sheetsSynced);
+                if (adminSynced && typeof window.clearPendingUserSyncQueue === 'function') {
+                    window.clearPendingUserSyncQueue(item.id);
+                }
+            } catch (e) {
+                console.warn('[Admin User Sync] Background error:', e);
+            }
         }
+        if (!adminSynced) {
+            sendDataToServer(action, sheetName, item).catch(err => {
+                console.error('Sync error:', err);
+            });
+        }
+    } else {
+        // Simpan secara asinkron ke Google Sheets di latar belakang
+        sendDataToServer(action, sheetName, item).catch(err => {
+            console.error('Sync error:', err);
+        });
     }
 
     // Otomatis sinkronisasi tugas Content Planner yang selesai ke Rekap Rutin

@@ -12312,18 +12312,10 @@ async function submitResetCredentials(event, userId) {
         return;
     }
 
-    // Validasi Kata Sandi Sebelumnya sebelum memasukkan kata sandi baru
+    // Validasi Kata Sandi Sebelumnya: wajib diisi (pengecekan nilai dilakukan oleh server terhadap database spreadsheet)
     if (oldPasswordInput) {
         if (!oldPassword) {
             showToast('Kata sandi sebelumnya wajib diisi sebagai validasi akun!', 'error');
-            oldPasswordInput?.focus();
-            return;
-        }
-        const knownPassword = (user.password !== undefined && user.password !== null && String(user.password).trim() !== '')
-            ? String(user.password).trim()
-            : ((currentUser && Number(currentUser.id) === Number(userId) && currentUser.password) ? String(currentUser.password).trim() : null);
-        if (knownPassword !== null && oldPassword !== knownPassword) {
-            showToast('Kata sandi sebelumnya tidak sesuai! Validasi akun gagal.', 'error');
             oldPasswordInput?.focus();
             return;
         }
@@ -12353,11 +12345,12 @@ async function submitResetCredentials(event, userId) {
         const oldName = user.nama;
         const token = localStorage.getItem('sim_humas_token') || '';
 
-        // Panggil endpoint backend /api/admin/users/reset dengan timeout agar tidak berputar terus
+        // Panggil endpoint backend /api/admin/users/reset dengan timeout memadai untuk sinkronisasi Google Sheets
         let apiSuccess = false;
+        let serverSheetsSynced = false;
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 6000);
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
             const resp = await fetch('/api/admin/users/reset', {
                 method: 'POST',
                 headers: {
@@ -12380,20 +12373,41 @@ async function submitResetCredentials(event, userId) {
                 if (resData && resData.users && Array.isArray(resData.users)) {
                     db.users = resData.users;
                     apiSuccess = true;
+                    serverSheetsSynced = Boolean(resData.sheetsSynced);
+                }
+                if (resData && resData.token && currentUser && Number(currentUser.id) === Number(userId)) {
+                    localStorage.setItem('sim_humas_token', resData.token);
                 }
             } else {
                 const errData = await resp.json().catch(() => null);
-                throw new Error((errData && errData.error) || 'Gagal mereset kredensial.');
+                if (resp.status >= 400 && resp.status < 500 && resp.status !== 404) {
+                    const validationErr = new Error((errData && errData.error) || 'Gagal mereset kredensial.');
+                    validationErr.isServerRejection = true;
+                    throw validationErr;
+                }
+                throw new Error((errData && errData.error) || `HTTP ${resp.status}`);
             }
         } catch (fetchErr) {
-            if (fetchErr.message && fetchErr.message.includes('Kata sandi')) {
+            if (fetchErr.isServerRejection || (fetchErr.message && fetchErr.message.includes('Kata sandi'))) {
                 throw fetchErr;
             }
             console.warn('[Reset] API call fallback to local:', fetchErr);
+            // Fallback offline: validasi kata sandi terhadap cache lokal hanya jika server tidak terjangkau
+            if (oldPasswordInput) {
+                const knownPassword = (user.password !== undefined && user.password !== null && String(user.password).trim() !== '')
+                    ? String(user.password).trim()
+                    : ((currentUser && Number(currentUser.id) === Number(userId) && currentUser.password) ? String(currentUser.password).trim() : null);
+                if (knownPassword !== null && oldPassword !== knownPassword) {
+                    throw new Error('Kata sandi sebelumnya tidak sesuai! Validasi akun gagal.');
+                }
+            }
         }
 
         // Pastikan state lokal terupdate
-        if (newNama) user.nama = newNama;
+        if (newNama) {
+            user.nama = newNama;
+            user.name = newNama;
+        }
         user.username = newUsername;
         user.password = newPassword;
 
@@ -12401,6 +12415,7 @@ async function submitResetCredentials(event, userId) {
             const updatedUser = db.users.find(u => Number(u.id) === Number(userId));
             if (updatedUser) {
                 updatedUser.nama = newNama || updatedUser.nama;
+                updatedUser.name = updatedUser.nama;
                 updatedUser.username = newUsername;
                 updatedUser.password = newPassword;
             }
@@ -12409,7 +12424,11 @@ async function submitResetCredentials(event, userId) {
         // Simpan local fallback
         saveLocalFallback('users');
 
-        if (typeof sendDataToServer === 'function') {
+        if (serverSheetsSynced) {
+            if (typeof window.clearPendingUserSyncQueue === 'function') {
+                window.clearPendingUserSyncQueue(user.id);
+            }
+        } else if (typeof sendDataToServer === 'function') {
             sendDataToServer('update', 'users', {
                 id: Number(user.id),
                 nama: user.nama,
@@ -12504,7 +12523,7 @@ async function syncUserAccounts() {
 
     try {
         const token = localStorage.getItem('sim_humas_token') || '';
-        const resp = await fetch('/api/admin/users', {
+        const resp = await fetch('/api/admin/users?refresh=1', {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -12772,20 +12791,9 @@ async function submitSelfResetCredentials(event, userId) {
         return;
     }
 
-    // Validasi Kata Sandi Sebelumnya sebelum memasukkan kata sandi baru (Validasi Akun)
+    // Validasi Kata Sandi Sebelumnya wajib diisi (pengecekan dilakukan oleh server terhadap database spreadsheet)
     if (!oldPassword) {
         showToast('Silakan masukkan kata sandi sebelumnya untuk validasi akun!', 'error');
-        oldPasswordInput?.focus();
-        return;
-    }
-
-    const knownSelfPassword = (targetUser.password !== undefined && targetUser.password !== null && String(targetUser.password).trim() !== '')
-        ? String(targetUser.password).trim()
-        : ((currentUser && currentUser.password !== undefined && currentUser.password !== null && String(currentUser.password).trim() !== '')
-            ? String(currentUser.password).trim()
-            : null);
-    if (knownSelfPassword !== null && oldPassword !== knownSelfPassword) {
-        showToast('Kata sandi sebelumnya tidak sesuai! Validasi akun gagal.', 'error');
         oldPasswordInput?.focus();
         return;
     }
@@ -12815,9 +12823,10 @@ async function submitSelfResetCredentials(event, userId) {
         const token = localStorage.getItem('sim_humas_token') || '';
 
         let apiSuccess = false;
+        let serverSheetsSynced = false;
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 6000);
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
             const resp = await fetch('/api/admin/users/reset', {
                 method: 'POST',
                 headers: {
@@ -12840,19 +12849,38 @@ async function submitSelfResetCredentials(event, userId) {
                 if (resData && resData.users && Array.isArray(resData.users)) {
                     db.users = resData.users;
                     apiSuccess = true;
+                    serverSheetsSynced = Boolean(resData.sheetsSynced);
+                }
+                if (resData && resData.token) {
+                    localStorage.setItem('sim_humas_token', resData.token);
                 }
             } else {
                 const errData = await resp.json().catch(() => null);
-                throw new Error((errData && errData.error) || 'Gagal mereset kredensial');
+                if (resp.status >= 400 && resp.status < 500 && resp.status !== 404) {
+                    const validationErr = new Error((errData && errData.error) || 'Gagal mereset kredensial');
+                    validationErr.isServerRejection = true;
+                    throw validationErr;
+                }
+                throw new Error((errData && errData.error) || `HTTP ${resp.status}`);
             }
         } catch (fetchErr) {
-            if (fetchErr.message && fetchErr.message.includes('Kata sandi')) {
+            if (fetchErr.isServerRejection || (fetchErr.message && fetchErr.message.includes('Kata sandi'))) {
                 throw fetchErr;
             }
             console.warn('[Self-Reset] API call fallback to local:', fetchErr);
+            // Fallback offline: validasi kata sandi terhadap cache lokal hanya jika server tidak terjangkau
+            const knownSelfPassword = (targetUser.password !== undefined && targetUser.password !== null && String(targetUser.password).trim() !== '')
+                ? String(targetUser.password).trim()
+                : ((currentUser && currentUser.password !== undefined && currentUser.password !== null && String(currentUser.password).trim() !== '')
+                    ? String(currentUser.password).trim()
+                    : null);
+            if (knownSelfPassword !== null && oldPassword !== knownSelfPassword) {
+                throw new Error('Kata sandi sebelumnya tidak sesuai! Validasi akun gagal.');
+            }
         }
 
         targetUser.nama = newNama;
+        targetUser.name = newNama;
         targetUser.username = newUsername;
         targetUser.password = newPassword;
 
@@ -12860,6 +12888,7 @@ async function submitSelfResetCredentials(event, userId) {
             const updatedUser = db.users.find(u => Number(u.id) === Number(userId));
             if (updatedUser) {
                 updatedUser.nama = newNama;
+                updatedUser.name = newNama;
                 updatedUser.username = newUsername;
                 updatedUser.password = newPassword;
             }
@@ -12867,7 +12896,11 @@ async function submitSelfResetCredentials(event, userId) {
 
         saveLocalFallback('users');
 
-        if (typeof sendDataToServer === 'function') {
+        if (serverSheetsSynced) {
+            if (typeof window.clearPendingUserSyncQueue === 'function') {
+                window.clearPendingUserSyncQueue(targetUser.id);
+            }
+        } else if (typeof sendDataToServer === 'function') {
             sendDataToServer('update', 'users', {
                 id: Number(targetUser.id),
                 nama: targetUser.nama,

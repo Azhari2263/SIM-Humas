@@ -1,5 +1,14 @@
 function doGet(e) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  const requestedSheet = e && e.parameter && e.parameter.sheet ? String(e.parameter.sheet).trim().toLowerCase() : '';
+
+  if (requestedSheet === 'users') {
+    const usersOnly = {
+      users: getSheetData(sheet, 'users', ["id", "username", "password", "nama", "role", "bidang"])
+    };
+    return ContentService.createTextOutput(JSON.stringify(usersOnly))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   
   // Ambil atau buat lembar data secara dinamis (Self-Healing Schema Terintegrasi)
   const data = {
@@ -233,12 +242,12 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    const idToUpdate = String(data.item.id);
+    const idToUpdate = String(data.item.id).trim();
     let updated = false;
     
     // Cari baris yang cocok berdasarkan ID
     for (let i = 1; i < rows.length; i++) {
-      if (String(rows[i][idIndex]) === idToUpdate) {
+      if (String(rows[i][idIndex]).trim() === idToUpdate) {
         const rowIndex = i + 1;
         const rowData = currentHeaders.map(header => {
           const val = getCellValue(data.item, header);
@@ -327,12 +336,12 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    const idToDelete = String(data.item.id);
+    const idToDelete = String(data.item.id).trim();
     let deleted = false;
     
     // Cari dan hapus baris dari bawah ke atas agar tidak mengganggu indeks baris berikutnya
     for (let i = rows.length - 1; i >= 1; i--) {
-      if (String(rows[i][idIndex]) === idToDelete) {
+      if (String(rows[i][idIndex]).trim() === idToDelete) {
         ws.deleteRow(i + 1);
         deleted = true;
         break;

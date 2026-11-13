@@ -229,10 +229,8 @@ function sanitizeAndDeduplicateTasks(targetDb) {
 // Helper untuk memfilter akun dummy agar semua akun murni bersumber dari database spreadsheet (sheet users)
 function isDummyUserAccount(u) {
     if (!u) return true;
-    const id = Number(u.id);
     const uname = String(u.username || '').toLowerCase().trim();
     const nama = String(u.nama || u.name || '').toLowerCase().trim();
-    if ([32, 33, 34, 35, 36].includes(id)) return true;
     if (['koordinator', 'kepala', 'tim', 'pemohon', 'kabkot', 'staf1'].includes(uname)) return true;
     if (['azhari (koordinator)', 'kepala bps kalbar', 'staf humas', 'user bidang', 'bps kab. kubu raya', 'super admin', 'admin humas'].includes(nama)) return true;
     return false;
@@ -1142,6 +1140,25 @@ let isProcessingQueue = false;
 
 function saveSyncQueue() {
     localStorage.setItem('sim_humas_sync_queue', JSON.stringify(syncQueue));
+}
+
+function clearPendingUserSyncQueue(userId) {
+    if (userId === undefined || userId === null) return;
+    const targetId = Number(userId);
+    const prevLen = syncQueue.length;
+    syncQueue = syncQueue.filter(task => {
+        const varName = SHEET_TO_VAR[task.sheet] || task.sheet;
+        if (varName === 'users' && task.item && Number(task.item.id) === targetId) {
+            return false;
+        }
+        return true;
+    });
+    if (syncQueue.length !== prevLen) {
+        saveSyncQueue();
+    }
+}
+if (typeof window !== 'undefined') {
+    window.clearPendingUserSyncQueue = clearPendingUserSyncQueue;
 }
 
 // Helper to compare two tables (arrays of objects) structurally

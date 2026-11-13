@@ -108,6 +108,14 @@ if (fs.existsSync(srcFirebaseConfig)) {
   } catch (_) {}
 }
 
+// Ensure Buku Panduan Word (.docx) is generated and synced in public/docs
+try {
+  execSync('node scripts/generate_docx_guide.js', { stdio: 'inherit' });
+  console.log('[sim-humas] Generated official Word document guide (Buku_Panduan_Pengguna_SIM-HUMAS_BPS_Kalbar.docx).');
+} catch (docxErr) {
+  console.warn('[sim-humas BUILD WARNING] Could not generate docx guide:', docxErr.message);
+}
+
 console.log('[sim-humas] All core scripts and templates validated successfully.');
 console.log('[sim-humas] Production build ready.');
 process.exit(0);
