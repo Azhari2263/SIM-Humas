@@ -276,6 +276,18 @@ function doPost(e) {
     }
   }
 
+  function sanitizePhoneCellForSheet(val) {
+    const s = String(val === undefined || val === null ? '' : val).trim();
+    if (!s) return '';
+    if (/^[+=\-0]/.test(s) && !s.startsWith("'")) {
+      return "'" + s;
+    }
+    return s;
+  }
+
+  const dataRange = ws.getDataRange();
+  const baseRowOffset = dataRange ? dataRange.getRow() : 1;
+
   if (data.action === 'add') {
     if (!data.item) {
       return ContentService.createTextOutput(JSON.stringify({success: false, error: "No item data to add"}))
@@ -298,7 +310,7 @@ function doPost(e) {
         data.item.terakhir_diperbarui = nowWib;
       }
       if (data.item.no_hp_wa !== undefined || data.item['No. HP/WA'] !== undefined) {
-        const rawHp = String(data.item['No. HP/WA'] || data.item.no_hp_wa || '');
+        const rawHp = String(data.item['No. HP/WA'] || data.item.no_hp_wa || '').replace(/^'+/, '');
         data.item['No. HP/WA'] = rawHp;
         data.item.no_hp_wa = rawHp;
       }
@@ -307,10 +319,18 @@ function doPost(e) {
     }
     
     // Petakan data objek sesuai dengan susunan header kolom
-    const nextRowIndex = ws.getLastRow() + 1;
-    ensureDaftarKontakPhoneTextFormat(ws, currentHeaders, nextRowIndex);
-    const rowData = currentHeaders.map(header => getCellValue(data.item, header));
-    ws.appendRow(rowData);
+    if (normalizedSheetName === 'Daftar_Kontak') {
+      const nextRowIndex = Math.max(2, ws.getLastRow() + 1);
+      ensureDaftarKontakPhoneTextFormat(ws, currentHeaders, nextRowIndex);
+      const rowData = currentHeaders.map(header => {
+        const v = getCellValue(data.item, header);
+        return String(header).trim().toLowerCase() === 'no. hp/wa' ? sanitizePhoneCellForSheet(v) : v;
+      });
+      ws.getRange(nextRowIndex, 1, 1, currentHeaders.length).setValues([rowData]);
+    } else {
+      const rowData = currentHeaders.map(header => getCellValue(data.item, header));
+      ws.appendRow(rowData);
+    }
     return ContentService.createTextOutput(JSON.stringify({success: true, item: data.item}))
       .setMimeType(ContentService.MimeType.JSON);
     
@@ -336,7 +356,7 @@ function doPost(e) {
     // Cari baris yang cocok berdasarkan ID
     for (let i = 1; i < rows.length; i++) {
       if (String(rows[i][idIndex]).trim() === idToUpdate) {
-        const rowIndex = i + 1;
+        const rowIndex = baseRowOffset + i;
         if (normalizedSheetName === 'Daftar_Kontak') {
           const createdIdx = currentHeaders.indexOf('Tanggal Dibuat');
           if (createdIdx !== -1 && !data.item['Tanggal Dibuat'] && !data.item.tanggal_dibuat) {
@@ -347,7 +367,11 @@ function doPost(e) {
         }
         const rowData = currentHeaders.map(header => {
           const val = getCellValue(data.item, header);
-          return val !== undefined && val !== null ? val : rows[i][currentHeaders.indexOf(header)];
+          const resolved = val !== undefined && val !== null ? val : rows[i][currentHeaders.indexOf(header)];
+          if (normalizedSheetName === 'Daftar_Kontak' && String(header).trim().toLowerCase() === 'no. hp/wa') {
+            return sanitizePhoneCellForSheet(resolved);
+          }
+          return resolved;
         });
         ws.getRange(rowIndex, 1, 1, currentHeaders.length).setValues([rowData]);
         updated = true;
@@ -357,16 +381,22 @@ function doPost(e) {
     if (!updated) {
       // Jika baris tidak ditemukan, tambahkan sebagai baris baru
       if (normalizedSheetName === 'Daftar_Kontak') {
-        const nextRowIndex = ws.getLastRow() + 1;
+        const nextRowIndex = Math.max(2, ws.getLastRow() + 1);
         ensureDaftarKontakPhoneTextFormat(ws, currentHeaders, nextRowIndex);
         if (!data.item['Tanggal Dibuat'] && !data.item.tanggal_dibuat) {
           const nowWib = formatNowWibGas();
           data.item['Tanggal Dibuat'] = nowWib;
           data.item.tanggal_dibuat = nowWib;
         }
+        const rowData = currentHeaders.map(header => {
+          const v = getCellValue(data.item, header);
+          return String(header).trim().toLowerCase() === 'no. hp/wa' ? sanitizePhoneCellForSheet(v) : v;
+        });
+        ws.getRange(nextRowIndex, 1, 1, currentHeaders.length).setValues([rowData]);
+      } else {
+        const rowData = currentHeaders.map(header => getCellValue(data.item, header));
+        ws.appendRow(rowData);
       }
-      const rowData = currentHeaders.map(header => getCellValue(data.item, header));
-      ws.appendRow(rowData);
     }
 
     // Sinkronisasi otomatis ke lembar rekap_rutin jika tugas Content Planner selesai

@@ -11764,8 +11764,35 @@ function getWhatsAppUrl(rawPhone) {
     return digits ? `https://wa.me/${digits}` : '';
 }
 
+function validateKontakPhoneNumber(rawPhone) {
+    const trimmed = String(rawPhone === null || rawPhone === undefined ? '' : rawPhone).trim();
+    if (!trimmed) {
+        return { valid: false, error: 'No. HP/WA wajib diisi.', compact: '', waDigits: '' };
+    }
+    if (!/^\+?[0-9]+(?:[\s\-][0-9]+)*$/.test(trimmed)) {
+        return {
+            valid: false,
+            error: 'Format No. HP/WA tidak valid. Hanya boleh berisi angka, awalan +, spasi, atau tanda hubung (-).',
+            compact: '',
+            waDigits: ''
+        };
+    }
+    const compact = trimmed.replace(/[\s\-]+/g, '');
+    if (!/^(?:\+?62|0062|0)[1-9][0-9]{7,13}$/.test(compact)) {
+        return {
+            valid: false,
+            error: 'Format No. HP/WA tidak valid. Gunakan nomor yang diawali 08, 62, atau +62 (9–15 digit angka).',
+            compact,
+            waDigits: ''
+        };
+    }
+    const waDigits = formatWhatsAppNumber(compact);
+    return { valid: true, error: '', compact, waDigits };
+}
+
 window.formatWhatsAppNumber = formatWhatsAppNumber;
 window.getWhatsAppUrl = getWhatsAppUrl;
+window.validateKontakPhoneNumber = validateKontakPhoneNumber;
 
 function getKontakInitials(name) {
     const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -12248,11 +12275,19 @@ window.closeKontakPartnerModal = function() {
 window.updateKontakWaPreview = function(val) {
     const el = document.getElementById('kontak-wa-preview');
     if (!el) return;
-    const url = getWhatsAppUrl(val);
-    if (url) {
-        el.innerHTML = `<i class="fa-brands fa-whatsapp text-emerald-500"></i> Link WA: <span class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">${escapeHtml(url)}</span>`;
-    } else {
+    const raw = String(val || '').trim();
+    if (!raw) {
+        el.className = 'text-[11px] text-slate-400 dark:text-slate-400 mt-1.5 flex items-center gap-1.5';
         el.textContent = 'Nomor diawali 0 atau +62 akan otomatis diformat menjadi 62xxx untuk tautan WhatsApp.';
+        return;
+    }
+    const check = validateKontakPhoneNumber(raw);
+    if (check.valid && check.waDigits) {
+        el.className = 'text-[11px] text-slate-400 dark:text-slate-400 mt-1.5 flex items-center gap-1.5';
+        el.innerHTML = `<i class="fa-brands fa-whatsapp text-emerald-500"></i> Link WA: <span class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">https://wa.me/${escapeHtml(check.waDigits)}</span>`;
+    } else {
+        el.className = 'text-[11px] text-rose-500 dark:text-rose-400 mt-1.5 flex items-center gap-1.5 font-semibold';
+        el.innerHTML = `<i class="fa-solid fa-circle-exclamation shrink-0"></i> <span>${escapeHtml(check.error || 'Format No. HP/WA tidak valid.')}</span>`;
     }
 };
 
@@ -12285,15 +12320,10 @@ window.submitKontakPartnerForm = async function(event, encodedEditId = '') {
         showErr('Instansi/Media wajib diisi.');
         return;
     }
-    if (!noHp) {
+    const phoneCheck = validateKontakPhoneNumber(noHp);
+    if (!phoneCheck.valid) {
         document.getElementById('kontak_no_hp')?.focus();
-        showErr('No. HP/WA wajib diisi.');
-        return;
-    }
-    const rawDigits = noHp.replace(/\D+/g, '');
-    if (rawDigits.length < 8 || rawDigits.length > 16) {
-        document.getElementById('kontak_no_hp')?.focus();
-        showErr('Format No. HP/WA tidak valid. Masukkan minimal 8 digit angka yang benar.');
+        showErr(phoneCheck.error);
         return;
     }
 

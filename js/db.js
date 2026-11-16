@@ -1575,6 +1575,93 @@ async function sendDataToServer(action, sheetName, item) {
     processSyncQueue();
 }
 
+function formatPhoneForGasPayload(rawPhone) {
+    const s = String(rawPhone === undefined || rawPhone === null ? '' : rawPhone).trim().replace(/^'+/, '');
+    if (!s) return '';
+    if (/^[+=\-0]/.test(s)) {
+        return `'${s}`;
+    }
+    return s;
+}
+
+function formatKontakTsForGas(rawTs, fallbackTs) {
+    const str = String(rawTs || '').trim();
+    if (!str) return fallbackTs || '';
+    if (/^\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}(?::\d{2})?)?$/.test(str)) {
+        return str;
+    }
+    const cleaned = str.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    const d = new Date(cleaned);
+    if (!Number.isNaN(d.getTime())) {
+        try {
+            const parts = new Intl.DateTimeFormat('sv-SE', {
+                timeZone: 'Asia/Jakarta',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).formatToParts(d);
+            const map = {};
+            parts.forEach(p => { map[p.type] = p.value; });
+            return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second}`;
+        } catch (_) {}
+    }
+    return str;
+}
+
+async function syncDaftarKontakDirectToGas(action, preparedItem) {
+    const baseId = String((preparedItem && (preparedItem['ID Kontak'] || preparedItem.id_kontak || preparedItem.id)) || '').trim();
+    if (!baseId) return { ok: false, item: preparedItem };
+
+    const safePhone = formatPhoneForGasPayload(preparedItem['No. HP/WA'] || preparedItem.no_hp_wa || '');
+    const gasItem = action === 'delete'
+        ? { id: baseId, id_kontak: baseId, 'ID Kontak': baseId }
+        : {
+            ...preparedItem,
+            id: baseId,
+            id_kontak: baseId,
+            'ID Kontak': baseId,
+            no_hp_wa: safePhone,
+            'No. HP/WA': safePhone
+        };
+
+    if (action === 'update') {
+        const delResp = await fetch(GOOGLE_SHEETS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'delete', sheet: 'Daftar_Kontak', item: { id: baseId, id_kontak: baseId, 'ID Kontak': baseId } })
+        });
+        const delJson = await delResp.json().catch(() => null);
+        if (!delResp.ok || !delJson || !delJson.success) {
+            return { ok: false, item: preparedItem };
+        }
+        const addResp = await fetch(GOOGLE_SHEETS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'add', sheet: 'Daftar_Kontak', item: gasItem })
+        });
+        const addJson = await addResp.json().catch(() => null);
+        if (addResp.ok && addJson && addJson.success) {
+            return { ok: true, item: addJson.item || preparedItem };
+        }
+        return { ok: false, item: preparedItem };
+    }
+
+    const gasResp = await fetch(GOOGLE_SHEETS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action, sheet: 'Daftar_Kontak', item: gasItem })
+    });
+    const gasJson = await gasResp.json().catch(() => null);
+    if (gasResp.ok && gasJson && gasJson.success) {
+        return { ok: true, item: gasJson.item || preparedItem };
+    }
+    return { ok: false, item: preparedItem };
+}
+
 // CRUD langsung dan sinkronisasi penuh untuk Kontak Partner (sheet Daftar_Kontak)
 async function syncDaftarKontakCrud(action, itemData) {
     const token = localStorage.getItem('sim_humas_token') || '';
@@ -1586,6 +1673,8 @@ async function syncDaftarKontakCrud(action, itemData) {
     const nowTs = `${nowWIB.getFullYear()}-${pad2(nowWIB.getMonth() + 1)}-${pad2(nowWIB.getDate())} ${pad2(nowWIB.getHours())}:${pad2(nowWIB.getMinutes())}:${pad2(nowWIB.getSeconds())}`;
 
     const baseId = String((itemData && (itemData['ID Kontak'] || itemData.id_kontak || itemData.id)) || `KTP-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`).trim();
+    const rawCreated = (itemData && (itemData['Tanggal Dibuat'] || itemData.tanggal_dibuat)) || '';
+    const cleanCreated = formatKontakTsForGas(rawCreated, nowTs);
     const prepared = action === 'delete'
         ? { id: baseId, id_kontak: baseId, 'ID Kontak': baseId }
         : normalizeDaftarKontakItem({
@@ -1593,13 +1682,14 @@ async function syncDaftarKontakCrud(action, itemData) {
             id: baseId,
             id_kontak: baseId,
             'ID Kontak': baseId,
-            tanggal_dibuat: (itemData && (itemData.tanggal_dibuat || itemData['Tanggal Dibuat'])) || nowTs,
-            'Tanggal Dibuat': (itemData && (itemData['Tanggal Dibuat'] || itemData.tanggal_dibuat)) || nowTs,
+            tanggal_dibuat: cleanCreated,
+            'Tanggal Dibuat': cleanCreated,
             terakhir_diperbarui: nowTs,
             'Terakhir Diperbarui': nowTs
         });
 
     let serverSucceeded = false;
+    let sheetsSynced = false;
     let finalItem = prepared;
     let serverContacts = null;
 
@@ -1626,9 +1716,20 @@ async function syncDaftarKontakCrud(action, itemData) {
         }
 
         serverSucceeded = true;
+        sheetsSynced = Boolean(json.sheetsSynced);
         if (json.item) finalItem = normalizeDaftarKontakItem(json.item);
         if (Array.isArray(json.contacts)) {
             serverContacts = json.contacts.map(normalizeDaftarKontakItem);
+        }
+
+        // Jika backend lokal berhasil menyimpan tetapi belum tersinkron ke Google Sheets, langsung sinkronkan ke GAS
+        if (!sheetsSynced) {
+            try {
+                const directRes = await syncDaftarKontakDirectToGas(action, finalItem);
+                if (directRes.ok) {
+                    sheetsSynced = true;
+                }
+            } catch (_) {}
         }
     } catch (apiErr) {
         // Hanya hentikan untuk error validasi/otorisasi eksplisit (400/401/403).
@@ -1651,23 +1752,20 @@ async function syncDaftarKontakCrud(action, itemData) {
                 const sheetsJson = await sheetsResp.json().catch(() => null);
                 if (sheetsResp.ok && sheetsJson && sheetsJson.success) {
                     serverSucceeded = true;
+                    sheetsSynced = Boolean(sheetsJson.sheetsSynced);
                     if (sheetsJson.item) finalItem = normalizeDaftarKontakItem(sheetsJson.item);
                 }
             } catch (_) {}
         }
 
-        // 3. Fallback langsung ke Google Sheets Apps Script jika endpoint lokal tidak tersedia / mengembalikan HTTP 405/404
-        if (!serverSucceeded) {
+        // 3. Fallback langsung ke Google Sheets Apps Script jika endpoint lokal tidak tersedia / mengembalikan HTTP 405/404 / belum tersinkron ke Sheets
+        if (!serverSucceeded || !sheetsSynced) {
             try {
-                const gasResp = await fetch(GOOGLE_SHEETS_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify({ action, sheet: 'Daftar_Kontak', item: prepared })
-                });
-                const gasJson = await gasResp.json().catch(() => null);
-                if (gasResp.ok && gasJson && gasJson.success) {
+                const directRes = await syncDaftarKontakDirectToGas(action, finalItem);
+                if (directRes.ok) {
                     serverSucceeded = true;
-                    if (gasJson.item) finalItem = normalizeDaftarKontakItem(gasJson.item);
+                    sheetsSynced = true;
+                    if (directRes.item) finalItem = normalizeDaftarKontakItem({ ...finalItem, ...directRes.item, 'No. HP/WA': finalItem['No. HP/WA'], no_hp_wa: finalItem.no_hp_wa });
                 }
             } catch (_) {}
         }
@@ -1691,7 +1789,7 @@ async function syncDaftarKontakCrud(action, itemData) {
 
     saveLocalFallback('daftarKontak');
 
-    if (!serverSucceeded) {
+    if (!serverSucceeded || !sheetsSynced) {
         syncQueue.push({ action, sheet: 'Daftar_Kontak', item: prepared });
         saveSyncQueue();
         processSyncQueue();
@@ -1701,7 +1799,7 @@ async function syncDaftarKontakCrud(action, itemData) {
         applySelectiveBackgroundUpdate(['daftarKontak']);
     }
 
-    return { success: true, item: finalItem, serverSynced: serverSucceeded };
+    return { success: true, item: finalItem, serverSynced: serverSucceeded && sheetsSynced };
 }
 if (typeof window !== 'undefined') {
     window.syncDaftarKontakCrud = syncDaftarKontakCrud;
@@ -1718,6 +1816,16 @@ async function processSyncQueue() {
     while (syncQueue.length > 0) {
         const task = syncQueue[0];
         try {
+            if (task.sheet === 'Daftar_Kontak') {
+                const directRes = await syncDaftarKontakDirectToGas(task.action, task.item);
+                if (!directRes.ok) throw new Error('Daftar_Kontak sync failed');
+                syncQueue.shift();
+                saveSyncQueue();
+                successCount++;
+                console.log(`[Sync] Successfully synced task: ${task.action} on ${task.sheet}`);
+                continue;
+            }
+
             const payload = {
                 action: task.action,
                 sheet: task.sheet,
