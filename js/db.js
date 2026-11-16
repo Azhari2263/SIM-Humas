@@ -1615,10 +1615,14 @@ async function syncDaftarKontakCrud(action, itemData) {
         try { json = rawText ? JSON.parse(rawText) : null; } catch (_) {}
 
         if (!resp.ok) {
-            throw new Error((json && json.error) || `Gagal memproses kontak (HTTP ${resp.status})`);
+            const apiErr = new Error((json && json.error) || `Gagal memproses kontak (HTTP ${resp.status})`);
+            apiErr.status = resp.status;
+            throw apiErr;
         }
         if (!json || !json.success) {
-            throw new Error((json && json.error) || 'Gagal menyimpan data kontak di server.');
+            const apiErr = new Error((json && json.error) || 'Gagal menyimpan data kontak di server.');
+            apiErr.status = resp.status;
+            throw apiErr;
         }
 
         serverSucceeded = true;
@@ -1627,23 +1631,46 @@ async function syncDaftarKontakCrud(action, itemData) {
             serverContacts = json.contacts.map(normalizeDaftarKontakItem);
         }
     } catch (apiErr) {
-        // Jika kesalahan validasi / otorisasi dari server, hentikan dan lempar error ke UI
-        if (apiErr && /wajib|tidak valid|izin|kedaluwarsa|tidak ditemukan|HTTP 4\d\d/i.test(apiErr.message || '')) {
+        // Hanya hentikan untuk error validasi/otorisasi eksplisit (400/401/403).
+        // Untuk HTTP 405/404/5xx atau kegagalan rute endpoint lokal, lanjutkan ke fallback /api/sheets & Google Sheets.
+        const errStatus = Number(apiErr && apiErr.status);
+        const isExplicitAuthOrValidationError = [400, 401, 403].includes(errStatus) ||
+            (errStatus !== 404 && errStatus !== 405 && apiErr && /wajib|tidak valid|izin|kedaluwarsa/i.test(apiErr.message || ''));
+        if (isExplicitAuthOrValidationError) {
             throw apiErr;
         }
-        // Fallback langsung ke Google Sheets Apps Script jika endpoint lokal tidak tersedia
-        try {
-            const gasResp = await fetch(GOOGLE_SHEETS_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action, sheet: 'Daftar_Kontak', item: prepared })
-            });
-            const gasJson = await gasResp.json().catch(() => null);
-            if (gasResp.ok && gasJson && gasJson.success) {
-                serverSucceeded = true;
-                if (gasJson.item) finalItem = normalizeDaftarKontakItem(gasJson.item);
-            }
-        } catch (_) {}
+
+        // 2. Fallback melalui /api/sheets jika tersedia
+        if (GOOGLE_SHEETS_API_URL !== '/api/sheets') {
+            try {
+                const sheetsResp = await fetch('/api/sheets', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ action, sheet: 'Daftar_Kontak', item: prepared, token })
+                });
+                const sheetsJson = await sheetsResp.json().catch(() => null);
+                if (sheetsResp.ok && sheetsJson && sheetsJson.success) {
+                    serverSucceeded = true;
+                    if (sheetsJson.item) finalItem = normalizeDaftarKontakItem(sheetsJson.item);
+                }
+            } catch (_) {}
+        }
+
+        // 3. Fallback langsung ke Google Sheets Apps Script jika endpoint lokal tidak tersedia / mengembalikan HTTP 405/404
+        if (!serverSucceeded) {
+            try {
+                const gasResp = await fetch(GOOGLE_SHEETS_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action, sheet: 'Daftar_Kontak', item: prepared })
+                });
+                const gasJson = await gasResp.json().catch(() => null);
+                if (gasResp.ok && gasJson && gasJson.success) {
+                    serverSucceeded = true;
+                    if (gasJson.item) finalItem = normalizeDaftarKontakItem(gasJson.item);
+                }
+            } catch (_) {}
+        }
     }
 
     if (!Array.isArray(db.daftarKontak)) db.daftarKontak = [];
@@ -1651,15 +1678,15 @@ async function syncDaftarKontakCrud(action, itemData) {
     if (serverContacts) {
         db.daftarKontak = serverContacts;
     } else if (action === 'add') {
-        const idx = db.daftarKontak.findIndex(c => isSameRecordId(c.id, finalItem.id));
+        const idx = db.daftarKontak.findIndex(c => isSameRecordId(c.id || c.id_kontak || c['ID Kontak'], finalItem.id));
         if (idx === -1) db.daftarKontak.push(finalItem);
         else db.daftarKontak[idx] = finalItem;
     } else if (action === 'update') {
-        const idx = db.daftarKontak.findIndex(c => isSameRecordId(c.id, finalItem.id));
+        const idx = db.daftarKontak.findIndex(c => isSameRecordId(c.id || c.id_kontak || c['ID Kontak'], finalItem.id));
         if (idx !== -1) db.daftarKontak[idx] = finalItem;
         else db.daftarKontak.push(finalItem);
     } else if (action === 'delete') {
-        db.daftarKontak = db.daftarKontak.filter(c => !isSameRecordId(c.id, baseId));
+        db.daftarKontak = db.daftarKontak.filter(c => !isSameRecordId(c.id || c.id_kontak || c['ID Kontak'], baseId));
     }
 
     saveLocalFallback('daftarKontak');

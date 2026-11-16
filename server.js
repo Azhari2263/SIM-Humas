@@ -1463,13 +1463,23 @@ app.post(['/api/kontak-partner', '/kontak-partner'], async (req, res) => {
       if (!targetId) {
         return res.status(400).json({ success: false, error: 'ID Kontak wajib disertakan.' });
       }
-      const prevLen = (database.daftarKontak || []).length;
-      database.daftarKontak = (database.daftarKontak || []).filter(c => String(c.id || c.id_kontak || '').trim() !== targetId);
-      if (database.daftarKontak.length === prevLen) {
-        return res.status(404).json({ success: false, error: 'Kontak tidak ditemukan.' });
+      const getRecordId = (c) => String((c && (c.id || c.id_kontak || c['ID Kontak'])) || '').trim();
+      let prevLen = (database.daftarKontak || []).length;
+      database.daftarKontak = (database.daftarKontak || []).filter(c => getRecordId(c) !== targetId);
+      let foundInMemory = database.daftarKontak.length < prevLen;
+
+      if (!foundInMemory) {
+        await refreshDaftarKontakFromSheets().catch(() => {});
+        prevLen = (database.daftarKontak || []).length;
+        database.daftarKontak = (database.daftarKontak || []).filter(c => getRecordId(c) !== targetId);
+        foundInMemory = database.daftarKontak.length < prevLen;
       }
+
       persistDaftarKontakData();
       const sheetsSynced = await syncKontakToGoogleSheets('delete', { id: targetId, id_kontak: targetId, 'ID Kontak': targetId });
+      if (!foundInMemory && !sheetsSynced) {
+        return res.status(404).json({ success: false, error: 'Kontak tidak ditemukan.' });
+      }
       return res.json({ success: true, sheetsSynced, contacts: database.daftarKontak, message: 'Kontak berhasil dihapus.' });
     }
 
@@ -1483,7 +1493,7 @@ app.post(['/api/kontak-partner', '/kontak-partner'], async (req, res) => {
       if (!targetId) {
         return res.status(400).json({ success: false, error: 'ID Kontak wajib disertakan untuk pembaruan.' });
       }
-      const idx = (database.daftarKontak || []).findIndex(c => String(c.id || c.id_kontak || '').trim() === targetId);
+      const idx = (database.daftarKontak || []).findIndex(c => String((c && (c.id || c.id_kontak || c['ID Kontak'])) || '').trim() === targetId);
       const existing = idx !== -1 ? database.daftarKontak[idx] : null;
       const nowTs = getNowWIBTimestamp();
       const updated = normalizeKontakItem({ ...rawItem, id: targetId, id_kontak: targetId, 'ID Kontak': targetId, 'Terakhir Diperbarui': nowTs, terakhir_diperbarui: nowTs }, existing);
@@ -1536,13 +1546,21 @@ app.delete(['/api/kontak-partner/:id', '/kontak-partner/:id'], async (req, res) 
   if (!targetId) {
     return res.status(400).json({ success: false, error: 'ID Kontak wajib disertakan.' });
   }
-  const prevLen = (database.daftarKontak || []).length;
-  database.daftarKontak = (database.daftarKontak || []).filter(c => String(c.id || c.id_kontak || '').trim() !== targetId);
-  if (database.daftarKontak.length === prevLen) {
-    return res.status(404).json({ success: false, error: 'Kontak tidak ditemukan.' });
+  const getRecordId = (c) => String((c && (c.id || c.id_kontak || c['ID Kontak'])) || '').trim();
+  let prevLen = (database.daftarKontak || []).length;
+  database.daftarKontak = (database.daftarKontak || []).filter(c => getRecordId(c) !== targetId);
+  let foundInMemory = database.daftarKontak.length < prevLen;
+  if (!foundInMemory) {
+    await refreshDaftarKontakFromSheets().catch(() => {});
+    prevLen = (database.daftarKontak || []).length;
+    database.daftarKontak = (database.daftarKontak || []).filter(c => getRecordId(c) !== targetId);
+    foundInMemory = database.daftarKontak.length < prevLen;
   }
   persistDaftarKontakData();
   const sheetsSynced = await syncKontakToGoogleSheets('delete', { id: targetId, id_kontak: targetId, 'ID Kontak': targetId });
+  if (!foundInMemory && !sheetsSynced) {
+    return res.status(404).json({ success: false, error: 'Kontak tidak ditemukan.' });
+  }
   return res.json({ success: true, sheetsSynced, contacts: database.daftarKontak, message: 'Kontak berhasil dihapus.' });
 });
 
