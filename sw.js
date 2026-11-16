@@ -1,10 +1,11 @@
 // Service Worker for SIM Humas BPS Kalbar (PWA)
-const CACHE_NAME = 'sim-humas-v1.2.3';
+const CACHE_NAME = 'sim-humas-v1.2.4';
 
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/js/chart.umd.min.js',
   '/js/monitoringData.js',
   '/js/db.js',
   '/js/auth.js',

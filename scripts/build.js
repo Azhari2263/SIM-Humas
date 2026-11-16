@@ -98,6 +98,18 @@ if (fs.existsSync(srcMonitoring)) {
   }
 }
 
+// Ensure Chart.js UMD bundle is copied to js/ and public/js/ for reliable local delivery
+const srcChartJs = path.join(rootDir, 'node_modules', 'chart.js', 'dist', 'chart.umd.min.js');
+if (fs.existsSync(srcChartJs)) {
+  try {
+    fs.copyFileSync(srcChartJs, path.join(rootDir, 'js', 'chart.umd.min.js'));
+    fs.copyFileSync(srcChartJs, path.join(publicJsDir, 'chart.umd.min.js'));
+    console.log('[sim-humas] Synchronized local Chart.js UMD bundle.');
+  } catch (chartCopyErr) {
+    console.warn('[sim-humas BUILD WARNING] Could not copy Chart.js bundle:', chartCopyErr.message);
+  }
+}
+
 // Ensure firebase-applet-config.json is mirrored into public/ for static hosting
 const srcFirebaseConfig = path.join(rootDir, 'firebase-applet-config.json');
 const destFirebaseConfig = path.join(rootDir, 'public', 'firebase-applet-config.json');

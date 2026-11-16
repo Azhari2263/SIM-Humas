@@ -11,6 +11,41 @@ var escapeHtml = window.escapeHtml = window.escapeHtml || function(str) {
         .replace(/'/g, '&#039;');
 };
 
+// Defensive Chart.js loader so charts never throw ReferenceError if initial script load lags or is blocked
+window.ensureChartJs = window.ensureChartJs || function() {
+    if (typeof window.Chart !== 'undefined') {
+        return Promise.resolve(window.Chart);
+    }
+    if (window._chartJsLoadPromise) {
+        return window._chartJsLoadPromise;
+    }
+    window._chartJsLoadPromise = new Promise((resolve) => {
+        const loadScript = (src, onFail) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.async = true;
+            script.onload = () => {
+                resolve(typeof window.Chart !== 'undefined' ? window.Chart : null);
+            };
+            script.onerror = () => {
+                if (typeof onFail === 'function') {
+                    onFail();
+                } else {
+                    resolve(null);
+                }
+            };
+            document.head.appendChild(script);
+        };
+        loadScript('/js/chart.umd.min.js?v=1.2.4', () => {
+            loadScript('https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js', () => resolve(null));
+        });
+    }).then((chartLib) => {
+        if (!chartLib) window._chartJsLoadPromise = null;
+        return chartLib;
+    });
+    return window._chartJsLoadPromise;
+};
+
 // Helper: Check if logged-in user is Admin or Ketua Tim Humas
 function isUserAdminOrKetua() {
     return currentUser && (currentUser.role === 'admin' || currentUser.role === 'koordinator');
@@ -1218,6 +1253,16 @@ window.renderTeamWorkloadChart = function(targetMonthParam) {
 
     const ctxStack = document.getElementById('stackedTasksChart')?.getContext('2d');
     if (ctxStack) {
+        if (typeof Chart === 'undefined') {
+            if (typeof window.ensureChartJs === 'function') {
+                window.ensureChartJs().then((lib) => {
+                    if (lib && document.getElementById('stackedTasksChart')) {
+                        window.renderTeamWorkloadChart(targetMonthParam);
+                    }
+                });
+            }
+            return;
+        }
         if (window.chartInstance) {
             window.chartInstance.destroy();
             window.chartInstance = null;
@@ -1467,23 +1512,32 @@ window.renderTargetAchievementChart = function(selectedMonthParam) {
     // Chart.js doughnut update
     const ctxBidang = document.getElementById('bidangContributionChart')?.getContext('2d');
     if (ctxBidang) {
-        if (window.sentimentChartInstance) window.sentimentChartInstance.destroy();
-
-        let chartData = [];
-        let chartColors = [];
-        let chartLabels = [];
-
-        if (activeStats.total === 0) {
-            chartData = [1];
-            chartColors = ['#cbd5e1'];
-            chartLabels = ['Belum ada target'];
+        if (typeof Chart === 'undefined') {
+            if (typeof window.ensureChartJs === 'function') {
+                window.ensureChartJs().then((lib) => {
+                    if (lib && document.getElementById('bidangContributionChart')) {
+                        window.renderTargetAchievementChart(selectedMonthParam);
+                    }
+                });
+            }
         } else {
-            chartData = [activeStats.tercapai, activeStats.belum];
-            chartColors = ['#10b981', '#f43f5e'];
-            chartLabels = ['Target Tercapai', 'Belum / Tidak Tercapai'];
-        }
+            if (window.sentimentChartInstance) window.sentimentChartInstance.destroy();
 
-        window.sentimentChartInstance = new Chart(ctxBidang, {
+            let chartData = [];
+            let chartColors = [];
+            let chartLabels = [];
+
+            if (activeStats.total === 0) {
+                chartData = [1];
+                chartColors = ['#cbd5e1'];
+                chartLabels = ['Belum ada target'];
+            } else {
+                chartData = [activeStats.tercapai, activeStats.belum];
+                chartColors = ['#10b981', '#f43f5e'];
+                chartLabels = ['Target Tercapai', 'Belum / Tidak Tercapai'];
+            }
+
+            window.sentimentChartInstance = new Chart(ctxBidang, {
             type: 'doughnut',
             data: {
                 labels: chartLabels,
@@ -1515,6 +1569,7 @@ window.renderTargetAchievementChart = function(selectedMonthParam) {
                 cutout: '72%'
             }
         });
+        }
     }
 
     // Populate Monthly Strip Pills (Jan - Des)
@@ -1758,54 +1813,64 @@ window.renderTimDashboardCharts = function() {
     // Donut Chart for Annual Achievement
     const ctxDonut = document.getElementById('timAnnualAchievementChart')?.getContext('2d');
     if (ctxDonut) {
-        if (window.timDonutChartInstance) window.timDonutChartInstance.destroy();
-
-        let chartData = [];
-        let chartColors = [];
-        let chartLabels = [];
-
-        if (annualTotal === 0) {
-            chartData = [1];
-            chartColors = ['#cbd5e1'];
-            chartLabels = ['Belum ada tugas'];
+        if (typeof Chart === 'undefined') {
+            if (typeof window.ensureChartJs === 'function') {
+                window.ensureChartJs().then((lib) => {
+                    if (lib && (document.getElementById('timAnnualAchievementChart') || document.getElementById('timMonthlyTasksChart'))) {
+                        window.renderTimDashboardCharts();
+                    }
+                });
+            }
         } else {
-            chartData = [annualSelesai, annualBelum];
-            chartColors = ['#10b981', '#f43f5e'];
-            chartLabels = ['Selesai', 'Belum Selesai'];
-        }
+            if (window.timDonutChartInstance) window.timDonutChartInstance.destroy();
 
-        window.timDonutChartInstance = new Chart(ctxDonut, {
-            type: 'doughnut',
-            data: {
-                labels: chartLabels,
-                datasets: [{
-                    data: chartData,
-                    backgroundColor: chartColors,
-                    borderWidth: 0,
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                        padding: 10,
-                        callbacks: {
-                            label: function(context) {
-                                if (annualTotal === 0) return ' Belum ada tugas';
-                                const val = context.raw || 0;
-                                const p = Math.round((val / annualTotal) * 100);
-                                return ` ${context.label}: ${val} tugas (${p}%)`;
+            let chartData = [];
+            let chartColors = [];
+            let chartLabels = [];
+
+            if (annualTotal === 0) {
+                chartData = [1];
+                chartColors = ['#cbd5e1'];
+                chartLabels = ['Belum ada tugas'];
+            } else {
+                chartData = [annualSelesai, annualBelum];
+                chartColors = ['#10b981', '#f43f5e'];
+                chartLabels = ['Selesai', 'Belum Selesai'];
+            }
+
+            window.timDonutChartInstance = new Chart(ctxDonut, {
+                type: 'doughnut',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        data: chartData,
+                        backgroundColor: chartColors,
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    if (annualTotal === 0) return ' Belum ada tugas';
+                                    const val = context.raw || 0;
+                                    const p = Math.round((val / annualTotal) * 100);
+                                    return ` ${context.label}: ${val} tugas (${p}%)`;
+                                }
                             }
                         }
-                    }
-                },
-                cutout: '72%'
-            }
-        });
+                    },
+                    cutout: '72%'
+                }
+            });
+        }
     }
 
     // Monthly Strip Jan - Des
@@ -1931,6 +1996,16 @@ window.renderTimDashboardCharts = function() {
     // Chart.js Stacked Bar Chart for 12 months (Jan - Des)
     const ctxBar = document.getElementById('timMonthlyTasksChart')?.getContext('2d');
     if (ctxBar) {
+        if (typeof Chart === 'undefined') {
+            if (typeof window.ensureChartJs === 'function') {
+                window.ensureChartJs().then((lib) => {
+                    if (lib && document.getElementById('timMonthlyTasksChart')) {
+                        window.renderTimDashboardCharts();
+                    }
+                });
+            }
+            return;
+        }
         if (window.timMonthlyChartInstance) {
             window.timMonthlyChartInstance.destroy();
             window.timMonthlyChartInstance = null;
@@ -9453,8 +9528,19 @@ function drawMonitoringSentimenView(content) {
     `;
 
     setTimeout(() => {
-        const ctx = document.getElementById('mediaSentimentChart')?.getContext('2d');
-        if (ctx) {
+        const renderSentimentDoughnut = () => {
+            const ctx = document.getElementById('mediaSentimentChart')?.getContext('2d');
+            if (!ctx) return;
+            if (typeof Chart === 'undefined') {
+                if (typeof window.ensureChartJs === 'function') {
+                    window.ensureChartJs().then((lib) => {
+                        if (lib && document.getElementById('mediaSentimentChart')) {
+                            renderSentimentDoughnut();
+                        }
+                    });
+                }
+                return;
+            }
             if (window.sentimentChartInstance) {
                 window.sentimentChartInstance.destroy();
             }
@@ -9478,7 +9564,8 @@ function drawMonitoringSentimenView(content) {
                     cutout: '72%'
                 }
             });
-        }
+        };
+        renderSentimentDoughnut();
     }, 50);
 }
 
