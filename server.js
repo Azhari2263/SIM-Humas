@@ -21,6 +21,8 @@ const MONITORING_FILE = path.join(DATA_DIR, 'monitoring.json');
 const TMP_MONITORING_FILE = path.join('/tmp', 'monitoring.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const TMP_USERS_FILE = path.join('/tmp', 'users.json');
+const DAFTAR_KONTAK_FILE = path.join(DATA_DIR, 'daftar_kontak.json');
+const TMP_DAFTAR_KONTAK_FILE = path.join('/tmp', 'daftar_kontak.json');
 
 // Safe cross-version JSON loading (compatible with Node 18, 20, 22+)
 let bundledMonitoringData = [];
@@ -173,7 +175,8 @@ const initialDb = {
       versi: '2026 Q1',
       status: 'Aktif'
     }
-  ]
+  ],
+  daftarKontak: []
 };
 
 // In-Memory Database store with disk persistence for monitoring
@@ -281,6 +284,190 @@ function persistUsersData() {
   }
 }
 
+function getNowWIBTimestamp() {
+  try {
+    const parts = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).formatToParts(new Date());
+    const map = {};
+    parts.forEach(p => { map[p.type] = p.value; });
+    return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second}`;
+  } catch (_) {
+    return new Date().toISOString().replace('T', ' ').slice(0, 19);
+  }
+}
+
+function generateUniqueKontakId() {
+  return `KTP-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+}
+
+function normalizeKontakItem(raw = {}, existing = null) {
+  const nowTs = getNowWIBTimestamp();
+  const rawId = raw['ID Kontak'] ?? raw.id_kontak ?? raw.id ?? (existing && (existing['ID Kontak'] || existing.id_kontak || existing.id));
+  const idStr = (rawId !== undefined && rawId !== null && String(rawId).trim() !== '')
+    ? String(rawId).trim()
+    : generateUniqueKontakId();
+  const nama = String(raw['Nama'] ?? raw.nama ?? (existing && (existing['Nama'] || existing.nama)) ?? '').trim();
+  const instansi = String(raw['Instansi/Media'] ?? raw.instansi_media ?? raw.instansi ?? (existing && (existing['Instansi/Media'] || existing.instansi_media)) ?? '').trim();
+  const noHp = String(raw['No. HP/WA'] ?? raw.no_hp_wa ?? raw.no_hp ?? raw.wa ?? (existing && (existing['No. HP/WA'] || existing.no_hp_wa)) ?? '').trim();
+  const keterangan = String(raw['Keterangan'] ?? raw.keterangan ?? (existing && (existing['Keterangan'] || existing.keterangan)) ?? '').trim();
+  const tanggalDibuat = String(raw['Tanggal Dibuat'] ?? raw.tanggal_dibuat ?? (existing && (existing['Tanggal Dibuat'] || existing.tanggal_dibuat)) ?? nowTs).trim() || nowTs;
+  const terakhirDiperbarui = String(raw['Terakhir Diperbarui'] ?? raw.terakhir_diperbarui ?? nowTs).trim() || nowTs;
+
+  return {
+    id: idStr,
+    id_kontak: idStr,
+    'ID Kontak': idStr,
+    nama,
+    'Nama': nama,
+    instansi_media: instansi,
+    'Instansi/Media': instansi,
+    no_hp_wa: noHp,
+    'No. HP/WA': noHp,
+    keterangan,
+    'Keterangan': keterangan,
+    tanggal_dibuat: tanggalDibuat,
+    'Tanggal Dibuat': tanggalDibuat,
+    terakhir_diperbarui: terakhirDiperbarui,
+    'Terakhir Diperbarui': terakhirDiperbarui
+  };
+}
+
+let candidateKontakFile = null;
+try {
+  const hasTmpKontak = fs.existsSync(TMP_DAFTAR_KONTAK_FILE);
+  const hasDiskKontak = fs.existsSync(DAFTAR_KONTAK_FILE);
+  if (hasTmpKontak && hasDiskKontak) {
+    const tmpMtime = fs.statSync(TMP_DAFTAR_KONTAK_FILE).mtimeMs || 0;
+    const diskMtime = fs.statSync(DAFTAR_KONTAK_FILE).mtimeMs || 0;
+    candidateKontakFile = tmpMtime > diskMtime ? TMP_DAFTAR_KONTAK_FILE : DAFTAR_KONTAK_FILE;
+  } else if (hasTmpKontak) {
+    candidateKontakFile = TMP_DAFTAR_KONTAK_FILE;
+  } else if (hasDiskKontak) {
+    candidateKontakFile = DAFTAR_KONTAK_FILE;
+  }
+} catch (_) {
+  candidateKontakFile = fs.existsSync(TMP_DAFTAR_KONTAK_FILE)
+    ? TMP_DAFTAR_KONTAK_FILE
+    : (fs.existsSync(DAFTAR_KONTAK_FILE) ? DAFTAR_KONTAK_FILE : null);
+}
+
+if (candidateKontakFile) {
+  try {
+    const rawKontak = fs.readFileSync(candidateKontakFile, 'utf8');
+    const parsedKontak = JSON.parse(rawKontak);
+    if (Array.isArray(parsedKontak)) {
+      database.daftarKontak = parsedKontak.map(k => normalizeKontakItem(k, k));
+      console.log(`[DB] Restored daftar_kontak cache from ${candidateKontakFile} (${database.daftarKontak.length} contacts).`);
+    }
+  } catch (kErr) {
+    console.warn('[DB] Could not load daftar_kontak.json:', kErr.message);
+  }
+}
+
+function persistDaftarKontakData() {
+  const content = JSON.stringify(database.daftarKontak || [], null, 2);
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (_) {}
+    }
+    fs.writeFileSync(DAFTAR_KONTAK_FILE, content, 'utf8');
+    if (fs.existsSync(TMP_DAFTAR_KONTAK_FILE)) {
+      try { fs.writeFileSync(TMP_DAFTAR_KONTAK_FILE, content, 'utf8'); } catch (_) {}
+    }
+  } catch (e) {
+    try {
+      fs.writeFileSync(TMP_DAFTAR_KONTAK_FILE, content, 'utf8');
+    } catch (tmpErr) {
+      console.warn('[DB] Could not save daftar_kontak data to disk or /tmp:', tmpErr.message);
+    }
+  }
+}
+
+async function syncKontakToGoogleSheets(action, kontakItem) {
+  if (!GOOGLE_SHEETS_API_URL || !kontakItem) return false;
+  try {
+    const payload = {
+      action,
+      sheet: 'Daftar_Kontak',
+      item: {
+        id: String(kontakItem['ID Kontak'] || kontakItem.id_kontak || kontakItem.id || '').trim(),
+        id_kontak: String(kontakItem['ID Kontak'] || kontakItem.id_kontak || kontakItem.id || '').trim(),
+        'ID Kontak': String(kontakItem['ID Kontak'] || kontakItem.id_kontak || kontakItem.id || '').trim(),
+        nama: kontakItem.nama || kontakItem['Nama'] || '',
+        'Nama': kontakItem['Nama'] || kontakItem.nama || '',
+        instansi_media: kontakItem.instansi_media || kontakItem['Instansi/Media'] || '',
+        'Instansi/Media': kontakItem['Instansi/Media'] || kontakItem.instansi_media || '',
+        no_hp_wa: kontakItem.no_hp_wa || kontakItem['No. HP/WA'] || '',
+        'No. HP/WA': kontakItem['No. HP/WA'] || kontakItem.no_hp_wa || '',
+        keterangan: kontakItem.keterangan !== undefined ? kontakItem.keterangan : (kontakItem['Keterangan'] || ''),
+        'Keterangan': kontakItem['Keterangan'] !== undefined ? kontakItem['Keterangan'] : (kontakItem.keterangan || ''),
+        tanggal_dibuat: kontakItem.tanggal_dibuat || kontakItem['Tanggal Dibuat'] || '',
+        'Tanggal Dibuat': kontakItem['Tanggal Dibuat'] || kontakItem.tanggal_dibuat || '',
+        terakhir_diperbarui: kontakItem.terakhir_diperbarui || kontakItem['Terakhir Diperbarui'] || '',
+        'Terakhir Diperbarui': kontakItem['Terakhir Diperbarui'] || kontakItem.terakhir_diperbarui || ''
+      }
+    };
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+    const resp = await fetch(GOOGLE_SHEETS_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      redirect: 'follow',
+      signal: controller.signal,
+      body: JSON.stringify(payload)
+    });
+    clearTimeout(timer);
+    if (resp.ok) {
+      const resJson = await resp.json().catch(() => null);
+      if (resJson && resJson.success === false) {
+        console.warn(`[DB] Google Sheets rejected Daftar_Kontak ${action}:`, resJson.error);
+        return false;
+      }
+      return true;
+    }
+  } catch (e) {
+    console.warn(`[DB] Failed to sync Daftar_Kontak ${action} to Google Sheets:`, e.message);
+  }
+  return false;
+}
+
+async function refreshDaftarKontakFromSheets() {
+  if (!GOOGLE_SHEETS_API_URL) return database.daftarKontak;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    const separator = GOOGLE_SHEETS_API_URL.includes('?') ? '&' : '?';
+    const fetchUrl = `${GOOGLE_SHEETS_API_URL}${separator}sheet=daftar_kontak`;
+    const resp = await fetch(fetchUrl, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: { 'Accept': 'application/json' }
+    });
+    clearTimeout(timer);
+    if (resp.ok) {
+      const data = await resp.json().catch(() => null);
+      if (data && Array.isArray(data.daftarKontak)) {
+        database.daftarKontak = data.daftarKontak
+          .filter(k => k && (k['Nama'] || k.nama || k['No. HP/WA'] || k.no_hp_wa))
+          .map(k => normalizeKontakItem(k, k));
+        persistDaftarKontakData();
+        return database.daftarKontak;
+      }
+    }
+  } catch (err) {
+    console.warn('[DB] Refresh Daftar_Kontak from Google Sheets failed:', err.message);
+  }
+  return database.daftarKontak;
+}
+
 // Synchronize user updates to Google Sheets database (Sheet: 'users' - Kolom B: username, Kolom C: password, Kolom D: nama, Kolom E: role, Kolom F: bidang)
 async function syncUserToGoogleSheets(action, userItem) {
   if (!GOOGLE_SHEETS_API_URL || !userItem) return false;
@@ -353,7 +540,12 @@ const SHEET_TO_PROP = {
   'masterData': 'masterData',
   'assignments': 'assignments',
   'auditTrail': 'auditTrail',
-  'repository': 'repository'
+  'repository': 'repository',
+  'Daftar_Kontak': 'daftarKontak',
+  'daftar_kontak': 'daftarKontak',
+  'daftarKontak': 'daftarKontak',
+  'kontak_partner': 'daftarKontak',
+  'kontakPartner': 'daftarKontak'
 };
 
 // Background sync of users from Google Sheets (Authoritative source: Sheet users Kolom B: username, Kolom C: password)
@@ -1128,6 +1320,56 @@ app.post(['/api/sheets', '/sheets'], async (req, res) => {
       else if (item.status === 'Rejected') item.status = 'Ditolak/Dibatalkan';
     }
 
+    if (collectionName === 'daftarKontak') {
+      if (action === 'add') {
+        if (!item) return res.status(400).json({ success: false, error: 'Data kontak wajib diisi.' });
+        const normalized = normalizeKontakItem(item);
+        if (!normalized.nama || !normalized.instansi_media || !normalized.no_hp_wa) {
+          return res.status(400).json({ success: false, error: 'Nama, Instansi/Media, dan No. HP/WA wajib diisi.' });
+        }
+        const existsIdx = collection.findIndex(i => String(i.id || i.id_kontak || '').trim() === normalized.id);
+        if (existsIdx === -1) {
+          collection.push(normalized);
+        } else {
+          collection[existsIdx] = normalized;
+        }
+        persistDaftarKontakData();
+        const sheetsSynced = await syncKontakToGoogleSheets('add', normalized);
+        return res.json({ success: true, item: normalized, sheetsSynced });
+      }
+      if (action === 'update') {
+        const targetId = item && (item.id || item.id_kontak || item['ID Kontak']);
+        if (!item || !targetId) {
+          return res.status(400).json({ success: false, error: 'ID Kontak diperlukan untuk pembaruan.' });
+        }
+        const idx = collection.findIndex(i => String(i.id || i.id_kontak || '').trim() === String(targetId).trim());
+        const existing = idx !== -1 ? collection[idx] : null;
+        const normalized = normalizeKontakItem({ ...item, 'Terakhir Diperbarui': getNowWIBTimestamp(), terakhir_diperbarui: getNowWIBTimestamp() }, existing);
+        if (!normalized.nama || !normalized.instansi_media || !normalized.no_hp_wa) {
+          return res.status(400).json({ success: false, error: 'Nama, Instansi/Media, dan No. HP/WA wajib diisi.' });
+        }
+        if (idx !== -1) {
+          collection[idx] = normalized;
+        } else {
+          collection.push(normalized);
+        }
+        persistDaftarKontakData();
+        const sheetsSynced = await syncKontakToGoogleSheets('update', normalized);
+        return res.json({ success: true, item: normalized, sheetsSynced });
+      }
+      if (action === 'delete') {
+        const targetId = item && (item.id || item.id_kontak || item['ID Kontak']);
+        if (!item || !targetId) {
+          return res.status(400).json({ success: false, error: 'ID Kontak diperlukan untuk penghapusan.' });
+        }
+        const cleanId = String(targetId).trim();
+        database.daftarKontak = collection.filter(i => String(i.id || i.id_kontak || '').trim() !== cleanId);
+        persistDaftarKontakData();
+        const sheetsSynced = await syncKontakToGoogleSheets('delete', { id: cleanId, id_kontak: cleanId, 'ID Kontak': cleanId });
+        return res.json({ success: true, sheetsSynced });
+      }
+    }
+
     if (action === 'add') {
       if (!item) {
         return res.status(400).json({ success: false, error: 'Item data required' });
@@ -1167,6 +1409,141 @@ app.post(['/api/sheets', '/sheets'], async (req, res) => {
     console.error('Error handling /api/sheets POST:', err);
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// =============================================================
+// KONTAK PARTNER (SHEET: Daftar_Kontak) APIs
+// =============================================================
+function validateKontakPayload(raw) {
+  const nama = String((raw && (raw['Nama'] ?? raw.nama)) || '').trim();
+  const instansi = String((raw && (raw['Instansi/Media'] ?? raw.instansi_media ?? raw.instansi)) || '').trim();
+  const noHp = String((raw && (raw['No. HP/WA'] ?? raw.no_hp_wa ?? raw.no_hp ?? raw.wa)) || '').trim();
+  if (!nama) return 'Nama kontak wajib diisi.';
+  if (!instansi) return 'Instansi/Media wajib diisi.';
+  if (!noHp) return 'No. HP/WA wajib diisi.';
+  const digits = noHp.replace(/\D+/g, '');
+  if (digits.length < 8 || digits.length > 16) {
+    return 'Format No. HP/WA tidak valid (minimal 8 digit angka).';
+  }
+  return null;
+}
+
+app.get(['/api/kontak-partner', '/kontak-partner'], async (req, res) => {
+  try {
+    if (req.query && req.query.refresh === '1') {
+      await refreshDaftarKontakFromSheets();
+    }
+    return res.json({
+      success: true,
+      contacts: database.daftarKontak || []
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || 'Gagal memuat daftar kontak.' });
+  }
+});
+
+app.post(['/api/kontak-partner', '/kontak-partner'], async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : (req.body && req.body.token);
+    const session = token ? verifySessionToken(token) : null;
+    if (token && !session) {
+      return res.status(401).json({ success: false, error: 'Sesi tidak valid atau kedaluwarsa. Silakan login kembali.' });
+    }
+    if (session && ['kepala', 'pemohon'].includes(String(session.role || '').toLowerCase().trim())) {
+      return res.status(403).json({ success: false, error: 'Anda tidak memiliki izin untuk mengubah Kontak Partner.' });
+    }
+
+    const body = req.body || {};
+    const action = body.action || 'add';
+    const rawItem = body.item || body;
+
+    if (action === 'delete') {
+      const targetId = String(rawItem.id || rawItem.id_kontak || rawItem['ID Kontak'] || body.id || '').trim();
+      if (!targetId) {
+        return res.status(400).json({ success: false, error: 'ID Kontak wajib disertakan.' });
+      }
+      const prevLen = (database.daftarKontak || []).length;
+      database.daftarKontak = (database.daftarKontak || []).filter(c => String(c.id || c.id_kontak || '').trim() !== targetId);
+      if (database.daftarKontak.length === prevLen) {
+        return res.status(404).json({ success: false, error: 'Kontak tidak ditemukan.' });
+      }
+      persistDaftarKontakData();
+      const sheetsSynced = await syncKontakToGoogleSheets('delete', { id: targetId, id_kontak: targetId, 'ID Kontak': targetId });
+      return res.json({ success: true, sheetsSynced, contacts: database.daftarKontak, message: 'Kontak berhasil dihapus.' });
+    }
+
+    const errMsg = validateKontakPayload(rawItem);
+    if (errMsg) {
+      return res.status(400).json({ success: false, error: errMsg });
+    }
+
+    if (action === 'update') {
+      const targetId = String(rawItem.id || rawItem.id_kontak || rawItem['ID Kontak'] || '').trim();
+      if (!targetId) {
+        return res.status(400).json({ success: false, error: 'ID Kontak wajib disertakan untuk pembaruan.' });
+      }
+      const idx = (database.daftarKontak || []).findIndex(c => String(c.id || c.id_kontak || '').trim() === targetId);
+      const existing = idx !== -1 ? database.daftarKontak[idx] : null;
+      const nowTs = getNowWIBTimestamp();
+      const updated = normalizeKontakItem({ ...rawItem, id: targetId, id_kontak: targetId, 'ID Kontak': targetId, 'Terakhir Diperbarui': nowTs, terakhir_diperbarui: nowTs }, existing);
+      if (idx !== -1) {
+        database.daftarKontak[idx] = updated;
+      } else {
+        database.daftarKontak.push(updated);
+      }
+      persistDaftarKontakData();
+      const sheetsSynced = await syncKontakToGoogleSheets('update', updated);
+      return res.json({ success: true, sheetsSynced, item: updated, contacts: database.daftarKontak, message: 'Kontak berhasil diperbarui.' });
+    }
+
+    // Default: add
+    const nowTs = getNowWIBTimestamp();
+    const created = normalizeKontakItem({
+      ...rawItem,
+      'Tanggal Dibuat': rawItem['Tanggal Dibuat'] || rawItem.tanggal_dibuat || nowTs,
+      tanggal_dibuat: rawItem.tanggal_dibuat || rawItem['Tanggal Dibuat'] || nowTs,
+      'Terakhir Diperbarui': nowTs,
+      terakhir_diperbarui: nowTs
+    });
+    if (!Array.isArray(database.daftarKontak)) database.daftarKontak = [];
+    database.daftarKontak.push(created);
+    persistDaftarKontakData();
+    const sheetsSynced = await syncKontakToGoogleSheets('add', created);
+    return res.json({ success: true, sheetsSynced, item: created, contacts: database.daftarKontak, message: 'Kontak berhasil ditambahkan.' });
+  } catch (err) {
+    console.error('[Kontak Partner POST Error]:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Gagal menyimpan kontak.' });
+  }
+});
+
+app.put(['/api/kontak-partner/:id', '/kontak-partner/:id'], async (req, res) => {
+  req.body = { ...(req.body || {}), action: 'update', item: { ...(req.body?.item || req.body || {}), id: req.params.id } };
+  return app._router.handle(Object.assign(req, { method: 'POST', url: '/api/kontak-partner' }), res, () => {});
+});
+
+app.delete(['/api/kontak-partner/:id', '/kontak-partner/:id'], async (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : (req.body && req.body.token);
+  const session = token ? verifySessionToken(token) : null;
+  if (token && !session) {
+    return res.status(401).json({ success: false, error: 'Sesi tidak valid atau kedaluwarsa. Silakan login kembali.' });
+  }
+  if (session && ['kepala', 'pemohon'].includes(String(session.role || '').toLowerCase().trim())) {
+    return res.status(403).json({ success: false, error: 'Anda tidak memiliki izin untuk menghapus Kontak Partner.' });
+  }
+  const targetId = String(req.params.id || '').trim();
+  if (!targetId) {
+    return res.status(400).json({ success: false, error: 'ID Kontak wajib disertakan.' });
+  }
+  const prevLen = (database.daftarKontak || []).length;
+  database.daftarKontak = (database.daftarKontak || []).filter(c => String(c.id || c.id_kontak || '').trim() !== targetId);
+  if (database.daftarKontak.length === prevLen) {
+    return res.status(404).json({ success: false, error: 'Kontak tidak ditemukan.' });
+  }
+  persistDaftarKontakData();
+  const sheetsSynced = await syncKontakToGoogleSheets('delete', { id: targetId, id_kontak: targetId, 'ID Kontak': targetId });
+  return res.json({ success: true, sheetsSynced, contacts: database.daftarKontak, message: 'Kontak berhasil dihapus.' });
 });
 
 // =============================================================

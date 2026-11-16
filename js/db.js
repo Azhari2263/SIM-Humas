@@ -56,7 +56,8 @@ let db = {
             versi: '2026 Q1',
             status: 'Aktif'
         }
-    ]
+    ],
+    daftarKontak: []
 };
 
 const OFFICIAL_USER_GUIDES = [];
@@ -247,7 +248,7 @@ if (typeof window !== 'undefined') {
 const TABLES = [
     'contentPlanner', 'brsSchedule', 'protocol', 'team', 'tickets', 'assets', 'monitoring',
     'users', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'rekapKegiatan',
-    'auditTrail', 'notifications', 'masterData', 'assignments', 'repository'
+    'auditTrail', 'notifications', 'masterData', 'assignments', 'repository', 'daftarKontak'
 ];
 
 const SHEET_TO_VAR = {
@@ -273,7 +274,12 @@ const SHEET_TO_VAR = {
     'notifications': 'notifications',
     'master_data': 'masterData',
     'assignments': 'assignments',
-    'repository': 'repository'
+    'repository': 'repository',
+    'Daftar_Kontak': 'daftarKontak',
+    'daftar_kontak': 'daftarKontak',
+    'daftarKontak': 'daftarKontak',
+    'kontak_partner': 'daftarKontak',
+    'kontakPartner': 'daftarKontak'
 };
 
 let isLoading = false;
@@ -424,6 +430,15 @@ function loadLocalFallbacks() {
     db.repository = db.repository.filter(r => !isUserGuideDoc(r));
     saveLocalFallback('repository');
 
+    if (!db.daftarKontak || !Array.isArray(db.daftarKontak)) {
+        db.daftarKontak = [];
+    } else {
+        db.daftarKontak = db.daftarKontak
+            .filter(k => k && (k['Nama'] || k.nama || k['No. HP/WA'] || k.no_hp_wa))
+            .map(normalizeDaftarKontakItem);
+    }
+    saveLocalFallback('daftarKontak');
+
     if (db.contentPlanner && Array.isArray(db.contentPlanner)) {
         db.contentPlanner.forEach(item => {
             const pic = item['assign To'] || item.assignTo || item.assignedTo || item.pic || '';
@@ -569,7 +584,7 @@ function applySelectiveBackgroundUpdate(changedTables = []) {
         'assignment': ['assignments', 'contentPlanner', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'tickets'],
         'rekap_kegiatan': ['rekapKegiatan', 'assignments', 'contentPlanner', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'tickets', 'team'],
         'calendar': ['contentPlanner', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'assignments', 'tickets'],
-        'repository': ['repository'],
+        'repository': ['repository', 'daftarKontak'],
         'user_management': ['users'],
         'reset_credentials': ['users'],
         'settings': ['masterData']
@@ -816,19 +831,47 @@ async function fetchDataFromSheets(silent = false) {
             if (incoming !== undefined && Array.isArray(incoming)) {
                 // Perform deep copy to isolate tempDb from network payload references
                 tempDb[varName] = JSON.parse(JSON.stringify(incoming));
-            } else {
+            } else if (!tempDb[varName] || tempDb[varName].length === 0) {
                 tempDb[varName] = [];
+            }
+        }
+
+        // Jika payload utama Google Sheets belum menyertakan daftarKontak (misal GAS belum dideploy ulang),
+        // ambil dari backend /api/kontak-partner atau pertahankan cache lokal agar kontak tidak hilang
+        const hasRemoteDaftarKontak = Array.isArray(data.daftarKontak) || Array.isArray(data['Daftar_Kontak']) || Array.isArray(data['daftar_kontak']);
+        if (!hasRemoteDaftarKontak) {
+            let apiContacts = null;
+            try {
+                const token = localStorage.getItem('sim_humas_token');
+                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+                const kResp = await fetch('/api/kontak-partner', { headers, cache: 'no-cache' });
+                if (kResp.ok) {
+                    const kJson = await kResp.json().catch(() => null);
+                    if (kJson && kJson.success && Array.isArray(kJson.contacts)) {
+                        apiContacts = kJson.contacts;
+                    }
+                }
+            } catch (_) {}
+            if (Array.isArray(apiContacts)) {
+                tempDb.daftarKontak = apiContacts;
+            } else if (Array.isArray(db.daftarKontak) && db.daftarKontak.length > 0) {
+                tempDb.daftarKontak = JSON.parse(JSON.stringify(db.daftarKontak));
             }
         }
 
         // Apply pending local changes from sync queue on top of fetched database
         applySyncQueueToTempDb(tempDb);
 
-        // Parse numeric/date properties safely
+        // Parse numeric/date properties safely (jangan ubah string ID seperti 'KTP-...' menjadi NaN)
         TABLES.forEach(tb => {
             if (tempDb[tb]) {
                 tempDb[tb].forEach(item => {
-                    if (item.id !== undefined) item.id = Number(item.id);
+                    if (item.id !== undefined && item.id !== null && item.id !== '') {
+                        const numId = Number(item.id);
+                        if (!Number.isNaN(numId) && String(item.id).trim() === String(numId)) {
+                            item.id = numId;
+                        }
+                    }
                     if (item.progres !== undefined) item.progres = Number(item.progres);
                     if (item.progress !== undefined) item.progress = Number(item.progress);
                     if (item.jumlah_bertugas !== undefined) item.jumlah_bertugas = Number(item.jumlah_bertugas);
@@ -837,6 +880,12 @@ async function fetchDataFromSheets(silent = false) {
                 });
             }
         });
+
+        if (Array.isArray(tempDb.daftarKontak)) {
+            tempDb.daftarKontak = tempDb.daftarKontak
+                .filter(k => k && (k['Nama'] || k.nama || k['No. HP/WA'] || k.no_hp_wa))
+                .map(normalizeDaftarKontakItem);
+        }
 
         // Pastikan tempDb.users murni berasal dari sheet users tanpa akun dummy
         if (tempDb.users && Array.isArray(tempDb.users)) {
@@ -1161,6 +1210,45 @@ if (typeof window !== 'undefined') {
     window.clearPendingUserSyncQueue = clearPendingUserSyncQueue;
 }
 
+// Helper perbandingan ID yang aman untuk ID numerik maupun string (misal 'KTP-...')
+function isSameRecordId(a, b) {
+    if (a === undefined || a === null || b === undefined || b === null) return false;
+    return String(a).trim() === String(b).trim();
+}
+
+// Normalisasi item Kontak Partner (sheet Daftar_Kontak)
+function normalizeDaftarKontakItem(raw) {
+    if (!raw || typeof raw !== 'object') return raw;
+    const rawId = raw['ID Kontak'] ?? raw.id_kontak ?? raw.id ?? '';
+    const idStr = String(rawId).trim();
+    const nama = String(raw['Nama'] ?? raw.nama ?? '').trim();
+    const instansi = String(raw['Instansi/Media'] ?? raw.instansi_media ?? raw.instansi ?? '').trim();
+    const noHp = String(raw['No. HP/WA'] ?? raw.no_hp_wa ?? raw.no_hp ?? raw.wa ?? '').trim();
+    const keterangan = String(raw['Keterangan'] ?? raw.keterangan ?? '').trim();
+    const tanggalDibuat = String(raw['Tanggal Dibuat'] ?? raw.tanggal_dibuat ?? '').trim();
+    const terakhirDiperbarui = String(raw['Terakhir Diperbarui'] ?? raw.terakhir_diperbarui ?? '').trim();
+    return {
+        id: idStr,
+        id_kontak: idStr,
+        'ID Kontak': idStr,
+        nama,
+        'Nama': nama,
+        instansi_media: instansi,
+        'Instansi/Media': instansi,
+        no_hp_wa: noHp,
+        'No. HP/WA': noHp,
+        keterangan,
+        'Keterangan': keterangan,
+        tanggal_dibuat: tanggalDibuat,
+        'Tanggal Dibuat': tanggalDibuat,
+        terakhir_diperbarui: terakhirDiperbarui,
+        'Terakhir Diperbarui': terakhirDiperbarui
+    };
+}
+if (typeof window !== 'undefined') {
+    window.normalizeDaftarKontakItem = normalizeDaftarKontakItem;
+}
+
 // Helper to compare two tables (arrays of objects) structurally
 function areTablesEqual(tableA, tableB) {
     if (!tableA && !tableB) return true;
@@ -1168,8 +1256,8 @@ function areTablesEqual(tableA, tableB) {
     if (tableA.length !== tableB.length) return false;
 
     // Create sorted copies to ensure order differences don't trigger mismatch
-    const sortedA = [...tableA].sort((x, y) => Number(x.id || 0) - Number(y.id || 0));
-    const sortedB = [...tableB].sort((x, y) => Number(x.id || 0) - Number(y.id || 0));
+    const sortedA = [...tableA].sort((x, y) => String(x.id || '').localeCompare(String(y.id || ''), undefined, { numeric: true }));
+    const sortedB = [...tableB].sort((x, y) => String(x.id || '').localeCompare(String(y.id || ''), undefined, { numeric: true }));
 
     // Fast comparison using JSON stringify
     return JSON.stringify(sortedA) === JSON.stringify(sortedB);
@@ -1182,21 +1270,21 @@ function applySyncQueueToTempDb(targetDb) {
         if (!targetDb[varName]) return;
 
         if (task.action === 'add') {
-            const idx = targetDb[varName].findIndex(i => Number(i.id) === Number(task.item.id));
+            const idx = targetDb[varName].findIndex(i => isSameRecordId(i.id, task.item.id));
             if (idx === -1) {
                 targetDb[varName].push(task.item);
             } else {
                 targetDb[varName][idx] = task.item;
             }
         } else if (task.action === 'update') {
-            const idx = targetDb[varName].findIndex(i => Number(i.id) === Number(task.item.id));
+            const idx = targetDb[varName].findIndex(i => isSameRecordId(i.id, task.item.id));
             if (idx !== -1) {
                 targetDb[varName][idx] = task.item;
             } else {
                 targetDb[varName].push(task.item);
             }
         } else if (task.action === 'delete') {
-            targetDb[varName] = targetDb[varName].filter(i => Number(i.id) !== Number(task.item.id));
+            targetDb[varName] = targetDb[varName].filter(i => !isSameRecordId(i.id, task.item.id));
         }
     });
 }
@@ -1453,21 +1541,21 @@ async function sendDataToServer(action, sheetName, item) {
             const maxId = db[varName].reduce((max, i) => Math.max(max, Number(i.id) || 0), 0);
             item.id = maxId + 1;
         }
-        const idx = db[varName].findIndex(i => Number(i.id) === Number(item.id));
+        const idx = db[varName].findIndex(i => isSameRecordId(i.id, item.id));
         if (idx === -1) {
             db[varName].push(item);
         } else {
             db[varName][idx] = item;
         }
     } else if (action === 'update') {
-        const idx = db[varName].findIndex(i => Number(i.id) === Number(item.id));
+        const idx = db[varName].findIndex(i => isSameRecordId(i.id, item.id));
         if (idx !== -1) {
             db[varName][idx] = item;
         } else {
             db[varName].push(item);
         }
     } else if (action === 'delete') {
-        db[varName] = db[varName].filter(i => Number(i.id) !== Number(item.id));
+        db[varName] = db[varName].filter(i => !isSameRecordId(i.id, item.id));
     }
 
     saveLocalFallback(varName);
@@ -1485,6 +1573,111 @@ async function sendDataToServer(action, sheetName, item) {
 
     // Process queue in the background
     processSyncQueue();
+}
+
+// CRUD langsung dan sinkronisasi penuh untuk Kontak Partner (sheet Daftar_Kontak)
+async function syncDaftarKontakCrud(action, itemData) {
+    const token = localStorage.getItem('sim_humas_token') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const nowWIB = typeof getNowWIB === 'function' ? getNowWIB() : new Date();
+    const pad2 = n => String(n).padStart(2, '0');
+    const nowTs = `${nowWIB.getFullYear()}-${pad2(nowWIB.getMonth() + 1)}-${pad2(nowWIB.getDate())} ${pad2(nowWIB.getHours())}:${pad2(nowWIB.getMinutes())}:${pad2(nowWIB.getSeconds())}`;
+
+    const baseId = String((itemData && (itemData['ID Kontak'] || itemData.id_kontak || itemData.id)) || `KTP-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`).trim();
+    const prepared = action === 'delete'
+        ? { id: baseId, id_kontak: baseId, 'ID Kontak': baseId }
+        : normalizeDaftarKontakItem({
+            ...itemData,
+            id: baseId,
+            id_kontak: baseId,
+            'ID Kontak': baseId,
+            tanggal_dibuat: (itemData && (itemData.tanggal_dibuat || itemData['Tanggal Dibuat'])) || nowTs,
+            'Tanggal Dibuat': (itemData && (itemData['Tanggal Dibuat'] || itemData.tanggal_dibuat)) || nowTs,
+            terakhir_diperbarui: nowTs,
+            'Terakhir Diperbarui': nowTs
+        });
+
+    let serverSucceeded = false;
+    let finalItem = prepared;
+    let serverContacts = null;
+
+    // 1. Coba melalui backend /api/kontak-partner (menyimpan persisten + meneruskan sinkronisasi ke Google Sheets Daftar_Kontak)
+    try {
+        const resp = await fetch('/api/kontak-partner', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ action, item: prepared, token })
+        });
+        const rawText = await resp.text();
+        let json = null;
+        try { json = rawText ? JSON.parse(rawText) : null; } catch (_) {}
+
+        if (!resp.ok) {
+            throw new Error((json && json.error) || `Gagal memproses kontak (HTTP ${resp.status})`);
+        }
+        if (!json || !json.success) {
+            throw new Error((json && json.error) || 'Gagal menyimpan data kontak di server.');
+        }
+
+        serverSucceeded = true;
+        if (json.item) finalItem = normalizeDaftarKontakItem(json.item);
+        if (Array.isArray(json.contacts)) {
+            serverContacts = json.contacts.map(normalizeDaftarKontakItem);
+        }
+    } catch (apiErr) {
+        // Jika kesalahan validasi / otorisasi dari server, hentikan dan lempar error ke UI
+        if (apiErr && /wajib|tidak valid|izin|kedaluwarsa|tidak ditemukan|HTTP 4\d\d/i.test(apiErr.message || '')) {
+            throw apiErr;
+        }
+        // Fallback langsung ke Google Sheets Apps Script jika endpoint lokal tidak tersedia
+        try {
+            const gasResp = await fetch(GOOGLE_SHEETS_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action, sheet: 'Daftar_Kontak', item: prepared })
+            });
+            const gasJson = await gasResp.json().catch(() => null);
+            if (gasResp.ok && gasJson && gasJson.success) {
+                serverSucceeded = true;
+                if (gasJson.item) finalItem = normalizeDaftarKontakItem(gasJson.item);
+            }
+        } catch (_) {}
+    }
+
+    if (!Array.isArray(db.daftarKontak)) db.daftarKontak = [];
+
+    if (serverContacts) {
+        db.daftarKontak = serverContacts;
+    } else if (action === 'add') {
+        const idx = db.daftarKontak.findIndex(c => isSameRecordId(c.id, finalItem.id));
+        if (idx === -1) db.daftarKontak.push(finalItem);
+        else db.daftarKontak[idx] = finalItem;
+    } else if (action === 'update') {
+        const idx = db.daftarKontak.findIndex(c => isSameRecordId(c.id, finalItem.id));
+        if (idx !== -1) db.daftarKontak[idx] = finalItem;
+        else db.daftarKontak.push(finalItem);
+    } else if (action === 'delete') {
+        db.daftarKontak = db.daftarKontak.filter(c => !isSameRecordId(c.id, baseId));
+    }
+
+    saveLocalFallback('daftarKontak');
+
+    if (!serverSucceeded) {
+        syncQueue.push({ action, sheet: 'Daftar_Kontak', item: prepared });
+        saveSyncQueue();
+        processSyncQueue();
+    }
+
+    if (typeof currentUser !== 'undefined' && currentUser && typeof applySelectiveBackgroundUpdate === 'function') {
+        applySelectiveBackgroundUpdate(['daftarKontak']);
+    }
+
+    return { success: true, item: finalItem, serverSynced: serverSucceeded };
+}
+if (typeof window !== 'undefined') {
+    window.syncDaftarKontakCrud = syncDaftarKontakCrud;
 }
 
 // Background Sync Queue Worker

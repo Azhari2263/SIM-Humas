@@ -9,6 +9,14 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify(usersOnly))
       .setMimeType(ContentService.MimeType.JSON);
   }
+
+  if (requestedSheet === 'daftar_kontak' || requestedSheet === 'daftarkontak') {
+    const kontakOnly = {
+      daftarKontak: getSheetData(sheet, 'Daftar_Kontak', ["ID Kontak", "Nama", "Instansi/Media", "No. HP/WA", "Keterangan", "Tanggal Dibuat", "Terakhir Diperbarui"])
+    };
+    return ContentService.createTextOutput(JSON.stringify(kontakOnly))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   
   // Ambil atau buat lembar data secara dinamis (Self-Healing Schema Terintegrasi)
   const data = {
@@ -31,7 +39,8 @@ function doGet(e) {
     auditTrail: getSheetData(sheet, 'audit_trail', ["id", "user", "action", "details", "timestamp"]),
     masterData: getSheetData(sheet, 'master_data', ["id", "kategori", "kode", "nilai", "keterangan"]),
     assignments: getSheetData(sheet, 'assignments', ["id", "petugas", "kegiatan", "peran", "tanggal", "status"]),
-    repository: getSheetData(sheet, 'repository', ["id", "nama_dokumen", "kategori", "deskripsi", "tanggal", "pic", "link_cloud", "versi", "status"])
+    repository: getSheetData(sheet, 'repository', ["id", "nama_dokumen", "kategori", "deskripsi", "tanggal", "pic", "link_cloud", "versi", "status"]),
+    daftarKontak: getSheetData(sheet, 'Daftar_Kontak', ["ID Kontak", "Nama", "Instansi/Media", "No. HP/WA", "Keterangan", "Tanggal Dibuat", "Terakhir Diperbarui"])
   };
   
   return ContentService.createTextOutput(JSON.stringify(data))
@@ -81,8 +90,20 @@ function doPost(e) {
   const rows = ws.getDataRange().getValues();
   const currentHeaders = rows[0];
   
-  // Cari index kolom 'id'
-  const idIndex = currentHeaders.indexOf('id');
+  // Cari index kolom ID ('id' atau 'ID Kontak')
+  let idIndex = currentHeaders.indexOf('id');
+  if (idIndex === -1) {
+    idIndex = currentHeaders.indexOf('ID Kontak');
+  }
+  if (idIndex === -1) {
+    for (let hIdx = 0; hIdx < currentHeaders.length; hIdx++) {
+      const hLow = String(currentHeaders[hIdx] || '').trim().toLowerCase();
+      if (hLow === 'id' || hLow === 'id kontak' || hLow === 'id_kontak') {
+        idIndex = hIdx;
+        break;
+      }
+    }
+  }
   if (idIndex === -1) {
     return ContentService.createTextOutput(JSON.stringify({success: false, error: "Column 'id' not found in sheet: " + normalizedSheetName}))
       .setMimeType(ContentService.MimeType.JSON);
@@ -198,8 +219,26 @@ function doPost(e) {
     if (h === 'tautan_dokumentasi') {
       return item.tautan_dokumentasi || item.link_cloud || item.highlight || "";
     }
+    if (h === 'id kontak' || h === 'id_kontak') {
+      return item['ID Kontak'] || item.id_kontak || item.id || "";
+    }
+    if (h === 'nama') {
+      return item['Nama'] || item.nama || "";
+    }
+    if (h === 'instansi/media' || h === 'instansi_media' || h === 'instansi') {
+      return item['Instansi/Media'] || item.instansi_media || item.instansi || "";
+    }
+    if (h === 'no. hp/wa' || h === 'no_hp_wa' || h === 'no_hp' || h === 'wa') {
+      return item['No. HP/WA'] || item.no_hp_wa || item.no_hp || item.wa || "";
+    }
+    if (h === 'tanggal dibuat' || h === 'tanggal_dibuat') {
+      return item['Tanggal Dibuat'] || item.tanggal_dibuat || "";
+    }
+    if (h === 'terakhir diperbarui' || h === 'terakhir_diperbarui') {
+      return item['Terakhir Diperbarui'] || item.terakhir_diperbarui || "";
+    }
     if (h === 'keterangan') {
-      return item.keterangan || "";
+      return item['Keterangan'] !== undefined ? item['Keterangan'] : (item.keterangan || "");
     }
     if (h === 'topik') {
       return item.topik || "";
@@ -219,6 +258,24 @@ function doPost(e) {
     return val !== undefined && val !== null ? val : "";
   }
 
+  function formatNowWibGas() {
+    try {
+      return Utilities.formatDate(new Date(), "GMT+7", "yyyy-MM-dd HH:mm:ss");
+    } catch (_) {
+      return new Date().toISOString();
+    }
+  }
+
+  function ensureDaftarKontakPhoneTextFormat(targetWs, headersArr, rowIdxOneBased) {
+    if (normalizedSheetName !== 'Daftar_Kontak') return;
+    const hpColIdx = headersArr.indexOf('No. HP/WA');
+    if (hpColIdx !== -1 && rowIdxOneBased >= 2) {
+      try {
+        targetWs.getRange(rowIdxOneBased, hpColIdx + 1).setNumberFormat('@');
+      } catch (_) {}
+    }
+  }
+
   if (data.action === 'add') {
     if (!data.item) {
       return ContentService.createTextOutput(JSON.stringify({success: false, error: "No item data to add"}))
@@ -226,29 +283,68 @@ function doPost(e) {
     }
     
     // Auto-generate ID jika belum ada
-    if (!data.item.id) {
+    if (normalizedSheetName === 'Daftar_Kontak') {
+      const nowWib = formatNowWibGas();
+      const generatedId = data.item['ID Kontak'] || data.item.id_kontak || data.item.id || ("KTP-" + new Date().getTime() + "-" + Math.floor(100 + Math.random() * 900));
+      data.item.id = String(generatedId);
+      data.item.id_kontak = String(generatedId);
+      data.item['ID Kontak'] = String(generatedId);
+      if (!data.item['Tanggal Dibuat'] && !data.item.tanggal_dibuat) {
+        data.item['Tanggal Dibuat'] = nowWib;
+        data.item.tanggal_dibuat = nowWib;
+      }
+      if (!data.item['Terakhir Diperbarui'] && !data.item.terakhir_diperbarui) {
+        data.item['Terakhir Diperbarui'] = nowWib;
+        data.item.terakhir_diperbarui = nowWib;
+      }
+      if (data.item.no_hp_wa !== undefined || data.item['No. HP/WA'] !== undefined) {
+        const rawHp = String(data.item['No. HP/WA'] || data.item.no_hp_wa || '');
+        data.item['No. HP/WA'] = rawHp;
+        data.item.no_hp_wa = rawHp;
+      }
+    } else if (!data.item.id) {
       data.item.id = new Date().getTime();
     }
     
     // Petakan data objek sesuai dengan susunan header kolom
+    const nextRowIndex = ws.getLastRow() + 1;
+    ensureDaftarKontakPhoneTextFormat(ws, currentHeaders, nextRowIndex);
     const rowData = currentHeaders.map(header => getCellValue(data.item, header));
     ws.appendRow(rowData);
     return ContentService.createTextOutput(JSON.stringify({success: true, item: data.item}))
       .setMimeType(ContentService.MimeType.JSON);
     
   } else if (data.action === 'update') {
-    if (!data.item || data.item.id === undefined) {
+    const rawUpdateId = data.item && (data.item.id !== undefined && data.item.id !== '' ? data.item.id : (data.item.id_kontak || data.item['ID Kontak']));
+    if (!data.item || rawUpdateId === undefined || rawUpdateId === '') {
       return ContentService.createTextOutput(JSON.stringify({success: false, error: "Item ID required for update"}))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    const idToUpdate = String(data.item.id).trim();
+    const idToUpdate = String(rawUpdateId).trim();
     let updated = false;
+
+    if (normalizedSheetName === 'Daftar_Kontak') {
+      const nowWib = formatNowWibGas();
+      data.item.id = idToUpdate;
+      data.item.id_kontak = idToUpdate;
+      data.item['ID Kontak'] = idToUpdate;
+      data.item['Terakhir Diperbarui'] = data.item['Terakhir Diperbarui'] || data.item.terakhir_diperbarui || nowWib;
+      data.item.terakhir_diperbarui = data.item['Terakhir Diperbarui'];
+    }
     
     // Cari baris yang cocok berdasarkan ID
     for (let i = 1; i < rows.length; i++) {
       if (String(rows[i][idIndex]).trim() === idToUpdate) {
         const rowIndex = i + 1;
+        if (normalizedSheetName === 'Daftar_Kontak') {
+          const createdIdx = currentHeaders.indexOf('Tanggal Dibuat');
+          if (createdIdx !== -1 && !data.item['Tanggal Dibuat'] && !data.item.tanggal_dibuat) {
+            data.item['Tanggal Dibuat'] = rows[i][createdIdx] || formatNowWibGas();
+            data.item.tanggal_dibuat = data.item['Tanggal Dibuat'];
+          }
+          ensureDaftarKontakPhoneTextFormat(ws, currentHeaders, rowIndex);
+        }
         const rowData = currentHeaders.map(header => {
           const val = getCellValue(data.item, header);
           return val !== undefined && val !== null ? val : rows[i][currentHeaders.indexOf(header)];
@@ -260,6 +356,15 @@ function doPost(e) {
     }
     if (!updated) {
       // Jika baris tidak ditemukan, tambahkan sebagai baris baru
+      if (normalizedSheetName === 'Daftar_Kontak') {
+        const nextRowIndex = ws.getLastRow() + 1;
+        ensureDaftarKontakPhoneTextFormat(ws, currentHeaders, nextRowIndex);
+        if (!data.item['Tanggal Dibuat'] && !data.item.tanggal_dibuat) {
+          const nowWib = formatNowWibGas();
+          data.item['Tanggal Dibuat'] = nowWib;
+          data.item.tanggal_dibuat = nowWib;
+        }
+      }
       const rowData = currentHeaders.map(header => getCellValue(data.item, header));
       ws.appendRow(rowData);
     }
@@ -331,12 +436,13 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON);
     
   } else if (data.action === 'delete') {
-    if (!data.item || data.item.id === undefined) {
+    const rawDeleteId = data.item && (data.item.id !== undefined && data.item.id !== '' ? data.item.id : (data.item.id_kontak || data.item['ID Kontak']));
+    if (!data.item || rawDeleteId === undefined || rawDeleteId === '') {
       return ContentService.createTextOutput(JSON.stringify({success: false, error: "Item ID required for delete"}))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    const idToDelete = String(data.item.id).trim();
+    const idToDelete = String(rawDeleteId).trim();
     let deleted = false;
     
     // Cari dan hapus baris dari bawah ke atas agar tidak mengganggu indeks baris berikutnya
@@ -430,6 +536,25 @@ function getSheetData(sheet, sheetName, defaultHeaders) {
       }
     }
 
+    if (sheetName === 'Daftar_Kontak') {
+      const kontakId = String(obj['ID Kontak'] || obj.id_kontak || obj.id || '').trim();
+      obj['ID Kontak'] = kontakId;
+      obj.id_kontak = kontakId;
+      obj.id = kontakId;
+      obj.nama = String(obj['Nama'] || obj.nama || '').trim();
+      obj['Nama'] = obj.nama;
+      obj.instansi_media = String(obj['Instansi/Media'] || obj.instansi_media || '').trim();
+      obj['Instansi/Media'] = obj.instansi_media;
+      obj.no_hp_wa = String(obj['No. HP/WA'] || obj.no_hp_wa || '').trim();
+      obj['No. HP/WA'] = obj.no_hp_wa;
+      obj.keterangan = String(obj['Keterangan'] !== undefined ? obj['Keterangan'] : (obj.keterangan || '')).trim();
+      obj['Keterangan'] = obj.keterangan;
+      obj.tanggal_dibuat = String(obj['Tanggal Dibuat'] || obj.tanggal_dibuat || '').trim();
+      obj['Tanggal Dibuat'] = obj.tanggal_dibuat;
+      obj.terakhir_diperbarui = String(obj['Terakhir Diperbarui'] || obj.terakhir_diperbarui || '').trim();
+      obj['Terakhir Diperbarui'] = obj.terakhir_diperbarui;
+    }
+
     return obj;
   });
 }
@@ -469,7 +594,12 @@ function resolveSheetName(name) {
     'auditTrail': 'audit_trail',
     'masterData': 'master_data',
     'assignments': 'assignments',
-    'repository': 'repository'
+    'repository': 'repository',
+    'daftarKontak': 'Daftar_Kontak',
+    'daftar_kontak': 'Daftar_Kontak',
+    'Daftar_Kontak': 'Daftar_Kontak',
+    'kontakPartner': 'Daftar_Kontak',
+    'kontak_partner': 'Daftar_Kontak'
   };
   return map[name] || name;
 }
@@ -505,7 +635,10 @@ function getHeadersForSheet(name) {
     'master_data': ["id", "kategori", "kode", "nilai", "keterangan"],
     'masterData': ["id", "kategori", "kode", "nilai", "keterangan"],
     'assignments': ["id", "petugas", "kegiatan", "peran", "tanggal", "status"],
-    'repository': ["id", "nama_dokumen", "kategori", "deskripsi", "tanggal", "pic", "link_cloud", "versi", "status"]
+    'repository': ["id", "nama_dokumen", "kategori", "deskripsi", "tanggal", "pic", "link_cloud", "versi", "status"],
+    'Daftar_Kontak': ["ID Kontak", "Nama", "Instansi/Media", "No. HP/WA", "Keterangan", "Tanggal Dibuat", "Terakhir Diperbarui"],
+    'daftarKontak': ["ID Kontak", "Nama", "Instansi/Media", "No. HP/WA", "Keterangan", "Tanggal Dibuat", "Terakhir Diperbarui"],
+    'daftar_kontak': ["ID Kontak", "Nama", "Instansi/Media", "No. HP/WA", "Keterangan", "Tanggal Dibuat", "Terakhir Diperbarui"]
   };
   return schemas[name] || null;
 }

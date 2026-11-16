@@ -11111,7 +11111,7 @@ function renderRepository(container) {
             </div>
             <div class="flex items-center gap-2.5 self-stretch md:self-auto shrink-0">
                 ${canManage ? `
-                    <button onclick="openModal('repository')" class="btn-primary px-5 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm">
+                    <button id="repo-top-add-btn" onclick="openModal('repository')" class="btn-primary px-5 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm">
                         <i class="fa-solid fa-cloud-arrow-up"></i> Tambah Dokumen
                     </button>
                 ` : ''}
@@ -11129,10 +11129,10 @@ function renderRepository(container) {
                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none text-xs">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </span>
-                        <input type="text" id="repo-search-input" oninput="handleRepoSearch(this.value)" value="${repoSearch}" placeholder="Cari nama dokumen, deskripsi, atau PIC..." class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 font-medium transition-all">
+                        <input type="text" id="repo-search-input" oninput="handleRepoSearch(this.value)" value="${escapeHtml(repoSearch)}" placeholder="Cari nama dokumen, deskripsi, atau PIC..." class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 font-medium transition-all">
                     </div>
-                    <div class="flex items-center gap-2">
-                        <select id="repo-category-select" onchange="handleRepoCategoryFilter(this.value)" class="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-200 font-bold focus:outline-none focus:border-indigo-500">
+                    <div class="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                        <select id="repo-category-select" onchange="handleRepoCategoryFilter(this.value)" class="flex-1 sm:flex-none px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-200 font-bold focus:outline-none focus:border-indigo-500">
                             <option value="">Semua Folder / Kategori</option>
                             <option value="Pedoman" ${repoCategoryFilter === 'Pedoman' ? 'selected' : ''}>Pedoman & Juknis</option>
                             <option value="Template" ${repoCategoryFilter === 'Template' ? 'selected' : ''}>Template Desain</option>
@@ -11154,13 +11154,13 @@ function renderRepository(container) {
 
                 <!-- View Mode Switch -->
                 <div class="flex items-center gap-1 self-end lg:self-auto bg-slate-100 dark:bg-slate-900 p-1 rounded-xl shrink-0">
-                    <button onclick="openRepoFolder(null)" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${repoActiveFolder === null && !repoSearch ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}">
+                    <button id="repo-mode-folder-btn" onclick="openRepoFolder(null)" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${repoActiveFolder === null && !repoSearch ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}">
                         <i class="fa-solid fa-folder-tree"></i> Folder
                     </button>
-                    <button onclick="setRepoViewMode('grid')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${repoViewMode === 'grid' && (repoActiveFolder !== null || repoSearch) ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}">
-                        <i class="fa-solid fa-grid-2"></i> Grid
+                    <button id="repo-mode-grid-btn" onclick="setRepoViewMode('grid')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${repoViewMode === 'grid' && (repoActiveFolder !== null || repoSearch) ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}">
+                        <i class="fa-solid fa-table-cells-large"></i> Grid
                     </button>
-                    <button onclick="setRepoViewMode('table')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${repoViewMode === 'table' && (repoActiveFolder !== null || repoSearch) ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}">
+                    <button id="repo-mode-table-btn" onclick="setRepoViewMode('table')" class="hidden md:flex px-3 py-1.5 rounded-lg text-xs font-bold transition-all items-center gap-1.5 ${repoViewMode === 'table' && (repoActiveFolder !== null || repoSearch) ? 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}">
                         <i class="fa-solid fa-list-ul"></i> Tabel
                     </button>
                 </div>
@@ -11196,11 +11196,50 @@ function drawRepositoryContent() {
     const isKepala = currentUser && currentUser.role === 'kepala';
     const canManage = !isKepala && (isUserAdminOrKetua() || (currentUser && currentUser.role === 'tim'));
 
+    const kontakList = Array.isArray(db.daftarKontak) ? db.daftarKontak : [];
+    const kontakPartnerCount = kontakList.length;
+
     // Hitung statistik dokumen
     const totalDocs = items.length;
     const pedomanCount = items.filter(i => i.kategori === 'Pedoman').length;
     const templateCount = items.filter(i => i.kategori === 'Template').length;
-    const kontakPartnerCount = items.filter(i => i.kategori === 'Kontak Partner').length;
+
+    // Sinkronkan kontrol toolbar sesuai folder aktif (Kontak Partner vs Dokumen lainnya)
+    const isKontakFolder = repoActiveFolder === 'Kontak Partner';
+    const topAddBtn = document.getElementById('repo-top-add-btn');
+    if (topAddBtn) {
+        if (isKontakFolder) {
+            topAddBtn.setAttribute('onclick', 'openKontakPartnerModal()');
+            topAddBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Tambah Kontak';
+        } else {
+            topAddBtn.setAttribute('onclick', "openModal('repository')");
+            topAddBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Tambah Dokumen';
+        }
+    }
+    const searchInputEl = document.getElementById('repo-search-input');
+    if (searchInputEl) {
+        searchInputEl.placeholder = isKontakFolder
+            ? 'Cari nama kontak, instansi/media, no. HP/WA, atau keterangan...'
+            : 'Cari nama dokumen, deskripsi, atau PIC...';
+    }
+    const statusSelectEl = document.getElementById('repo-status-select');
+    if (statusSelectEl) {
+        if (isKontakFolder) statusSelectEl.classList.add('hidden');
+        else statusSelectEl.classList.remove('hidden');
+    }
+
+    const modeFolderBtn = document.getElementById('repo-mode-folder-btn');
+    const modeGridBtn = document.getElementById('repo-mode-grid-btn');
+    const modeTableBtn = document.getElementById('repo-mode-table-btn');
+    const activeBtnCls = 'bg-white dark:bg-slate-800 text-indigo-650 dark:text-indigo-400 shadow-xs';
+    const inactiveBtnCls = 'text-slate-500 dark:text-slate-400 hover:text-slate-700';
+    const isFolderRoot = repoActiveFolder === null && !repoSearch.trim() && !repoCategoryFilter && !repoStatusFilter;
+    const effectiveMode = (isKontakFolder && isKontakMobileViewport()) ? 'grid' : repoViewMode;
+    if (modeFolderBtn && modeGridBtn && modeTableBtn) {
+        modeFolderBtn.className = `px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${isFolderRoot ? activeBtnCls : inactiveBtnCls}`;
+        modeGridBtn.className = `px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${!isFolderRoot && effectiveMode === 'grid' ? activeBtnCls : inactiveBtnCls}`;
+        modeTableBtn.className = `hidden md:flex px-3 py-1.5 rounded-lg text-xs font-bold transition-all items-center gap-1.5 ${!isFolderRoot && effectiveMode === 'table' ? activeBtnCls : inactiveBtnCls}`;
+    }
 
     if (kpiContainer) {
         kpiContainer.innerHTML = `
@@ -11233,6 +11272,12 @@ function drawRepositoryContent() {
                 <div class="w-11 h-11 bg-teal-50 dark:bg-teal-955/40 rounded-xl flex items-center justify-center text-teal-600 dark:text-teal-400 font-bold text-lg"><i class="fa-solid fa-address-book"></i></div>
             </div>
         `;
+    }
+
+    // Khusus Folder Kontak Partner (terintegrasi sheet Daftar_Kontak)
+    if (isKontakFolder) {
+        renderKontakPartnerFolderView(contentArea, pagination, canManage);
+        return;
     }
 
     // TAMPILAN AWAL: FOLDER KATEGORI
@@ -11285,7 +11330,9 @@ function drawRepositoryContent() {
                 <!-- Grid Kartu Folder Kategori -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     ${folderDefs.map(f => {
-                        const count = items.filter(it => it.kategori === f.id).length;
+                        const isKontakDef = f.id === 'Kontak Partner';
+                        const count = isKontakDef ? kontakPartnerCount : items.filter(it => it.kategori === f.id).length;
+                        const countUnit = isKontakDef ? 'Kontak' : 'Dokumen';
                         return `
                             <div onclick="openRepoFolder('${f.id}')" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-205 dark:border-slate-705 p-6 shadow-xs hover:shadow-lg hover:border-indigo-400 dark:hover:border-indigo-500 transition-all duration-200 cursor-pointer group flex flex-col justify-between relative overflow-hidden">
                                 <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-slate-100/50 dark:from-slate-700/20 to-transparent rounded-bl-full pointer-events-none group-hover:scale-125 transition-transform duration-300"></div>
@@ -11296,7 +11343,7 @@ function drawRepositoryContent() {
                                             <i class="fa-solid fa-folder-open hidden group-hover:inline-block"></i>
                                         </div>
                                         <span class="px-3 py-1 rounded-full text-xs font-extrabold ${f.badge} border shadow-xs">
-                                            ${count} Dokumen
+                                            ${count} ${countUnit}
                                         </span>
                                     </div>
                                     <h4 class="text-base font-black text-slate-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
@@ -11681,6 +11728,633 @@ window.copyRepoLink = function(encodedLink) {
         prompt('Salin tautan dokumen berikut:', link);
     }
 };
+
+// =============================================================
+// KONTAK PARTNER (SHEET: Daftar_Kontak) — VIEW, WA & CRUD
+// =============================================================
+let kontakPartnerPage = 1;
+const kontakPartnerLimit = 12;
+let kontakSortField = 'nama';
+let kontakSortAsc = true;
+let kontakWasMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+
+function isKontakMobileViewport() {
+    return typeof window !== 'undefined' && window.innerWidth < 768;
+}
+
+function formatWhatsAppNumber(rawPhone) {
+    if (rawPhone === null || rawPhone === undefined) return '';
+    let digits = String(rawPhone).replace(/\D+/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('0062')) {
+        digits = '62' + digits.slice(4);
+    }
+    if (digits.startsWith('620')) {
+        digits = '62' + digits.slice(3).replace(/^0+/, '');
+    } else if (digits.startsWith('0')) {
+        digits = '62' + digits.slice(1).replace(/^0+/, '');
+    } else if (!digits.startsWith('62')) {
+        digits = '62' + digits;
+    }
+    return digits;
+}
+
+function getWhatsAppUrl(rawPhone) {
+    const digits = formatWhatsAppNumber(rawPhone);
+    return digits ? `https://wa.me/${digits}` : '';
+}
+
+window.formatWhatsAppNumber = formatWhatsAppNumber;
+window.getWhatsAppUrl = getWhatsAppUrl;
+
+function getKontakInitials(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'KP';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function getKontakDisplayFields(raw) {
+    const id = String((raw && (raw['ID Kontak'] || raw.id_kontak || raw.id)) || '').trim();
+    const nama = String((raw && (raw['Nama'] || raw.nama)) || '').trim();
+    const instansi = String((raw && (raw['Instansi/Media'] || raw.instansi_media || raw.instansi)) || '').trim();
+    const noHp = String((raw && (raw['No. HP/WA'] || raw.no_hp_wa || raw.no_hp || raw.wa)) || '').trim();
+    const keterangan = String((raw && (raw['Keterangan'] !== undefined ? raw['Keterangan'] : (raw.keterangan || ''))) || '').trim();
+    const tanggalDibuat = String((raw && (raw['Tanggal Dibuat'] || raw.tanggal_dibuat)) || '').trim();
+    const terakhirDiperbarui = String((raw && (raw['Terakhir Diperbarui'] || raw.terakhir_diperbarui)) || '').trim();
+    const waDigits = formatWhatsAppNumber(noHp);
+    const waUrl = waDigits ? `https://wa.me/${waDigits}` : '';
+    return { id, nama, instansi, noHp, keterangan, tanggalDibuat, terakhirDiperbarui, waDigits, waUrl };
+}
+
+window.handleKontakSort = function(field) {
+    if (kontakSortField === field) {
+        kontakSortAsc = !kontakSortAsc;
+    } else {
+        kontakSortField = field;
+        kontakSortAsc = true;
+    }
+    drawRepositoryContent();
+};
+
+window.changeKontakPage = function(page) {
+    kontakPartnerPage = Math.max(1, page);
+    drawRepositoryContent();
+};
+
+window.setKontakViewMode = function(mode) {
+    repoViewMode = mode === 'table' ? 'table' : 'grid';
+    drawRepositoryContent();
+};
+
+function renderKontakPartnerFolderView(contentArea, pagination, canManage) {
+    const rawContacts = Array.isArray(db.daftarKontak) ? db.daftarKontak : [];
+    let contacts = rawContacts.map(getKontakDisplayFields).filter(c => c.nama || c.instansi || c.noHp);
+
+    // Filter berdasarkan pencarian dari toolbar
+    const q = (repoSearch || '').toLowerCase().trim();
+    if (q) {
+        contacts = contacts.filter(c =>
+            c.nama.toLowerCase().includes(q) ||
+            c.instansi.toLowerCase().includes(q) ||
+            c.noHp.toLowerCase().includes(q) ||
+            c.waDigits.includes(q) ||
+            c.keterangan.toLowerCase().includes(q)
+        );
+    }
+
+    // Pengurutan kontak
+    contacts.sort((a, b) => {
+        let valA = a[kontakSortField] || '';
+        let valB = b[kontakSortField] || '';
+        valA = String(valA).toLowerCase();
+        valB = String(valB).toLowerCase();
+        if (valA < valB) return kontakSortAsc ? -1 : 1;
+        if (valA > valB) return kontakSortAsc ? 1 : -1;
+        return 0;
+    });
+
+    const totalFiltered = contacts.length;
+    const totalPages = Math.ceil(totalFiltered / kontakPartnerLimit) || 1;
+    if (kontakPartnerPage > totalPages) kontakPartnerPage = totalPages;
+    const offset = (kontakPartnerPage - 1) * kontakPartnerLimit;
+    const pagedContacts = contacts.slice(offset, offset + kontakPartnerLimit);
+
+    const isMobile = isKontakMobileViewport();
+    const effectiveMode = isMobile ? 'grid' : (repoViewMode === 'table' ? 'table' : 'grid');
+
+    const headerHTML = `
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 bg-slate-50 dark:bg-slate-900/70 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 animate-fade-in shadow-xs">
+            <div class="flex flex-wrap items-center gap-2.5 sm:gap-3 min-w-0">
+                <button onclick="openRepoFolder(null)" class="btn-secondary px-3.5 py-2 text-xs font-bold flex items-center gap-2 hover:bg-slate-200 dark:hover:bg-slate-700 shadow-xs shrink-0">
+                    <i class="fa-solid fa-arrow-left"></i> Semua Folder
+                </button>
+                <div class="h-6 w-px bg-slate-300 dark:bg-slate-700 hidden sm:block"></div>
+                <div class="flex flex-wrap items-center gap-2 text-xs min-w-0">
+                    <span class="text-slate-400 hidden sm:inline">Pusat Dokumen</span>
+                    <span class="text-slate-400 hidden sm:inline">/</span>
+                    <span class="font-extrabold text-slate-800 dark:text-white flex items-center gap-1.5">
+                        <i class="fa-solid fa-address-book text-teal-500"></i> Kontak Partner
+                    </span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                        ${totalFiltered} Kontak
+                    </span>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-end gap-2 shrink-0">
+                <!-- Toggle Tabel / Grid khusus Desktop/Tablet; di Mobile otomatis Grid -->
+                <div class="hidden md:flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
+                    <button type="button" onclick="setKontakViewMode('table')" class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 ${effectiveMode === 'table' ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}">
+                        <i class="fa-solid fa-table-list"></i> Tabel
+                    </button>
+                    <button type="button" onclick="setKontakViewMode('grid')" class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 ${effectiveMode === 'grid' ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}">
+                        <i class="fa-solid fa-table-cells-large"></i> Grid
+                    </button>
+                </div>
+                ${canManage ? `
+                    <button type="button" onclick="openKontakPartnerModal()" class="btn-primary px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-xs w-full sm:w-auto justify-center">
+                        <i class="fa-solid fa-user-plus"></i> Tambah Kontak
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+    `;
+
+    if (pagedContacts.length === 0) {
+        const isFiltered = Boolean(q);
+        contentArea.innerHTML = `
+            ${headerHTML}
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-8 sm:p-12 text-center animate-fade-in shadow-xs">
+                <div class="w-16 h-16 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 mx-auto flex items-center justify-center text-2xl mb-4">
+                    <i class="fa-solid ${isFiltered ? 'fa-magnifying-glass' : 'fa-address-book'}"></i>
+                </div>
+                <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100">
+                    ${isFiltered ? 'Kontak tidak ditemukan' : 'Belum ada data Kontak Partner'}
+                </h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto leading-relaxed">
+                    ${isFiltered
+                        ? `Tidak ada kontak yang cocok dengan kata kunci "${escapeHtml(repoSearch)}". Coba kata kunci lain atau atur ulang pencarian.`
+                        : 'Tambahkan kontak media, wartawan, humas instansi, atau mitra protokoler agar dapat langsung dihubungi via WhatsApp.'}
+                </p>
+                <div class="flex flex-wrap items-center justify-center gap-2 mt-5">
+                    ${isFiltered ? `
+                        <button type="button" onclick="resetRepoFilters(); openRepoFolder('Kontak Partner');" class="btn-secondary py-2 px-4 text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate-left"></i> Reset Pencarian
+                        </button>
+                    ` : `
+                        <button type="button" onclick="openRepoFolder(null)" class="btn-secondary py-2 px-4 text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrow-left"></i> Kembali ke Folder
+                        </button>
+                    `}
+                    ${canManage ? `
+                        <button type="button" onclick="openKontakPartnerModal()" class="btn-primary py-2 px-4 text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-plus"></i> Tambah Kontak
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        if (pagination) pagination.innerHTML = '';
+        return;
+    }
+
+    if (effectiveMode === 'grid') {
+        contentArea.innerHTML = `
+            ${headerHTML}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 animate-fade-in">
+                ${pagedContacts.map(c => {
+                    const encodedId = encodeURIComponent(c.id);
+                    const initials = getKontakInitials(c.nama);
+                    return `
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-205 dark:border-slate-705 p-5 shadow-xs hover:shadow-md hover:border-teal-300 dark:hover:border-teal-700 transition-all flex flex-col justify-between min-w-0 overflow-hidden group">
+                            <div class="min-w-0">
+                                <div class="flex items-start gap-3 mb-3.5">
+                                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                                        ${escapeHtml(initials)}
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <h3 class="font-extrabold text-sm text-slate-800 dark:text-white leading-snug break-words group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                                            ${escapeHtml(c.nama || '-')}
+                                        </h3>
+                                        <div class="mt-1 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800/80 text-[11px] font-bold max-w-full">
+                                            <i class="fa-solid fa-building text-[9px] shrink-0"></i>
+                                            <span class="truncate">${escapeHtml(c.instansi || '-')}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Nomor HP / Link WhatsApp -->
+                                <div class="mb-3">
+                                    ${c.waUrl ? `
+                                        <a href="${escapeHtml(c.waUrl)}" target="_blank" rel="noopener noreferrer" title="Hubungi ${escapeHtml(c.nama)} via WhatsApp (${escapeHtml(c.waDigits)})"
+                                           class="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 transition-all group/wa">
+                                            <span class="flex items-center gap-2 min-w-0">
+                                                <i class="fa-brands fa-whatsapp text-base text-emerald-600 dark:text-emerald-400 shrink-0"></i>
+                                                <span class="text-xs font-extrabold tracking-wide truncate">${escapeHtml(c.noHp)}</span>
+                                            </span>
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 shrink-0">
+                                                Chat <i class="fa-solid fa-arrow-up-right-from-square text-[9px] group-hover/wa:translate-x-0.5 transition-transform"></i>
+                                            </span>
+                                        </a>
+                                    ` : `
+                                        <div class="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-400 font-medium">
+                                            <i class="fa-solid fa-phone-slash mr-1.5"></i> ${escapeHtml(c.noHp || 'Nomor belum tersedia')}
+                                        </div>
+                                    `}
+                                </div>
+
+                                <!-- Keterangan -->
+                                <div class="bg-slate-50/80 dark:bg-slate-900/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/60">
+                                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Keterangan</p>
+                                    <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed break-words">
+                                        ${c.keterangan ? escapeHtml(c.keterangan) : '<span class="italic text-slate-400">Tidak ada keterangan.</span>'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/80 flex items-center justify-between gap-2">
+                                <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">
+                                    <i class="fa-regular fa-clock mr-1"></i>${escapeHtml(c.terakhirDiperbarui || c.tanggalDibuat || '-')}
+                                </span>
+                                ${canManage ? `
+                                    <div class="flex items-center gap-1.5 shrink-0">
+                                        <button type="button" onclick="openKontakPartnerModal('${encodedId}')" title="Edit Kontak" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-300 text-[11px] font-bold inline-flex items-center gap-1 transition-all">
+                                            <i class="fa-solid fa-pen text-[10px]"></i> Edit
+                                        </button>
+                                        <button type="button" onclick="confirmDeleteKontakPartner('${encodedId}')" title="Hapus Kontak" class="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-300 text-[11px] font-bold inline-flex items-center gap-1 transition-all">
+                                            <i class="fa-solid fa-trash text-[10px]"></i> Hapus
+                                        </button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    } else {
+        contentArea.innerHTML = `
+            ${headerHTML}
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-205 dark:border-slate-705 overflow-hidden shadow-xs animate-fade-in">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-[10px] uppercase font-bold text-slate-450 tracking-wider">
+                                <th class="py-3.5 px-4 text-center w-12">No</th>
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-teal-600 whitespace-nowrap" onclick="handleKontakSort('nama')">
+                                    Nama <i class="fa-solid fa-sort ml-1"></i>
+                                </th>
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-teal-600 whitespace-nowrap" onclick="handleKontakSort('instansi')">
+                                    Instansi/Media <i class="fa-solid fa-sort ml-1"></i>
+                                </th>
+                                <th class="py-3.5 px-4 whitespace-nowrap">No. HP/WA</th>
+                                <th class="py-3.5 px-4">Keterangan</th>
+                                ${canManage ? '<th class="py-3.5 px-4 text-center w-32">Aksi</th>' : ''}
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60 font-medium">
+                            ${pagedContacts.map((c, idx) => {
+                                const encodedId = encodeURIComponent(c.id);
+                                return `
+                                    <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-900/40 transition-colors">
+                                        <td class="py-3.5 px-4 text-center font-bold text-slate-400">${offset + idx + 1}</td>
+                                        <td class="py-3.5 px-4 min-w-[180px]">
+                                            <div class="flex items-center gap-2.5">
+                                                <div class="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 flex items-center justify-center font-black text-[10px] shrink-0">
+                                                    ${escapeHtml(getKontakInitials(c.nama))}
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <span class="font-bold text-slate-800 dark:text-slate-100 block leading-snug">${escapeHtml(c.nama || '-')}</span>
+                                                    ${c.terakhirDiperbarui ? `<span class="text-[10px] text-slate-400 block mt-0.5">Diperbarui: ${escapeHtml(c.terakhirDiperbarui)}</span>` : ''}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3.5 px-4 min-w-[170px]">
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800/80 text-[11px] font-bold">
+                                                <i class="fa-solid fa-building text-[9px]"></i> ${escapeHtml(c.instansi || '-')}
+                                            </span>
+                                        </td>
+                                        <td class="py-3.5 px-4 whitespace-nowrap">
+                                            ${c.waUrl ? `
+                                                <a href="${escapeHtml(c.waUrl)}" target="_blank" rel="noopener noreferrer" title="Chat WhatsApp (${escapeHtml(c.waDigits)})"
+                                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold text-xs transition-all">
+                                                    <i class="fa-brands fa-whatsapp text-sm text-emerald-600 dark:text-emerald-400"></i>
+                                                    <span>${escapeHtml(c.noHp)}</span>
+                                                    <i class="fa-solid fa-arrow-up-right-from-square text-[9px] opacity-75"></i>
+                                                </a>
+                                            ` : `<span class="text-slate-400">${escapeHtml(c.noHp || '-')}</span>`}
+                                        </td>
+                                        <td class="py-3.5 px-4 min-w-[200px] max-w-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                                            ${c.keterangan ? escapeHtml(c.keterangan) : '<span class="text-slate-400">-</span>'}
+                                        </td>
+                                        ${canManage ? `
+                                            <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                                                <div class="flex items-center justify-center gap-1.5">
+                                                    <button type="button" onclick="openKontakPartnerModal('${encodedId}')" title="Edit Kontak" class="px-2.5 py-1.5 rounded-lg text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900 font-bold text-[11px] inline-flex items-center gap-1 transition-all">
+                                                        <i class="fa-solid fa-pen text-[10px]"></i> Edit
+                                                    </button>
+                                                    <button type="button" onclick="confirmDeleteKontakPartner('${encodedId}')" title="Hapus Kontak" class="px-2.5 py-1.5 rounded-lg text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900 font-bold text-[11px] inline-flex items-center gap-1 transition-all">
+                                                        <i class="fa-solid fa-trash text-[10px]"></i> Hapus
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        ` : ''}
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    if (pagination) {
+        pagination.innerHTML = `
+            <span class="text-[10px] font-semibold text-slate-450">
+                Menampilkan ${offset + 1} - ${Math.min(offset + kontakPartnerLimit, totalFiltered)} dari ${totalFiltered} kontak
+            </span>
+            <div class="flex items-center gap-1.5">
+                <button type="button" onclick="changeKontakPage(${kontakPartnerPage - 1})" ${kontakPartnerPage <= 1 ? 'disabled' : ''} class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-550 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-all">
+                    <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                </button>
+                <span class="px-2.5 text-xs font-bold text-slate-700 dark:text-slate-200">${kontakPartnerPage} / ${totalPages}</span>
+                <button type="button" onclick="changeKontakPage(${kontakPartnerPage + 1})" ${kontakPartnerPage >= totalPages ? 'disabled' : ''} class="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-550 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-all">
+                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                </button>
+            </div>
+        `;
+    }
+}
+
+window.openKontakPartnerModal = function(encodedId = null) {
+    document.getElementById('kontak-partner-modal')?.remove();
+
+    const targetId = encodedId ? decodeURIComponent(encodedId) : null;
+    const existing = targetId && Array.isArray(db.daftarKontak)
+        ? db.daftarKontak.find(c => String(c.id || c.id_kontak || c['ID Kontak'] || '').trim() === targetId.trim())
+        : null;
+    const fields = existing ? getKontakDisplayFields(existing) : { id: '', nama: '', instansi: '', noHp: '', keterangan: '', waUrl: '' };
+    const isEdit = Boolean(existing);
+
+    const modal = document.createElement('div');
+    modal.id = 'kontak-partner-modal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content p-6 shadow-2xl border border-slate-100 dark:border-slate-700 max-w-lg w-full">
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 dark:border-slate-700 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                        <i class="fa-solid ${isEdit ? 'fa-user-pen' : 'fa-user-plus'}"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                            ${isEdit ? 'Edit Kontak Partner' : 'Tambah Kontak Partner'}
+                        </h3>
+                        <p class="text-[11px] text-slate-400">Data tersinkronisasi langsung dengan sheet Daftar_Kontak</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeKontakPartnerModal()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-650 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all">
+                    <i class="fa-solid fa-times text-lg"></i>
+                </button>
+            </div>
+
+            <div id="kontak-form-error" class="hidden mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-2">
+                <i class="fa-solid fa-circle-exclamation shrink-0"></i>
+                <span id="kontak-form-error-text"></span>
+            </div>
+
+            <form id="kontak-partner-form" onsubmit="submitKontakPartnerForm(event, '${isEdit ? encodeURIComponent(fields.id) : ''}')" class="space-y-4 text-slate-700 dark:text-slate-300">
+                <div>
+                    <label for="kontak_nama" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Nama Kontak <span class="text-rose-500">*</span>
+                    </label>
+                    <input type="text" id="kontak_nama" value="${escapeHtml(fields.nama)}" maxlength="150"
+                        class="w-full px-4 py-2.5 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:border-teal-500"
+                        placeholder="Contoh: Budi Santoso" required>
+                </div>
+
+                <div>
+                    <label for="kontak_instansi" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Instansi / Media <span class="text-rose-500">*</span>
+                    </label>
+                    <input type="text" id="kontak_instansi" value="${escapeHtml(fields.instansi)}" maxlength="180"
+                        class="w-full px-4 py-2.5 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:border-teal-500"
+                        placeholder="Contoh: Pontianak Post / Diskominfo Kalbar" required>
+                </div>
+
+                <div>
+                    <label for="kontak_no_hp" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        No. HP / WhatsApp <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-emerald-600 dark:text-emerald-400 pointer-events-none">
+                            <i class="fa-brands fa-whatsapp text-sm"></i>
+                        </span>
+                        <input type="tel" id="kontak_no_hp" value="${escapeHtml(fields.noHp)}" maxlength="32" oninput="updateKontakWaPreview(this.value)"
+                            class="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:border-teal-500"
+                            placeholder="Contoh: 0812-3456-7890 atau +6281234567890" required>
+                    </div>
+                    <p id="kontak-wa-preview" class="text-[11px] text-slate-400 dark:text-slate-400 mt-1.5 flex items-center gap-1.5">
+                        ${fields.waUrl ? `<i class="fa-brands fa-whatsapp text-emerald-500"></i> Link WA: <span class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">${escapeHtml(fields.waUrl)}</span>` : 'Nomor diawali 0 atau +62 akan otomatis diformat menjadi 62xxx untuk tautan WhatsApp.'}
+                    </p>
+                </div>
+
+                <div>
+                    <label for="kontak_keterangan" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                        Keterangan
+                    </label>
+                    <textarea id="kontak_keterangan" rows="3" maxlength="500"
+                        class="w-full px-4 py-2.5 bg-white dark:bg-slate-750 border border-slate-205 dark:border-slate-600 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-teal-500"
+                        placeholder="Catatan peran, deskripsi liputan, jabatan, atau detail koordinasi...">${escapeHtml(fields.keterangan)}</textarea>
+                </div>
+
+                <div class="flex gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-slate-700">
+                    <button type="submit" id="kontak-submit-btn" class="btn-primary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-save"></i> <span>${isEdit ? 'Simpan Perubahan' : 'Simpan Kontak'}</span>
+                    </button>
+                    <button type="button" id="kontak-cancel-btn" onclick="closeKontakPartnerModal()" class="btn-secondary flex-1 py-2.5 text-xs font-bold uppercase tracking-wider">
+                        Batal
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeKontakPartnerModal();
+    });
+    setTimeout(() => {
+        document.getElementById('kontak_nama')?.focus();
+    }, 30);
+};
+
+window.closeKontakPartnerModal = function() {
+    document.getElementById('kontak-partner-modal')?.remove();
+};
+
+window.updateKontakWaPreview = function(val) {
+    const el = document.getElementById('kontak-wa-preview');
+    if (!el) return;
+    const url = getWhatsAppUrl(val);
+    if (url) {
+        el.innerHTML = `<i class="fa-brands fa-whatsapp text-emerald-500"></i> Link WA: <span class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">${escapeHtml(url)}</span>`;
+    } else {
+        el.textContent = 'Nomor diawali 0 atau +62 akan otomatis diformat menjadi 62xxx untuk tautan WhatsApp.';
+    }
+};
+
+window.submitKontakPartnerForm = async function(event, encodedEditId = '') {
+    event.preventDefault();
+    const errBox = document.getElementById('kontak-form-error');
+    const errText = document.getElementById('kontak-form-error-text');
+    const submitBtn = document.getElementById('kontak-submit-btn');
+    const cancelBtn = document.getElementById('kontak-cancel-btn');
+
+    const showErr = (msg) => {
+        if (errText) errText.textContent = msg;
+        if (errBox) errBox.classList.remove('hidden');
+        showToast(msg, 'error');
+    };
+    if (errBox) errBox.classList.add('hidden');
+
+    const nama = (document.getElementById('kontak_nama')?.value || '').trim();
+    const instansi = (document.getElementById('kontak_instansi')?.value || '').trim();
+    const noHp = (document.getElementById('kontak_no_hp')?.value || '').trim();
+    const keterangan = (document.getElementById('kontak_keterangan')?.value || '').trim();
+
+    if (!nama) {
+        document.getElementById('kontak_nama')?.focus();
+        showErr('Nama kontak wajib diisi.');
+        return;
+    }
+    if (!instansi) {
+        document.getElementById('kontak_instansi')?.focus();
+        showErr('Instansi/Media wajib diisi.');
+        return;
+    }
+    if (!noHp) {
+        document.getElementById('kontak_no_hp')?.focus();
+        showErr('No. HP/WA wajib diisi.');
+        return;
+    }
+    const rawDigits = noHp.replace(/\D+/g, '');
+    if (rawDigits.length < 8 || rawDigits.length > 16) {
+        document.getElementById('kontak_no_hp')?.focus();
+        showErr('Format No. HP/WA tidak valid. Masukkan minimal 8 digit angka yang benar.');
+        return;
+    }
+
+    const editId = encodedEditId ? decodeURIComponent(encodedEditId).trim() : '';
+    const isEdit = Boolean(editId);
+    const existing = isEdit && Array.isArray(db.daftarKontak)
+        ? db.daftarKontak.find(c => String(c.id || c.id_kontak || c['ID Kontak'] || '').trim() === editId)
+        : null;
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Menyimpan...</span>';
+    }
+    if (cancelBtn) cancelBtn.disabled = true;
+
+    try {
+        const payload = {
+            ...(existing || {}),
+            id: isEdit ? editId : undefined,
+            id_kontak: isEdit ? editId : undefined,
+            'ID Kontak': isEdit ? editId : undefined,
+            nama,
+            'Nama': nama,
+            instansi_media: instansi,
+            'Instansi/Media': instansi,
+            no_hp_wa: noHp,
+            'No. HP/WA': noHp,
+            keterangan,
+            'Keterangan': keterangan
+        };
+
+        if (typeof window.syncDaftarKontakCrud !== 'function') {
+            throw new Error('Modul sinkronisasi kontak belum siap.');
+        }
+
+        await window.syncDaftarKontakCrud(isEdit ? 'update' : 'add', payload);
+
+        if (typeof logActivity === 'function') {
+            logActivity(
+                isEdit ? 'Ubah Kontak Partner' : 'Tambah Kontak Partner',
+                `${isEdit ? 'Memperbarui' : 'Menambahkan'} kontak partner "${nama}" (${instansi}).`
+            );
+        }
+
+        closeKontakPartnerModal();
+        drawRepositoryContent();
+        showToast(isEdit ? 'Kontak partner berhasil diperbarui!' : 'Kontak partner berhasil ditambahkan!', 'success');
+    } catch (err) {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i class="fa-solid fa-save"></i> <span>${isEdit ? 'Simpan Perubahan' : 'Simpan Kontak'}</span>`;
+        }
+        if (cancelBtn) cancelBtn.disabled = false;
+        showErr((err && err.message) || 'Terjadi kesalahan saat menyimpan data kontak.');
+    }
+};
+
+window.confirmDeleteKontakPartner = function(encodedId) {
+    const targetId = encodedId ? decodeURIComponent(encodedId).trim() : '';
+    if (!targetId) return;
+
+    const existing = Array.isArray(db.daftarKontak)
+        ? db.daftarKontak.find(c => String(c.id || c.id_kontak || c['ID Kontak'] || '').trim() === targetId)
+        : null;
+    const fields = existing ? getKontakDisplayFields(existing) : { id: targetId, nama: targetId, instansi: '' };
+
+    const msg = `Apakah Anda yakin ingin menghapus kontak "<strong>${escapeHtml(fields.nama)}</strong>"${fields.instansi ? ` (${escapeHtml(fields.instansi)})` : ''}? Data akan dihapus permanen dari daftar kontak.`;
+
+    showConfirmModal(
+        msg,
+        async () => {
+            try {
+                if (typeof window.syncDaftarKontakCrud !== 'function') {
+                    throw new Error('Modul sinkronisasi kontak belum siap.');
+                }
+                await window.syncDaftarKontakCrud('delete', { id: targetId, id_kontak: targetId, 'ID Kontak': targetId });
+                if (typeof logActivity === 'function') {
+                    logActivity('Hapus Kontak Partner', `Menghapus kontak partner "${fields.nama}" (${fields.instansi || '-'}).`);
+                }
+                drawRepositoryContent();
+                showToast('Kontak partner berhasil dihapus!', 'success');
+            } catch (err) {
+                showToast((err && err.message) || 'Gagal menghapus kontak partner.', 'error');
+            }
+        },
+        {
+            title: 'Hapus Kontak Partner',
+            confirmText: 'Ya, Hapus',
+            cancelText: 'Batal',
+            type: 'danger',
+            icon: 'fa-trash'
+        }
+    );
+};
+
+// Re-render Kontak Partner otomatis saat melewati batas viewport mobile/desktop (768px)
+if (typeof window !== 'undefined' && !window._kontakPartnerResizeBound) {
+    window._kontakPartnerResizeBound = true;
+    let kontakResizeTimer = null;
+    window.addEventListener('resize', () => {
+        clearTimeout(kontakResizeTimer);
+        kontakResizeTimer = setTimeout(() => {
+            const nowMobile = isKontakMobileViewport();
+            if (nowMobile !== kontakWasMobile) {
+                kontakWasMobile = nowMobile;
+                if (typeof currentState !== 'undefined' && currentState === 'repository' && repoActiveFolder === 'Kontak Partner') {
+                    drawRepositoryContent();
+                }
+            }
+        }, 180);
+    });
+}
 
 // ===================================================================
 // MODUL MANAJEMEN AKUN & RESET USERNAME / PASSWORD (KHUSUS ADMIN)
