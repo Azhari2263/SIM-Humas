@@ -52,7 +52,7 @@ function showToast(message, type = 'success', duration = 3500, onClick = null) {
         icon = '<i class="fa-solid fa-circle-exclamation text-rose-500 text-lg shrink-0 mt-0.5 sm:mt-0"></i>';
         borderColor = 'border-l-4 border-l-rose-500';
     } else if (type === 'warning') {
-        icon = '<i class="fa-solid fa-bell text-amber-500 text-lg shrink-0 mt-0.5 sm:mt-0 animate-bounce"></i>';
+        icon = '<i class="fa-solid fa-triangle-exclamation text-amber-500 text-lg shrink-0 mt-0.5 sm:mt-0"></i>';
         borderColor = 'border-l-4 border-l-amber-500';
     } else {
         icon = '<i class="fa-solid fa-circle-info text-blue-500 text-lg shrink-0 mt-0.5 sm:mt-0"></i>';

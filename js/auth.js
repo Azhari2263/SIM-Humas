@@ -682,7 +682,12 @@ function renderLoginScreen() {
                     </h2>
                 </div>
 
-                <form onsubmit="handleLogin(event)" class="space-y-4">
+                <form id="login-form" onsubmit="handleLogin(event)" novalidate class="space-y-4">
+                    <div id="login-alert-box" class="hidden rounded-xl px-3.5 py-2.5 text-xs font-semibold flex items-start gap-2.5 border transition-all duration-200" role="alert" aria-live="polite">
+                        <i id="login-alert-icon" class="fa-solid fa-circle-exclamation text-sm shrink-0 mt-0.5"></i>
+                        <span id="login-alert-text" class="flex-1 leading-relaxed"></span>
+                    </div>
+
                     <div>
                         <label for="login-username" class="block text-[10px] font-extrabold text-indigo-200 mb-1.5 uppercase tracking-wider">
                             Username
@@ -691,7 +696,7 @@ function renderLoginScreen() {
                             <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
                                 <i class="fa-regular fa-user text-xs"></i>
                             </span>
-                            <input type="text" id="login-username" autocomplete="username" 
+                            <input type="text" id="login-username" autocomplete="username" oninput="clearLoginFeedback()"
                                 class="w-full pl-10 pr-4 py-2.5 bg-slate-800/90 border border-slate-700/80 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 placeholder-slate-500 transition-all font-medium" 
                                 placeholder="Contoh: azday" required>
                         </div>
@@ -707,7 +712,7 @@ function renderLoginScreen() {
                             <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
                                 <i class="fa-solid fa-lock text-xs"></i>
                             </span>
-                            <input type="password" id="login-password" autocomplete="current-password" 
+                            <input type="password" id="login-password" autocomplete="current-password" oninput="clearLoginFeedback()"
                                 class="w-full pl-10 pr-10 py-2.5 bg-slate-800/90 border border-slate-700/80 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 placeholder-slate-500 transition-all font-medium" 
                                 placeholder="••••••••" required>
                             <button type="button" onclick="toggleLoginPassword()" title="Tampilkan / Sembunyikan sandi" 
@@ -719,7 +724,7 @@ function renderLoginScreen() {
 
                     <button type="submit" id="login-submit-btn" 
                         class="w-full bg-gradient-to-r from-indigo-500 via-indigo-600 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 text-white font-black py-3 rounded-xl text-xs uppercase tracking-wider transition-all duration-300 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transform active:scale-[0.98] flex items-center justify-center gap-2 mt-4 cursor-pointer">
-                        <i class="fa-solid fa-arrow-right-to-bracket text-xs"></i> Masuk ke Sistem
+                        <i class="fa-solid fa-arrow-right-to-bracket text-xs"></i> <span>Masuk ke Sistem</span>
                     </button>
                 </form>
 
@@ -852,27 +857,117 @@ window.toggleLoginPassword = function() {
     }
 };
 
+let isLoginSubmitting = false;
+
+window.clearLoginFeedback = function() {
+    const alertBox = document.getElementById('login-alert-box');
+    if (alertBox) {
+        alertBox.classList.add('hidden');
+    }
+};
+
+function showLoginFeedback(message, type = 'error') {
+    const alertBox = document.getElementById('login-alert-box');
+    const alertIcon = document.getElementById('login-alert-icon');
+    const alertText = document.getElementById('login-alert-text');
+    if (!alertBox || !alertIcon || !alertText) return;
+
+    alertBox.classList.remove(
+        'hidden',
+        'bg-rose-500/15', 'border-rose-500/40', 'text-rose-200',
+        'bg-amber-500/15', 'border-amber-500/40', 'text-amber-200',
+        'bg-emerald-500/15', 'border-emerald-500/40', 'text-emerald-200'
+    );
+
+    if (type === 'success') {
+        alertBox.classList.add('bg-emerald-500/15', 'border-emerald-500/40', 'text-emerald-200');
+        alertIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-sm shrink-0 mt-0.5';
+    } else if (type === 'warning') {
+        alertBox.classList.add('bg-amber-500/15', 'border-amber-500/40', 'text-amber-200');
+        alertIcon.className = 'fa-solid fa-triangle-exclamation text-amber-400 text-sm shrink-0 mt-0.5';
+    } else {
+        alertBox.classList.add('bg-rose-500/15', 'border-rose-500/40', 'text-rose-200');
+        alertIcon.className = 'fa-solid fa-circle-exclamation text-rose-400 text-sm shrink-0 mt-0.5';
+    }
+
+    alertText.textContent = message;
+}
+
+function setLoginLoadingState(isLoading) {
+    const submitBtn = document.getElementById('login-submit-btn');
+    const usernameInput = document.getElementById('login-username');
+    const passwordInput = document.getElementById('login-password');
+
+    if (usernameInput) usernameInput.readOnly = !!isLoading;
+    if (passwordInput) passwordInput.readOnly = !!isLoading;
+
+    if (!submitBtn) return;
+    if (isLoading) {
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+        submitBtn.classList.remove('cursor-pointer', 'hover:from-indigo-400', 'hover:to-indigo-600');
+        submitBtn.classList.add('opacity-75', 'cursor-not-allowed');
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> <span>Memverifikasi Akun...</span>';
+    } else {
+        submitBtn.disabled = false;
+        submitBtn.removeAttribute('aria-busy');
+        submitBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+        submitBtn.classList.add('cursor-pointer', 'hover:from-indigo-400', 'hover:to-indigo-600');
+        submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket text-xs"></i> <span>Masuk ke Sistem</span>';
+    }
+}
+
 async function handleLogin(event) {
-    event.preventDefault();
+    if (event) event.preventDefault();
+    if (isLoginSubmitting) return;
+
     const usernameInput = document.getElementById('login-username');
     const passwordInput = document.getElementById('login-password');
 
     const username = (usernameInput ? usernameInput.value : '').trim();
     const password = (passwordInput ? passwordInput.value : '');
-    
-    if (!username || !password) {
-        showToast('Nama pengguna dan kata sandi wajib diisi!', 'error');
+
+    if (!username && !password) {
+        const msg = 'Username dan kata sandi wajib dilengkapi sebelum masuk.';
+        showLoginFeedback(msg, 'warning');
+        if (typeof showToast === 'function') showToast(msg, 'warning', 4000);
+        if (usernameInput) usernameInput.focus();
+        return;
+    }
+    if (!username) {
+        const msg = 'Username wajib diisi terlebih dahulu.';
+        showLoginFeedback(msg, 'warning');
+        if (typeof showToast === 'function') showToast(msg, 'warning', 4000);
+        if (usernameInput) usernameInput.focus();
+        return;
+    }
+    if (!password) {
+        const msg = 'Kata sandi wajib diisi terlebih dahulu.';
+        showLoginFeedback(msg, 'warning');
+        if (typeof showToast === 'function') showToast(msg, 'warning', 4000);
+        if (passwordInput) passwordInput.focus();
         return;
     }
 
+    isLoginSubmitting = true;
+    clearLoginFeedback();
+    setLoginLoadingState(true);
+
     let authenticatedUser = null;
+    let loginSucceeded = false;
+
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), 35000) : null;
 
     try {
         const resp = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, password }),
+            ...(controller ? { signal: controller.signal } : {})
         });
+        if (timeoutId) clearTimeout(timeoutId);
+
         const data = await resp.json().catch(() => null);
 
         if (resp.ok && data && data.success && data.user) {
@@ -880,24 +975,52 @@ async function handleLogin(event) {
             if (data.token) {
                 localStorage.setItem('sim_humas_token', data.token);
             }
-        } else if (data && data.error) {
-            showToast(data.error, 'error');
+        } else if (resp.status >= 500) {
+            const srvMsg = (data && data.error)
+                ? data.error
+                : `Terjadi gangguan pada server autentikasi (HTTP ${resp.status}). Silakan coba beberapa saat lagi.`;
+            showLoginFeedback(srvMsg, 'error');
+            if (typeof showToast === 'function') showToast(srvMsg, 'error', 4500);
             return;
         } else {
-            showToast('Kombinasi nama pengguna dan kata sandi tidak sesuai.', 'error');
+            const errMsg = (data && data.error)
+                ? String(data.error).trim()
+                : 'Username atau kata sandi tidak sesuai. Silakan periksa kembali.';
+            showLoginFeedback(errMsg, 'error');
+            if (typeof showToast === 'function') showToast(errMsg, 'error', 4500);
+            if (passwordInput && resp.status === 401) {
+                passwordInput.focus();
+            }
             return;
         }
     } catch (netErr) {
-        console.warn('[Auth] Server login endpoint unavailable:', netErr.message);
-        showToast('Koneksi ke server autentikasi gagal. Pastikan koneksi internet aktif.', 'error');
+        if (timeoutId) clearTimeout(timeoutId);
+        console.warn('[Auth] Server login endpoint unavailable:', netErr && netErr.message);
+        let connMsg = 'Gagal terhubung ke server autentikasi. Pastikan server aktif dan koneksi internet stabil.';
+        if (netErr && netErr.name === 'AbortError') {
+            connMsg = 'Waktu koneksi ke server habis (timeout). Periksa jaringan Anda lalu coba kembali.';
+        } else if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            connMsg = 'Tidak ada koneksi internet. Hubungkan perangkat ke jaringan lalu coba login kembali.';
+        }
+        showLoginFeedback(connMsg, 'error');
+        if (typeof showToast === 'function') showToast(connMsg, 'error', 5000);
         return;
+    } finally {
+        isLoginSubmitting = false;
+        if (!loginSucceeded && !authenticatedUser) {
+            setLoginLoadingState(false);
+        }
     }
 
     if (!authenticatedUser) {
-        showToast('Nama pengguna atau kata sandi tidak sesuai! Silakan periksa kembali.', 'error');
+        const fallbackMsg = 'Username atau kata sandi tidak sesuai. Silakan periksa kembali.';
+        showLoginFeedback(fallbackMsg, 'error');
+        if (typeof showToast === 'function') showToast(fallbackMsg, 'error', 4500);
+        setLoginLoadingState(false);
         return;
     }
 
+    loginSucceeded = true;
     currentUser = { 
         id: authenticatedUser.id,
         username: authenticatedUser.username, 
@@ -906,10 +1029,14 @@ async function handleLogin(event) {
         nama: authenticatedUser.nama || authenticatedUser.name || authenticatedUser.username,
         bidang: authenticatedUser.bidang || '' 
     };
-    
+
     localStorage.setItem('sim_humas_user', JSON.stringify(currentUser));
-    showToast('Selamat datang, ' + (currentUser.nama || currentUser.name || currentUser.username) + '!');
-    
+    const displayName = currentUser.nama || currentUser.name || currentUser.username;
+    showLoginFeedback(`Login berhasil! Mengarahkan ke halaman utama...`, 'success');
+    if (typeof showToast === 'function') {
+        showToast(`Login berhasil! Selamat datang, ${displayName}.`, 'success', 3500);
+    }
+
     if (window.logActivity) {
         logActivity('Login', `User ${currentUser.name} masuk sebagai ${getRoleLabel(currentUser.role)}.`);
     }
@@ -931,13 +1058,14 @@ async function handleLogin(event) {
     if (typeof currentState !== 'undefined') {
         currentState = targetPage;
     }
+    setLoginLoadingState(false);
     checkAuth();
     if (typeof startRealtimePolling === 'function') {
         startRealtimePolling();
     }
 }
 
-async function handleLogout() {
+async function performLogoutSession() {
     if (currentUser) {
         if (typeof logActivity === 'function') {
             logActivity('Logout', `User ${currentUser.name} keluar dari sistem.`);
@@ -945,6 +1073,8 @@ async function handleLogout() {
     }
     const token = localStorage.getItem('sim_humas_token');
     if (token) {
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timeoutId = controller ? setTimeout(() => controller.abort(), 4000) : null;
         try {
             await fetch('/api/auth/logout', {
                 method: 'POST',
@@ -952,9 +1082,14 @@ async function handleLogout() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ token })
+                body: JSON.stringify({ token }),
+                ...(controller ? { signal: controller.signal } : {})
             });
-        } catch (_) {}
+        } catch (_) {
+            // Tetap lanjutkan pembersihan sesi lokal meski server tidak merespons
+        } finally {
+            if (timeoutId) clearTimeout(timeoutId);
+        }
     }
     currentUser = null;
     localStorage.removeItem('sim_humas_token');
@@ -970,11 +1105,114 @@ async function handleLogout() {
         window.sentimentChartInstance.destroy();
         window.sentimentChartInstance = null;
     }
-    showToast('Anda telah keluar dari sistem.');
+    if (window.timDonutChartInstance) {
+        window.timDonutChartInstance.destroy();
+        window.timDonutChartInstance = null;
+    }
+    if (window.timMonthlyChartInstance) {
+        window.timMonthlyChartInstance.destroy();
+        window.timMonthlyChartInstance = null;
+    }
     if (typeof stopRealtimePolling === 'function') {
         stopRealtimePolling();
     }
-    checkAuth();
+    if (typeof closeMobileSidebar === 'function') {
+        closeMobileSidebar();
+    }
+}
+
+function handleLogout() {
+    if (document.getElementById('logout-confirm-modal')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'logout-confirm-modal';
+    modal.className = 'confirm-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'logout-modal-title');
+
+    modal.innerHTML = `
+        <div class="confirm-modal-box">
+            <div class="flex items-start gap-4 mb-5">
+                <div class="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-right-from-bracket text-xl"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 id="logout-modal-title" class="font-black text-slate-900 dark:text-white text-sm tracking-tight">Konfirmasi Logout</h3>
+                    <p class="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">Apakah Anda yakin ingin keluar dari aplikasi?</p>
+                    <p id="logout-progress-status" class="hidden text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <span>Sedang mengakhiri sesi Anda...</span>
+                    </p>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button type="button" id="logout-cancel-btn" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all cursor-pointer">
+                    <i class="fa-solid fa-xmark mr-1.5"></i>Batal
+                </button>
+                <button type="button" id="logout-confirm-btn" class="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-md shadow-rose-200 dark:shadow-rose-950 transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Ya, Logout</span>
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const cancelBtn = document.getElementById('logout-cancel-btn');
+    const confirmBtn = document.getElementById('logout-confirm-btn');
+    const statusEl = document.getElementById('logout-progress-status');
+    let isLoggingOut = false;
+
+    const closeModal = () => {
+        if (isLoggingOut) return;
+        document.removeEventListener('keydown', onKeyDown);
+        modal.remove();
+    };
+
+    const onKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    };
+    document.addEventListener('keydown', onKeyDown);
+
+    if (cancelBtn) {
+        cancelBtn.onclick = closeModal;
+    }
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    if (confirmBtn) {
+        confirmBtn.onclick = async () => {
+            if (isLoggingOut) return;
+            isLoggingOut = true;
+
+            if (cancelBtn) {
+                cancelBtn.disabled = true;
+                cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            confirmBtn.disabled = true;
+            confirmBtn.classList.add('opacity-80', 'cursor-not-allowed');
+            confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>';
+            if (statusEl) {
+                statusEl.classList.remove('hidden');
+            }
+
+            try {
+                await performLogoutSession();
+            } finally {
+                document.removeEventListener('keydown', onKeyDown);
+                modal.remove();
+                if (typeof showToast === 'function') {
+                    showToast('Anda telah berhasil keluar dari aplikasi.', 'success', 3500);
+                }
+                checkAuth();
+            }
+        };
+    }
 }
 
 window.getAuthToken = function() {

@@ -6867,7 +6867,148 @@ window.printRekapReport = function() {
 // -------------------------------------------------------------
 // 10. INTEGRATED CALENDAR VIEW
 // -------------------------------------------------------------
-let calendarFilter = 'all';
+let calendarFilter = 'highlight';
+
+// Helper khusus Kalender Kegiatan: memeriksa apakah suatu kegiatan menjadi tugas/tanggung jawab akun sesuai role yang sedang login
+function buildCalendarUserMatchContext(user = currentUser) {
+    if (!user) return null;
+    const role = String(user.role || '').toLowerCase().trim();
+    const userName = String(user.username || '').toLowerCase().trim();
+    const displayName = String(user.name || user.nama || '').toLowerCase().trim();
+    const userBidang = String(user.bidang || '').toLowerCase().trim();
+
+    const cleanUser = typeof cleanAcademicDegrees === 'function'
+        ? cleanAcademicDegrees(displayName)
+        : displayName.replace(/\(.*?\)/g, '').replace(/,\s*[a-z0-9\.\s]+$/, '').trim();
+    const cleanUsername = typeof cleanAcademicDegrees === 'function'
+        ? cleanAcademicDegrees(userName)
+        : userName.trim();
+    const firstDisplayName = cleanUser.split(' ')[0] || '';
+
+    const aliasMap = typeof BPS_HUMAS_ALIASES !== 'undefined' ? BPS_HUMAS_ALIASES : {};
+    const canonicalUser = aliasMap[cleanUsername] || aliasMap[cleanUser] || cleanUser;
+
+    const members = typeof getAllTeamMembersList === 'function' ? getAllTeamMembersList() : [];
+    let matchedMember = members.find(m =>
+        (canonicalUser && (m.normKey === canonicalUser || m.cleanName === canonicalUser)) ||
+        (cleanUser && (m.normKey === cleanUser || m.cleanName === cleanUser)) ||
+        (cleanUsername && (m.normKey === cleanUsername || m.cleanName === cleanUsername))
+    ) || null;
+    if (!matchedMember && members.length > 0 && typeof resolveMemberFromPic === 'function') {
+        matchedMember = resolveMemberFromPic(String(user.name || user.nama || ''), members) ||
+            resolveMemberFromPic(String(user.username || ''), members) ||
+            null;
+    }
+
+    return {
+        role,
+        userName,
+        displayName,
+        userBidang,
+        cleanUser,
+        cleanUsername,
+        firstDisplayName,
+        canonicalUser,
+        aliasMap,
+        members,
+        matchedMember
+    };
+}
+
+function isCalendarEventForCurrentUser(item, user = currentUser, cachedCtx = null) {
+    if (!item || !user) return false;
+    const ctx = cachedCtx || buildCalendarUserMatchContext(user);
+    if (!ctx) return false;
+
+    const {
+        role,
+        userName,
+        displayName,
+        userBidang,
+        cleanUser,
+        firstDisplayName,
+        canonicalUser,
+        aliasMap,
+        members,
+        matchedMember
+    } = ctx;
+
+    const rawPicFields = [
+        item.petugas,
+        item.assignedTo,
+        item.assignTo,
+        item['assign To'],
+        item.pic,
+        item.pembuat_konten,
+        item.pic_poster_info,
+        item.pic_doc_ruang,
+        item.pic_doc_yt_zoom,
+        item.pic_poster,
+        item.pic_info,
+        item.pic_doc,
+        item.pic_high,
+        item.assigned_to
+    ].filter(Boolean);
+
+    const matchesSinglePic = (rawVal) => {
+        const valStr = String(rawVal).toLowerCase().trim();
+        if (!valStr || valStr === '-' || valStr === 'null' || valStr === 'belum ditugaskan') return false;
+
+        // Prioritaskan resolusi personil canonical agar tidak salah cocok pada nama dengan kata umum yang sama
+        if (matchedMember && members.length > 0 && typeof resolveMemberFromPic === 'function') {
+            const resolved = resolveMemberFromPic(String(rawVal), members);
+            if (resolved) {
+                return resolved.normKey === matchedMember.normKey;
+            }
+        }
+
+        const cleanVal = typeof cleanAcademicDegrees === 'function'
+            ? cleanAcademicDegrees(valStr)
+            : valStr.replace(/\(.*?\)/g, '').replace(/,\s*[a-z0-9\.\s]+$/, '').trim();
+
+        if (userName && (valStr === userName || (userName.length >= 3 && valStr.includes(userName)) || (valStr.length >= 3 && userName.includes(valStr)))) return true;
+        if (displayName && (valStr === displayName || (displayName.length >= 3 && valStr.includes(displayName)) || (valStr.length >= 3 && displayName.includes(valStr)))) return true;
+        if (cleanUser && cleanUser.length >= 3 && (cleanVal === cleanUser || cleanVal.includes(cleanUser) || (cleanVal.length >= 3 && cleanUser.includes(cleanVal)))) return true;
+        if (firstDisplayName && firstDisplayName.length >= 4 && cleanVal.includes(firstDisplayName)) return true;
+
+        if (canonicalUser && canonicalUser.length >= 3) {
+            const valCanonical = aliasMap[cleanVal] || cleanVal;
+            if (valCanonical === canonicalUser || valCanonical.includes(canonicalUser) || (valCanonical.length >= 3 && canonicalUser.includes(valCanonical))) {
+                return true;
+            }
+        }
+
+        if (role === 'tim' && (valStr.includes('staf humas') || valStr.includes('tim humas'))) return true;
+        if (role === 'koordinator' && (valStr.includes('koordinator') || valStr.includes('ketua tim'))) return true;
+        if (role === 'kepala' && (valStr.includes('kepala') || valStr.includes('pimpinan'))) return true;
+        if (role === 'admin' && (valStr.includes('admin') || valStr.includes('administrator'))) return true;
+
+        return false;
+    };
+
+    const matchesField = (rawFieldVal) => {
+        const valStr = String(rawFieldVal || '').trim();
+        if (!valStr || valStr === '-') return false;
+        const tokens = valStr.split(/[,&\/\+]/).map(s => s.trim()).filter(Boolean);
+        if (tokens.length > 1) {
+            return tokens.some(tok => matchesSinglePic(tok));
+        }
+        return matchesSinglePic(valStr);
+    };
+
+    if (rawPicFields.some(matchesField)) {
+        return true;
+    }
+
+    if (role === 'pemohon') {
+        const pengaju = String(item.pengaju || '').toLowerCase().trim();
+        const itemBidang = String(item.bidang || '').toLowerCase().trim();
+        if (pengaju && ((cleanUser && pengaju.includes(cleanUser)) || (userName && pengaju.includes(userName)))) return true;
+        if (userBidang && itemBidang && (itemBidang === userBidang || itemBidang.includes(userBidang))) return true;
+    }
+
+    return false;
+}
 
 // Helper: Tentukan kategori progres pengerjaan (belum: merah, proses: kuning, selesai: hijau)
 function getCalendarProgressCategory(status, type, item) {
@@ -6972,9 +7113,7 @@ function renderIntegratedCalendar(container) {
     }
 
     const isTim = currentUser && currentUser.role === 'tim';
-    if (isTim) {
-        calendarFilter = 'my';
-    }
+    const calendarUserCtx = buildCalendarUserMatchContext(currentUser);
 
     const rawEvents = [];
     db.rekapRutin.forEach(e => {
@@ -7126,8 +7265,8 @@ function renderIntegratedCalendar(container) {
     const events = [];
     const seenCalendarKeys = new Set();
     rawEvents.forEach(e => {
-        const isMine = isTaskForCurrentUser(e.item) || (typeof isTaskAssignedToLoggedInUser === 'function' && isTaskAssignedToLoggedInUser(e.item, currentUser));
-        if ((isTim || calendarFilter === 'my') && !isMine) return;
+        const isMine = isCalendarEventForCurrentUser(e.item, currentUser, calendarUserCtx);
+        if (!isTim && calendarFilter === 'my' && !isMine) return;
 
         // Deduplikasi event kalender agar satu kegiatan per hari untuk petugas yang sama tetap tampil tunggal (tidak ganda)
         const dStr = formatDateInput(e.date);
@@ -7139,7 +7278,7 @@ function renderIntegratedCalendar(container) {
         }
         seenCalendarKeys.add(dedupKey);
 
-        const isHighlighted = (calendarFilter === 'highlight' && isMine);
+        const isHighlighted = (isTim || calendarFilter === 'highlight') && isMine;
 
         events.push({
             ...e,
@@ -7154,10 +7293,13 @@ function renderIntegratedCalendar(container) {
 
     // Helper untuk membuat pill event dengan highlight NAMA PETUGAS -> PENUGASAN & warna sesuai status
     const buildEventPillHtml = (e) => {
-        const fullTooltip = `[${e.progressLabel.toUpperCase()}] PIC: ${e.pic} | ${e.categoryLabel}: ${e.taskTitle}`;
+        const fullTooltip = `${e.isHighlighted ? '⭐ TUGAS ANDA | ' : ''}[${e.progressLabel.toUpperCase()}] PIC: ${e.pic} | ${e.categoryLabel}: ${e.taskTitle}`;
         const picDisplay = (e.pic && e.pic !== '-') ? e.pic : 'PIC (-)';
+        const highlightClass = e.isHighlighted
+            ? 'ring-2 ring-amber-300 dark:ring-amber-400 ring-offset-1 ring-offset-white dark:ring-offset-slate-850 border-l-[3px] border-white shadow-md font-bold'
+            : 'font-medium shadow-xs';
         return `
-            <div class="text-[8.5px] leading-tight font-medium ${e.color} text-white px-1.5 py-1 rounded-md truncate mt-1 shadow-xs cursor-pointer hover:brightness-110 transition-all ${e.isHighlighted ? 'ring-2 ring-amber-300 dark:ring-amber-400' : ''}" title="${fullTooltip}">
+            <div class="text-[8.5px] leading-tight ${e.color} text-white px-1.5 py-1 rounded-md truncate mt-1 cursor-pointer hover:brightness-110 transition-all ${highlightClass}" title="${fullTooltip}">
                 ${e.isHighlighted ? '⭐ ' : ''}<strong class="font-black underline decoration-white/40 uppercase tracking-tight">${picDisplay}</strong>: <span class="opacity-95">${e.taskTitle}</span>
             </div>
         `;
@@ -7184,7 +7326,8 @@ function renderIntegratedCalendar(container) {
             dayEvents.sort((a, b) => {
                 const doneA = a.progressCat === 'selesai' ? 1 : 0;
                 const doneB = b.progressCat === 'selesai' ? 1 : 0;
-                return doneA - doneB;
+                if (doneA !== doneB) return doneA - doneB;
+                return (b.isHighlighted ? 1 : 0) - (a.isHighlighted ? 1 : 0);
             });
             const eventsListHtml = dayEvents.map(e => buildEventPillHtml(e)).join('');
 
@@ -7233,7 +7376,8 @@ function renderIntegratedCalendar(container) {
             dayEvents.sort((a, b) => {
                 const doneA = a.progressCat === 'selesai' ? 1 : 0;
                 const doneB = b.progressCat === 'selesai' ? 1 : 0;
-                return doneA - doneB;
+                if (doneA !== doneB) return doneA - doneB;
+                return (b.isHighlighted ? 1 : 0) - (a.isHighlighted ? 1 : 0);
             });
             const eventsListHtml = dayEvents.map(e => buildEventPillHtml(e)).join('');
 
@@ -7262,7 +7406,7 @@ function renderIntegratedCalendar(container) {
                     <i class="fa-regular fa-calendar-days text-indigo-650 dark:text-indigo-400"></i>
                     Kalender Kegiatan Terintegrasi
                 </h2>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">${isTim ? 'Jadwal agenda kegiatan dan penugasan harian khusus untuk akun Anda.' : 'Sorot nama petugas dan jadwal agenda harian BPS Kalbar berdasarkan progres pengerjaan.'}</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">${isTim ? 'Seluruh jadwal agenda kegiatan tim dengan sorotan khusus (⭐) untuk tugas akun Anda.' : 'Sorot nama petugas dan jadwal agenda harian BPS Kalbar berdasarkan progres pengerjaan.'}</p>
             </div>
             
             <!-- Calendar Filter Dropdown for My Tasks/Highlighting - Dihide untuk role tim -->
@@ -7314,6 +7458,11 @@ function renderIntegratedCalendar(container) {
                     <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 font-bold">
                         <span class="w-2.5 h-2.5 bg-emerald-600 rounded-full mr-1.5 shadow-xs shrink-0"></span> Selesai
                     </span>
+                    ${(isTim || calendarFilter === 'highlight') ? `
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 font-bold">
+                        ⭐ Tugas Anda
+                    </span>
+                    ` : ''}
                 </div>
                 <div class="text-[10px] text-slate-400 font-semibold normal-case">
                     Format: <span class="font-black text-slate-600 dark:text-slate-300 uppercase">[NAMA PETUGAS]</span>: Penugasan Kegiatan
@@ -7452,11 +7601,17 @@ window.showCalendarDayEvents = function (dateStr) {
         }
     });
 
-    // Apply calendar filtering on day details modal too!
-    let filteredDayEvents = dayEvents;
+    // Tampilkan seluruh agenda tim pada modal harian; hanya filter ke "my" jika non-tim memilih "Hanya Agenda Saya"
     const isTim = currentUser && currentUser.role === 'tim';
-    if (isTim || calendarFilter === 'my') {
-        filteredDayEvents = dayEvents.filter(ev => isTaskForCurrentUser(ev.item) || (typeof isTaskAssignedToLoggedInUser === 'function' && isTaskAssignedToLoggedInUser(ev.item, currentUser)));
+    const calendarUserCtx = buildCalendarUserMatchContext(currentUser);
+    let filteredDayEvents = dayEvents.map(ev => {
+        const isMine = isCalendarEventForCurrentUser(ev.item, currentUser, calendarUserCtx);
+        const isHighlighted = (isTim || calendarFilter === 'highlight') && isMine;
+        return { ...ev, isMine, isHighlighted };
+    });
+
+    if (!isTim && calendarFilter === 'my') {
+        filteredDayEvents = filteredDayEvents.filter(ev => ev.isMine);
     }
 
     // Deduplikasi detail agenda harian agar satu kegiatan tidak tampil berulang
@@ -7470,11 +7625,12 @@ window.showCalendarDayEvents = function (dateStr) {
         return true;
     });
 
-    // Urutkan detail harian: yang selesai di bawah, yang proses/belum selesai di atas
+    // Urutkan detail harian: yang selesai di bawah, yang proses/belum selesai di atas (tugas milik akun diprioritaskan di atas)
     filteredDayEvents.sort((a, b) => {
         const doneA = a.progressCat === 'selesai' ? 1 : 0;
         const doneB = b.progressCat === 'selesai' ? 1 : 0;
-        return doneA - doneB;
+        if (doneA !== doneB) return doneA - doneB;
+        return (b.isHighlighted ? 1 : 0) - (a.isHighlighted ? 1 : 0);
     });
 
     const modal = document.createElement('div');
@@ -7493,10 +7649,10 @@ window.showCalendarDayEvents = function (dateStr) {
         listContent = `
             <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
                 ${filteredDayEvents.map(ev => {
-                    const isMine = isTaskForCurrentUser(ev.item);
-                    const isHighlighted = calendarFilter === 'highlight' && isMine;
+                    const isMine = ev.isMine;
+                    const isHighlighted = ev.isHighlighted;
                     return `
-                        <div class="p-3.5 bg-white dark:bg-slate-900 border ${isHighlighted ? 'ring-2 ring-amber-400 border-amber-400 dark:border-amber-500 shadow-md' : 'border-slate-200 dark:border-slate-750'} rounded-xl hover:border-indigo-400 dark:hover:border-indigo-600 transition-all cursor-pointer flex flex-col justify-between" onclick="closeCalendarDayModal(); showDetailFromCalendar('${ev.type}', ${ev.item.id})">
+                        <div class="p-3.5 ${isHighlighted ? 'bg-amber-50/40 dark:bg-amber-950/20 ring-2 ring-amber-400 border-2 border-amber-400 dark:border-amber-500 shadow-md' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-750'} rounded-xl hover:border-indigo-400 dark:hover:border-indigo-600 transition-all cursor-pointer flex flex-col justify-between" onclick="closeCalendarDayModal(); showDetailFromCalendar('${ev.type}', ${ev.item.id})">
                             <div class="flex items-center justify-between mb-2">
                                 <div class="flex items-center gap-1.5">
                                     <span class="px-2 py-0.5 ${ev.badgeBg} text-white font-black text-[8.5px] rounded uppercase tracking-wider shadow-xs flex items-center gap-1">
@@ -7520,7 +7676,7 @@ window.showCalendarDayEvents = function (dateStr) {
                                         <div class="text-xs font-black text-slate-900 dark:text-white truncate">${ev.pic}</div>
                                     </div>
                                 </div>
-                                ${isMine ? `<span class="text-[9px] font-bold px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 rounded shrink-0">Milik Anda</span>` : ''}
+                                ${isHighlighted ? `<span class="text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded shrink-0">Tugas Anda</span>` : ''}
                             </div>
 
                             <!-- Penugasan Kegiatan -->
