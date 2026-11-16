@@ -11774,6 +11774,56 @@ function getKontakInitials(name) {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function formatKontakTimestamp(rawVal) {
+    if (rawVal === null || rawVal === undefined) return '';
+    const str = String(rawVal).trim();
+    if (!str) return '';
+
+    const monthsId = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+    // Format tanggal saja: YYYY-MM-DD
+    const dateOnlyMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+        const y = dateOnlyMatch[1];
+        const mIdx = parseInt(dateOnlyMatch[2], 10) - 1;
+        const d = parseInt(dateOnlyMatch[3], 10);
+        return `${d} ${monthsId[mIdx] || dateOnlyMatch[2]} ${y}`;
+    }
+
+    // Format WIB YYYY-MM-DD HH:mm(:ss)
+    const wibMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (wibMatch) {
+        const y = wibMatch[1];
+        const mIdx = parseInt(wibMatch[2], 10) - 1;
+        const d = parseInt(wibMatch[3], 10);
+        return `${d} ${monthsId[mIdx] || wibMatch[2]} ${y}, ${wibMatch[4]}:${wibMatch[5]} WIB`;
+    }
+
+    // Format JS Date.toString() (misal: "Mon Nov 16 2026 09:05:19 GMT+0700 (Waktu Indonesia Barat)") atau ISO string
+    const cleanedForDate = str.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    const parsed = new Date(cleanedForDate);
+    if (!isNaN(parsed.getTime())) {
+        try {
+            const parts = new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'Asia/Jakarta',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            }).formatToParts(parsed);
+            const map = {};
+            parts.forEach(p => { map[p.type] = p.value; });
+            const mIdx = parseInt(map.month, 10) - 1;
+            const dNum = parseInt(map.day, 10);
+            return `${dNum} ${monthsId[mIdx] || map.month} ${map.year}, ${map.hour}:${map.minute} WIB`;
+        } catch (_) {}
+    }
+
+    return str;
+}
+
 function getKontakDisplayFields(raw) {
     const id = String((raw && (raw['ID Kontak'] || raw.id_kontak || raw.id)) || '').trim();
     const nama = String((raw && (raw['Nama'] || raw.nama)) || '').trim();
@@ -11782,9 +11832,10 @@ function getKontakDisplayFields(raw) {
     const keterangan = String((raw && (raw['Keterangan'] !== undefined ? raw['Keterangan'] : (raw.keterangan || ''))) || '').trim();
     const tanggalDibuat = String((raw && (raw['Tanggal Dibuat'] || raw.tanggal_dibuat)) || '').trim();
     const terakhirDiperbarui = String((raw && (raw['Terakhir Diperbarui'] || raw.terakhir_diperbarui)) || '').trim();
+    const formattedUpdated = formatKontakTimestamp(terakhirDiperbarui || tanggalDibuat);
     const waDigits = formatWhatsAppNumber(noHp);
     const waUrl = waDigits ? `https://wa.me/${waDigits}` : '';
-    return { id, nama, instansi, noHp, keterangan, tanggalDibuat, terakhirDiperbarui, waDigits, waUrl };
+    return { id, nama, instansi, noHp, keterangan, tanggalDibuat, terakhirDiperbarui, formattedUpdated, waDigits, waUrl };
 }
 
 window.handleKontakSort = function(field) {
@@ -11974,7 +12025,7 @@ function renderKontakPartnerFolderView(contentArea, pagination, canManage) {
 
                             <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/80 flex items-center justify-between gap-2">
                                 <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">
-                                    <i class="fa-regular fa-clock mr-1"></i>${escapeHtml(c.terakhirDiperbarui || c.tanggalDibuat || '-')}
+                                    <i class="fa-regular fa-clock mr-1"></i>${escapeHtml(c.formattedUpdated || '-')}
                                 </span>
                                 ${canManage ? `
                                     <div class="flex items-center gap-1.5 shrink-0">
@@ -12025,7 +12076,7 @@ function renderKontakPartnerFolderView(contentArea, pagination, canManage) {
                                                 </div>
                                                 <div class="min-w-0">
                                                     <span class="font-bold text-slate-800 dark:text-slate-100 block leading-snug">${escapeHtml(c.nama || '-')}</span>
-                                                    ${c.terakhirDiperbarui ? `<span class="text-[10px] text-slate-400 block mt-0.5">Diperbarui: ${escapeHtml(c.terakhirDiperbarui)}</span>` : ''}
+                                                    ${c.formattedUpdated ? `<span class="text-[10px] text-slate-400 block mt-0.5">Diperbarui: ${escapeHtml(c.formattedUpdated)}</span>` : ''}
                                                 </div>
                                             </div>
                                         </td>
