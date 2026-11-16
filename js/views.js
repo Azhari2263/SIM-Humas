@@ -61,6 +61,13 @@ function isTaskForCurrentUser(item) {
     const cleanDisplayName = displayName.replace(/\(.*?\)/g, '').replace(/,\s*[a-z0-9\.\s]+$/, '').trim();
     const firstDisplayName = cleanDisplayName.split(' ')[0] || '';
 
+    if (item && item.created_by && userName && String(item.created_by).toLowerCase().trim() === userName) {
+        return true;
+    }
+
+    const aliases = (typeof BPS_HUMAS_ALIASES !== 'undefined') ? BPS_HUMAS_ALIASES : {};
+    const userAliasTarget = aliases[userName] || aliases[cleanDisplayName] || '';
+
     // Check all possible PIC/petugas columns in item
     const rawPicFields = [
         item.petugas,
@@ -80,17 +87,20 @@ function isTaskForCurrentUser(item) {
     return rawPicFields.some(fieldVal => {
         const valStr = String(fieldVal).toLowerCase().trim();
         const cleanVal = valStr.replace(/\(.*?\)/g, '').replace(/,\s*[a-z0-9\.\s]+$/, '').trim();
+        const valAliasTarget = aliases[cleanVal] || '';
 
         if (userName && (valStr === userName || valStr.includes(userName) || userName.includes(valStr))) return true;
         if (displayName && (valStr === displayName || valStr.includes(displayName) || displayName.includes(valStr))) return true;
         if (cleanDisplayName && cleanDisplayName.length >= 3 && (cleanVal.includes(cleanDisplayName) || cleanDisplayName.includes(cleanVal))) return true;
         if (firstDisplayName && firstDisplayName.length >= 4 && cleanVal.includes(firstDisplayName)) return true;
+        if (userAliasTarget && cleanVal && (cleanVal.includes(userAliasTarget) || userAliasTarget.includes(cleanVal))) return true;
+        if (valAliasTarget && ((cleanDisplayName && valAliasTarget.includes(cleanDisplayName)) || (userName && valAliasTarget.includes(userName)))) return true;
         if (valStr.includes('staf humas') || valStr.includes('tim humas')) return true;
 
         // Comma / slash / ampersand split
         if (valStr.includes(',') || valStr.includes('&') || valStr.includes('/')) {
             const splitted = valStr.split(/[,&\/]/).map(s => s.trim().replace(/\(.*?\)/g, '').toLowerCase());
-            if (splitted.some(s => (cleanDisplayName && s === cleanDisplayName) || (userName && s === userName) || (cleanDisplayName && cleanDisplayName.length >= 3 && s.includes(cleanDisplayName)))) {
+            if (splitted.some(s => (cleanDisplayName && s === cleanDisplayName) || (userName && s === userName) || (cleanDisplayName && cleanDisplayName.length >= 3 && s.includes(cleanDisplayName)) || (userAliasTarget && s.includes(userAliasTarget)))) {
                 return true;
             }
         }
@@ -349,6 +359,7 @@ function renderDashboard(container) {
     const plannerSrc = db.contentPlanner.filter(c => !(window.isDuplicatePlannerFromRutin && window.isDuplicatePlannerFromRutin(c, db.rekapRutin))).filter(isTaskForCurrentUser);
     const assignmentSrc = db.assignments.filter(isTaskForCurrentUser);
     const ticketSrc = (db.tickets || []).filter(t => t.status === 'Approved').filter(isTaskForCurrentUser);
+    const rekapKegiatanSrc = (db.rekapKegiatan || []).filter(isTaskForCurrentUser);
 
     const totalRutin = rutinSrc.filter(getMonthFilter).length;
     const totalAdHoc = adHocSrc.filter(getMonthFilter).length;
@@ -359,14 +370,15 @@ function renderDashboard(container) {
     const totalPlanner = plannerSrc.filter(getMonthFilter).length;
     const totalAssignments = assignmentSrc.filter(getMonthFilter).length;
     const totalTickets = ticketSrc.filter(getMonthFilter).length;
+    const totalRekapKegiatan = rekapKegiatanSrc.filter(getMonthFilter).length;
 
-    const totalKegiatanBulanIni = totalRutin + totalAdHoc + totalProto + totalMc + totalBrs + totalHariBesar + totalPlanner + totalAssignments + totalTickets;
+    const totalKegiatanBulanIni = totalRutin + totalAdHoc + totalProto + totalMc + totalBrs + totalHariBesar + totalPlanner + totalAssignments + totalTickets + totalRekapKegiatan;
 
     let selesaiCount = 0;
     let progressCount = 0;
 
     const evalStatus = (status, item) => {
-        if (item && Number(item.progres) >= 100) {
+        if (item && (Number(item.progres) >= 100 || Number(item.progress) >= 100)) {
             selesaiCount++;
             return;
         }
@@ -388,6 +400,7 @@ function renderDashboard(container) {
     plannerSrc.filter(getMonthFilter).forEach(i => evalStatus(i.status, i));
     assignmentSrc.filter(getMonthFilter).forEach(i => evalStatus(i.status, i));
     ticketSrc.filter(getMonthFilter).forEach(i => evalStatus(i.status, i));
+    rekapKegiatanSrc.filter(getMonthFilter).forEach(i => evalStatus(i.status || 'Selesai', i));
 
     const belumSelesaiBulanIni = Math.max(0, totalKegiatanBulanIni - selesaiCount);
     const totalPegawaiAktif = (db.team && db.team.length > 0) ? db.team.length : (db.users ? db.users.filter(u => u.role === 'tim' || u.role === 'koordinator').length : 0);
@@ -1668,7 +1681,7 @@ window.renderTimDashboardCharts = function() {
     const currentYear = now.getFullYear();
 
     const isTaskDone = (status, item) => {
-        if (item && Number(item.progres) >= 100) return true;
+        if (item && (Number(item.progres) >= 100 || Number(item.progress) >= 100)) return true;
         if (!status) return false;
         const st = String(status).toLowerCase().trim();
         return st === 'selesai' || st === 'done' || st === 'posted' || st === 'tercapai' || st === 'terbit' || st === 'sukses' || st === 'published';
@@ -1684,6 +1697,7 @@ window.renderTimDashboardCharts = function() {
     const userPlanner = (db.contentPlanner || []).filter(c => !(window.isDuplicatePlannerFromRutin && window.isDuplicatePlannerFromRutin(c, db.rekapRutin))).filter(isTaskForCurrentUser);
     const userAssign = (db.assignments || []).filter(isTaskForCurrentUser);
     const userTickets = (db.tickets || []).filter(t => t.status === 'Approved').filter(isTaskForCurrentUser);
+    const userRekapKegiatan = (db.rekapKegiatan || []).filter(isTaskForCurrentUser);
 
     // Compute stats per month (0 to 11) for currentYear
     const monthlyStats = [];
@@ -1736,6 +1750,7 @@ window.renderTimDashboardCharts = function() {
     userPlanner.forEach(i => processItem(i, 'jadwal', i.rubrikasi || i.jenis_konten || 'Konten Publikasi'));
     userAssign.forEach(i => processItem(i, 'deadline', i.rubrikasi || 'Penugasan Tim'));
     userTickets.forEach(i => processItem(i, 'deadline', i.rubrikasi || 'Layanan Humas'));
+    userRekapKegiatan.forEach(i => processItem(i, 'tanggal', i.rubrikasi || i.jenis_kegiatan || i.jenis || 'Catatan Mandiri'));
 
     const annualPct = annualTotal > 0 ? Math.round((annualSelesai / annualTotal) * 100) : 0;
     const annualBelumPct = annualTotal > 0 ? (100 - annualPct) : 0;
@@ -4763,19 +4778,28 @@ function getAllIntegratedTasks() {
         });
     });
 
-    // 10. Rekap Kegiatan bawaan (jika ada data)
+    // 10. Rekap Kegiatan (bawaan & catatan tugas selesai mandiri tim)
     (db.rekapKegiatan || []).forEach((item, idx) => {
+        const statusVal = item.status || 'Selesai';
+        const rawProg = item.progress !== undefined && item.progress !== '' ? Number(item.progress) : (item.progres !== undefined && item.progres !== '' ? Number(item.progres) : NaN);
+        const progVal = statusVal === 'Selesai' ? 100 : (!isNaN(rawProg) ? rawProg : 50);
+        const rubrikVal = item.rubrikasi || item.jenis_kegiatan || item.jenis || 'Laporan';
         safePush({
-            id: `rekap_${item.id || idx}`,
+            id: `rekap_${item.id ?? idx}`,
+            rawId: item.id,
             source: 'rekap_kegiatan',
-            jenis: item.jenis || 'Kegiatan',
-            rubrikasi: item.rubrikasi || item.jenis || 'Laporan',
+            jenis: item.jenis_kegiatan || item.jenis || 'Catatan Mandiri',
+            rubrikasi: rubrikVal,
             judul: item.kegiatan || item.judul || 'Kegiatan Humas',
             petugas: item.petugas || item.pic || '-',
-            tanggal: item.tanggal,
-            deadline: item.deadline || item.tanggal,
-            status: item.status || 'Selesai',
-            progress: item.status === 'Selesai' ? 100 : 50,
+            tanggal: item.tanggal || item.deadline || '',
+            deadline: item.deadline || item.tanggal || '',
+            status: statusVal,
+            progress: progVal,
+            tautan_dokumentasi: item.tautan_dokumentasi || '',
+            tautan_konten: item.tautan_konten || '',
+            sumber_input: item.sumber_input || '',
+            createdBy: item.created_by || '',
             keterangan: item.keterangan || '-'
         });
     });
@@ -5012,6 +5036,12 @@ function getTaskRubrikasiKey(task) {
  * Tanpa perlu scroll horizontal atau teks terpotong
  */
 function renderTaskMobileCardItem(task, tIdx, showPic = true) {
+    const safeDocUrl = (task.tautan_dokumentasi && /^https?:\/\//i.test(String(task.tautan_dokumentasi).trim())) ? String(task.tautan_dokumentasi).trim() : '';
+    const safeKontenUrl = (task.tautan_konten && /^https?:\/\//i.test(String(task.tautan_konten).trim())) ? String(task.tautan_konten).trim() : '';
+    const isMandiriRekap = task.source === 'rekap_kegiatan' && (!task.sumber_input || task.sumber_input === 'mandiri_tim');
+    const canModifyRekap = !!(currentUser && currentUser.role === 'tim' && task.source === 'rekap_kegiatan' && task.rawId !== undefined && task.rawId !== null && task.rawId !== '' && isMandiriRekap && isTaskAssignedToLoggedInUser(task, currentUser));
+    const safeRawIdAttr = canModifyRekap ? escapeHtml(String(task.rawId)).replace(/'/g, '&#39;') : '';
+
     return `
         <div class="p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xs space-y-2.5 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all flex flex-col justify-between">
             <!-- Baris 1: No, Badge Kategori, Status & SLA Status -->
@@ -5021,27 +5051,46 @@ function renderTaskMobileCardItem(task, tIdx, showPic = true) {
                         #${tIdx + 1}
                     </span>
                     <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                        ${task.jenis}
+                        ${escapeHtml(task.jenis)}
                     </span>
+                    ${isMandiriRekap ? `
+                        <span class="px-2 py-0.5 rounded text-[8.5px] font-extrabold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            Mandiri
+                        </span>
+                    ` : ''}
                     <span class="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider ${task.isDone ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600'}">
-                        <i class="fa-solid ${task.isDone ? 'fa-check' : 'fa-clock'} mr-1 text-[8px]"></i>${task.status}
+                        <i class="fa-solid ${task.isDone ? 'fa-check' : 'fa-clock'} mr-1 text-[8px]"></i>${escapeHtml(task.status)}
                     </span>
                 </div>
                 <span class="px-2.5 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider border ${task.slaClass} flex items-center gap-1 shrink-0">
                     <i class="fa-solid ${task.isDone ? 'fa-circle-check' : (task.isTerlambat ? 'fa-triangle-exclamation' : (task.isMendekati ? 'fa-bell' : 'fa-shield-halved'))} text-[8px]"></i>
-                    <span>${task.slaStatus}</span>
+                    <span>${escapeHtml(task.slaStatus)}</span>
                 </span>
             </div>
 
             <!-- Baris 2: Judul / Uraian Tugas & Keterangan Lengkap (Tanpa Terpotong) -->
             <div class="space-y-1.5">
                 <h4 class="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white leading-snug break-words">
-                    ${task.judul}
+                    ${escapeHtml(task.judul)}
                 </h4>
                 ${task.keterangan && task.keterangan !== '-' ? `
                     <div class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed break-words bg-slate-50 dark:bg-slate-900/60 p-2 sm:p-2.5 rounded-lg border border-slate-200/70 dark:border-slate-700/60 flex items-start gap-1.5">
                         <i class="fa-regular fa-note-sticky text-slate-400 text-[10px] mt-0.5 shrink-0"></i>
-                        <span class="flex-1">${task.keterangan}</span>
+                        <span class="flex-1">${escapeHtml(task.keterangan)}</span>
+                    </div>
+                ` : ''}
+                ${(safeDocUrl || safeKontenUrl) ? `
+                    <div class="flex flex-wrap items-center gap-2 pt-0.5">
+                        ${safeDocUrl ? `
+                            <a href="${escapeHtml(safeDocUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[10px] font-bold hover:underline">
+                                <i class="fa-solid fa-folder-open text-[9px]"></i> Dokumentasi
+                            </a>
+                        ` : ''}
+                        ${safeKontenUrl ? `
+                            <a href="${escapeHtml(safeKontenUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold hover:underline">
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i> Konten
+                            </a>
+                        ` : ''}
                     </div>
                 ` : ''}
             </div>
@@ -5057,10 +5106,10 @@ function renderTaskMobileCardItem(task, tIdx, showPic = true) {
                         <div class="min-w-0 flex-1">
                             <span class="block text-[8.5px] font-extrabold uppercase tracking-wider text-slate-400">PIC / Petugas</span>
                             <span class="font-bold text-xs text-slate-800 dark:text-slate-200 break-words leading-tight">
-                                ${task.petugasCanonicalName || task.petugas}
+                                ${escapeHtml(task.petugasCanonicalName || task.petugas)}
                             </span>
                             ${task.petugas && task.petugasCanonicalName && task.petugas !== task.petugasCanonicalName ? `
-                                <span class="text-[9.5px] text-slate-400 font-medium block">(${task.petugas})</span>
+                                <span class="text-[9.5px] text-slate-400 font-medium block">(${escapeHtml(task.petugas)})</span>
                             ` : ''}
                         </div>
                     </div>
@@ -5097,6 +5146,17 @@ function renderTaskMobileCardItem(task, tIdx, showPic = true) {
                     <div class="h-2 rounded-full ${task.isDone ? 'bg-emerald-500' : 'bg-indigo-600'} transition-all duration-300" style="width: ${task.progress}%"></div>
                 </div>
             </div>
+
+            ${canModifyRekap ? `
+                <div class="pt-2 border-t border-slate-150 dark:border-slate-700/80 flex items-center justify-end gap-2">
+                    <button type="button" onclick="editRekapKegiatanItem('${safeRawIdAttr}')" class="px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50/70 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-[10.5px] font-bold flex items-center gap-1 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer">
+                        <i class="fa-solid fa-pen-to-square text-[10px]"></i> Edit
+                    </button>
+                    <button type="button" onclick="deleteItem('rekap_kegiatan', '${safeRawIdAttr}')" class="px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50/70 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-[10.5px] font-bold flex items-center gap-1 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors cursor-pointer">
+                        <i class="fa-solid fa-trash text-[10px]"></i> Hapus
+                    </button>
+                </div>
+            ` : ''}
         </div>
     `;
 }
@@ -5180,6 +5240,7 @@ function getLoggedInTeamMember(allMembers = [], user = currentUser) {
  */
 function isTaskAssignedToLoggedInUser(task, user = currentUser, member = null) {
     if (!user) return false;
+    if (task && task.createdBy && user.username && String(task.createdBy).toLowerCase().trim() === String(user.username).toLowerCase().trim()) return true;
     if (isTaskForCurrentUser(task)) return true;
     if (member && isTaskAssignedToMember(task, member)) return true;
     if (task.canonicalMember && member && task.canonicalMember.normKey === member.normKey) return true;
@@ -5546,7 +5607,7 @@ function renderRekapKegiatan(container) {
 
     const taskTypesList = [
         'Rutin', 'Ad Hoc', 'Protokoler', 'MC', 'Content Planner',
-        'Assignment', 'BRS Rilis', 'Hari Besar', 'Layanan Humas'
+        'Assignment', 'BRS Rilis', 'Hari Besar', 'Layanan Humas', 'Catatan Mandiri'
     ];
 
     container.innerHTML = `
@@ -5581,7 +5642,13 @@ function renderRekapKegiatan(container) {
                 </div>
 
                 <!-- Export & Action Buttons (Responsive Touch & Grid Mobile) -->
-                <div class="grid grid-cols-3 sm:flex items-center gap-2 w-full lg:w-auto shrink-0">
+                <div class="grid grid-cols-3 sm:flex flex-wrap items-center gap-2 w-full lg:w-auto shrink-0">
+                    ${isUserTim ? `
+                        <button onclick="openModal('rekap_kegiatan')" type="button" class="col-span-3 sm:col-auto btn-primary !bg-indigo-600 hover:!bg-indigo-700 w-full sm:w-auto flex items-center justify-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold py-2.5 px-3.5 rounded-xl shadow-xs transition-all cursor-pointer">
+                            <i class="fa-solid fa-plus text-xs"></i>
+                            <span>Catat Tugas Selesai</span>
+                        </button>
+                    ` : ''}
                     <!-- Dropdown Export Excel -->
                     <div class="relative group" id="btn-rekap-excel-wrap">
                         <button type="button" onclick="toggleRekapDropdown('excel', event)" class="btn-primary !bg-emerald-600 hover:!bg-emerald-700 w-full sm:w-auto flex items-center justify-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold py-2.5 px-2.5 sm:px-3.5 rounded-xl shadow-xs transition-all cursor-pointer">
@@ -6097,34 +6164,62 @@ function renderRekapKegiatan(container) {
                                         <th class="py-3 px-3 w-28 text-center">Status</th>
                                         <th class="py-3 px-3 w-28 text-center">SLA</th>
                                         <th class="py-3 px-3 w-24 text-center">Progres</th>
+                                        ${isUserTim ? `<th class="py-3 px-3 w-24 text-center">Aksi</th>` : ''}
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60 text-slate-700 dark:text-slate-200">
-                                    ${filteredTasks.map((task, idx) => `
+                                    ${filteredTasks.map((task, idx) => {
+                                        const safeDocUrl = (task.tautan_dokumentasi && /^https?:\/\//i.test(String(task.tautan_dokumentasi).trim())) ? String(task.tautan_dokumentasi).trim() : '';
+                                        const safeKontenUrl = (task.tautan_konten && /^https?:\/\//i.test(String(task.tautan_konten).trim())) ? String(task.tautan_konten).trim() : '';
+                                        const isMandiriRekap = task.source === 'rekap_kegiatan' && (!task.sumber_input || task.sumber_input === 'mandiri_tim');
+                                        const canModifyRekap = !!(isUserTim && task.source === 'rekap_kegiatan' && task.rawId !== undefined && task.rawId !== null && task.rawId !== '' && isMandiriRekap && isTaskAssignedToLoggedInUser(task, currentUser, loggedInMember));
+                                        const safeRawIdAttr = canModifyRekap ? escapeHtml(String(task.rawId)).replace(/'/g, '&#39;') : '';
+                                        return `
                                         <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-700/30 transition-colors">
                                             <td class="py-3 px-3 text-center font-bold text-slate-400">${idx + 1}</td>
-                                            <td class="py-3 px-3 font-extrabold text-xs text-slate-900 dark:text-white break-words">${task.petugasCanonicalName || task.petugas}</td>
+                                            <td class="py-3 px-3 font-extrabold text-xs text-slate-900 dark:text-white break-words">${escapeHtml(task.petugasCanonicalName || task.petugas)}</td>
                                             <td class="py-3 px-3">
-                                                <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
-                                                    ${task.jenis}
-                                                </span>
+                                                <div class="flex flex-col items-start gap-1">
+                                                    <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                                                        ${escapeHtml(task.jenis)}
+                                                    </span>
+                                                    ${isMandiriRekap ? `
+                                                        <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                                            Mandiri
+                                                        </span>
+                                                    ` : ''}
+                                                </div>
                                             </td>
                                             <td class="py-3 px-4">
-                                                <p class="font-bold text-xs text-slate-900 dark:text-white leading-snug break-words">${task.judul}</p>
+                                                <p class="font-bold text-xs text-slate-900 dark:text-white leading-snug break-words">${escapeHtml(task.judul)}</p>
                                                 ${task.keterangan && task.keterangan !== '-' ? `
-                                                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 break-words">${task.keterangan}</p>
+                                                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 break-words">${escapeHtml(task.keterangan)}</p>
+                                                ` : ''}
+                                                ${(safeDocUrl || safeKontenUrl) ? `
+                                                    <div class="flex flex-wrap items-center gap-2 mt-1">
+                                                        ${safeDocUrl ? `
+                                                            <a href="${escapeHtml(safeDocUrl)}" target="_blank" rel="noopener noreferrer" class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1">
+                                                                <i class="fa-solid fa-folder-open text-[9px]"></i> Dokumentasi
+                                                            </a>
+                                                        ` : ''}
+                                                        ${safeKontenUrl ? `
+                                                            <a href="${escapeHtml(safeKontenUrl)}" target="_blank" rel="noopener noreferrer" class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1">
+                                                                <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i> Konten
+                                                            </a>
+                                                        ` : ''}
+                                                    </div>
                                                 ` : ''}
                                             </td>
                                             <td class="py-3 px-3 text-[11px] font-medium text-slate-600 dark:text-slate-300">${formatDateWIB(task.tanggal)}</td>
                                             <td class="py-3 px-3 text-[11px] font-bold ${task.isTerlambat ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300'}">${formatDateWIB(task.deadline)}</td>
                                             <td class="py-3 px-3 text-center">
                                                 <span class="px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${task.isDone ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}">
-                                                    ${task.status}
+                                                    ${escapeHtml(task.status)}
                                                 </span>
                                             </td>
                                             <td class="py-3 px-3 text-center">
                                                 <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${task.slaClass}">
-                                                    ${task.slaStatus}
+                                                    ${escapeHtml(task.slaStatus)}
                                                 </span>
                                             </td>
                                             <td class="py-3 px-3 text-center">
@@ -6135,8 +6230,22 @@ function renderRekapKegiatan(container) {
                                                     <span class="text-[10px] font-bold text-slate-500">${task.progress}%</span>
                                                 </div>
                                             </td>
+                                            ${isUserTim ? `
+                                                <td class="py-3 px-3 text-center">
+                                                    ${canModifyRekap ? `
+                                                        <div class="flex items-center justify-center gap-1.5">
+                                                            <button type="button" onclick="editRekapKegiatanItem('${safeRawIdAttr}')" class="p-1.5 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer" title="Edit Catatan Tugas">
+                                                                <i class="fa-solid fa-pen-to-square text-xs"></i>
+                                                            </button>
+                                                            <button type="button" onclick="deleteItem('rekap_kegiatan', '${safeRawIdAttr}')" class="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer" title="Hapus Catatan Tugas">
+                                                                <i class="fa-solid fa-trash text-xs"></i>
+                                                            </button>
+                                                        </div>
+                                                    ` : `<span class="text-[10px] text-slate-300 dark:text-slate-600">—</span>`}
+                                                </td>
+                                            ` : ''}
                                         </tr>
-                                    `).join('')}
+                                    `; }).join('')}
                                 </tbody>
                             </table>
                         </div>
@@ -6326,7 +6435,7 @@ window.exportRekapToExcel = function(scope = 'current') {
     const teamScopedTasks = allIntegratedTasks.filter(t => t.canonicalMember && validMemberNormKeys.has(t.canonicalMember.normKey));
 
     const scopedTasks = isUserTim
-        ? teamScopedTasks.filter(t => isTaskAssignedToLoggedInUser(t, currentUser, loggedInMember))
+        ? allIntegratedTasks.filter(t => isTaskAssignedToLoggedInUser(t, currentUser, loggedInMember))
         : teamScopedTasks;
     const scopedMembers = isUserTim
         ? (loggedInMember ? [loggedInMember] : [])

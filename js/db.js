@@ -469,6 +469,25 @@ function loadLocalFallbacks() {
         });
     }
 
+    if (db.rekapKegiatan && Array.isArray(db.rekapKegiatan)) {
+        db.rekapKegiatan.forEach(item => {
+            if (!item || typeof item !== 'object') return;
+            const tglVal = item.tanggal || item.deadline || '';
+            if (tglVal) {
+                item.tanggal = item.tanggal || tglVal;
+                item.deadline = item.deadline || tglVal;
+            }
+            const jenisVal = item.jenis_kegiatan || item.jenis || 'Catatan Mandiri';
+            item.jenis_kegiatan = jenisVal;
+            item.jenis = jenisVal;
+            item.status = item.status || 'Selesai';
+            if (item.status === 'Selesai') {
+                item.progress = 100;
+                item.progres = 100;
+            }
+        });
+    }
+
     sanitizeAndDeduplicateTasks(db);
 
     // Otomatis sinkronisasi tugas Content Planner yang selesai ke Rekap Rutin pada data lokal
@@ -570,7 +589,7 @@ function applySelectiveBackgroundUpdate(changedTables = []) {
     // 4. PEMETAAN DEPENDENSI TABEL KE VIEW:
     // Periksa apakah halaman yang sedang dilihat pengguna terpengaruh oleh tabel yang berubah
     const TABLE_VIEW_DEPENDENCIES = {
-        'dashboard': ['contentPlanner', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'tickets', 'monitoring', 'assignments', 'team', 'users'],
+        'dashboard': ['contentPlanner', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'rekapKegiatan', 'tickets', 'monitoring', 'assignments', 'team', 'users'],
         'planner': ['contentPlanner'],
         'rekap_rutin': ['rekapRutin'],
         'ad_hoc': ['adHoc'],
@@ -944,6 +963,26 @@ async function fetchDataFromSheets(silent = false) {
             tempDb.rekapRutin.forEach(item => {
                 if (item.status === 'Sedang Dikerjakan') item.status = 'Sedang Dikerjakan';
                 else if (!item.status) item.status = 'Draft';
+            });
+        }
+
+        // Normalisasi Rekap Kegiatan (termasuk Catatan Tugas Selesai Mandiri role Tim)
+        if (tempDb.rekapKegiatan && Array.isArray(tempDb.rekapKegiatan)) {
+            tempDb.rekapKegiatan.forEach(item => {
+                if (!item || typeof item !== 'object') return;
+                const tglVal = item.tanggal || item.deadline || '';
+                if (tglVal) {
+                    item.tanggal = item.tanggal || tglVal;
+                    item.deadline = item.deadline || tglVal;
+                }
+                const jenisVal = item.jenis_kegiatan || item.jenis || 'Catatan Mandiri';
+                item.jenis_kegiatan = jenisVal;
+                item.jenis = jenisVal;
+                item.status = item.status || 'Selesai';
+                if (item.status === 'Selesai') {
+                    item.progress = 100;
+                    item.progres = 100;
+                }
             });
         }
 
@@ -1533,6 +1572,22 @@ async function sendDataToServer(action, sheetName, item) {
         item.kategori = item.kategori || 'Medsos Instansi';
         item.jenis_media = item.jenis_media || item.media || 'Instagram';
         item.data_pendukung = item.data_pendukung || item.link_cloud || '';
+    }
+
+    if (varName === 'rekapKegiatan' && item) {
+        const tglVal = item.tanggal || item.deadline || '';
+        if (tglVal) {
+            item.tanggal = item.tanggal || tglVal;
+            item.deadline = item.deadline || tglVal;
+        }
+        const jenisVal = item.jenis_kegiatan || item.jenis || 'Catatan Mandiri';
+        item.jenis_kegiatan = jenisVal;
+        item.jenis = jenisVal;
+        item.status = item.status || 'Selesai';
+        if (item.status === 'Selesai') {
+            item.progress = 100;
+            item.progres = 100;
+        }
     }
 
     // Update local cache first (Optimistic UI update)

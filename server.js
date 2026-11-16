@@ -1393,6 +1393,22 @@ app.post(['/api/sheets', '/sheets'], async (req, res) => {
       }
     }
 
+    if (collectionName === 'rekapKegiatan' && item) {
+      const tglVal = item.tanggal || item.deadline || '';
+      if (tglVal) {
+        item.tanggal = item.tanggal || tglVal;
+        item.deadline = item.deadline || tglVal;
+      }
+      const jenisVal = item.jenis_kegiatan || item.jenis || 'Catatan Mandiri';
+      item.jenis_kegiatan = jenisVal;
+      item.jenis = jenisVal;
+      item.status = item.status || 'Selesai';
+      if (item.status === 'Selesai') {
+        item.progress = 100;
+        item.progres = 100;
+      }
+    }
+
     if (collectionName === 'monitoring' && item) {
       item.topik = item.topik || 'Umum';
       item.jenis_berita = item.jenis_berita || 'Media Online';

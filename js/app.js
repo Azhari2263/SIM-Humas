@@ -2404,12 +2404,232 @@ function getModalFieldsHTML(type, item) {
                 </div>
             </div>
         `;
+    } else if (type === 'rekap_kegiatan') {
+        const rekapRubrikOptions = [
+            '#SE2026', '#DTSEN', '#haribesar/daerah/nasional/internasional', '#rilisbrs', '#infografisbrs', '#rilispublikasi',
+            '#SElasaSEnsus', '#promosistatistik', '#rripontianak',
+            '#zonaintegritas', '#SKD', '#ddakalbar', 'KLIK', 'Laporan',
+            'Protokoler', 'MC', 'Ad Hoc', 'Layanan Humas', 'Lainnya'
+        ];
+        const selectedRekapRubriks = window.parseRubrikasiArray ? window.parseRubrikasiArray(item?.rubrikasi) : (item?.rubrikasi ? [item.rubrikasi] : []);
+        selectedRekapRubriks.forEach(r => {
+            if (r && !rekapRubrikOptions.includes(r)) {
+                rekapRubrikOptions.push(r);
+            }
+        });
+        const rekapRubrikVal = selectedRekapRubriks.join(', ');
+        const maxDateStr = (typeof window.getTodayWIBDateStr === 'function') ? window.getTodayWIBDateStr() : new Date().toISOString().split('T')[0];
+        const dateVal = formatDateInput(item?.tanggal || item?.deadline || '');
+        const lockedPicName = (typeof window.getStrictLoggedInTeamMemberName === 'function')
+            ? window.getStrictLoggedInTeamMemberName(currentUser)
+            : (currentUser?.name || currentUser?.nama || currentUser?.username || 'Anggota Tim');
+
+        return `
+            <div class="space-y-4 text-slate-700 dark:text-slate-300">
+                <div class="p-3 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/70 flex items-start gap-2.5 text-[11px] text-emerald-800 dark:text-emerald-200 leading-relaxed">
+                    <i class="fa-solid fa-circle-check text-emerald-600 dark:text-emerald-400 text-sm mt-0.5 shrink-0"></i>
+                    <div>
+                        <p class="font-bold">Catatan Tugas Selesai Sebelumnya (Susulan)</p>
+                        <p class="text-[10.5px] text-emerald-700/90 dark:text-emerald-300/90 mt-0.5">
+                            Data otomatis tercatat berstatus <strong>Selesai (100%)</strong> atas nama Anda di <strong>SLA &amp; Rekap Tugas</strong> serta <strong>Dashboard</strong>, tanpa mengubah penugasan aktif maupun perhitungan keterlambatan SLA.
+                        </p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Nama / Uraian Kegiatan <span class="text-rose-500">*</span></label>
+                    <input type="text" id="kegiatan" value="${escapeHtml(item?.kegiatan || item?.judul || '')}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold text-slate-800 dark:text-white" placeholder="Contoh: Pembuatan Infografis Rilis Inflasi / Liputan Rapat Pimpinan" required>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tanggal Selesai / Pelaksanaan <span class="text-rose-500">*</span></label>
+                        <input type="date" id="tanggal" value="${dateVal}" max="${maxDateStr}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-semibold text-slate-800 dark:text-white" required>
+                        <p class="text-[10px] text-slate-400 mt-1">Maksimal hari ini (${maxDateStr}).</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Petugas / PIC (Otomatis)</label>
+                        <input type="text" value="${escapeHtml(lockedPicName)}" class="w-full px-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-205 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed" disabled readonly>
+                        <input type="hidden" id="petugas" value="${escapeHtml(lockedPicName)}">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Kategori Rubrikasi Tugas <span class="text-rose-500">*</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="setAllRubrikasiOptions('se2026', 'rekap_rubrikasi')" class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">+ #SE2026</button>
+                            <span class="text-slate-300 dark:text-slate-700">|</span>
+                            <button type="button" onclick="setAllRubrikasiOptions('dtsen', 'rekap_rubrikasi')" class="text-[10px] font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer">+ #DTSEN</button>
+                            <span class="text-slate-300 dark:text-slate-700">|</span>
+                            <button type="button" onclick="setAllRubrikasiOptions('none', 'rekap_rubrikasi')" class="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer">Reset</button>
+                        </div>
+                    </div>
+                    <div id="rekap_rubrikasi-pill-group" class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 max-h-44 overflow-y-auto p-1.5 bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-700">
+                        ${rekapRubrikOptions.map(r => {
+                            const isChecked = selectedRekapRubriks.includes(r);
+                            return `
+                                <button type="button"
+                                        onclick="toggleRubrikasiOption('${r}', 'rekap_rubrikasi')"
+                                        data-rubrik-id="${r}"
+                                        class="rubrikasi-pill flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs transition-all select-none cursor-pointer ${
+                                            isChecked
+                                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500 font-bold shadow-2xs'
+                                            : 'bg-white dark:bg-slate-750 border-slate-205 dark:border-slate-700 text-slate-655 dark:text-slate-300 hover:border-slate-300 font-medium'
+                                        }">
+                                    <span class="inline-flex items-center gap-1.5 truncate">
+                                        <input type="checkbox" class="pill-checkbox rounded text-indigo-600 pointer-events-none" ${isChecked ? 'checked' : ''} tabindex="-1">
+                                        <span class="truncate">${r}</span>
+                                    </span>
+                                    <i class="fa-solid fa-circle-check pill-check text-indigo-600 dark:text-indigo-400 text-xs shrink-0 ${isChecked ? '' : 'hidden'}"></i>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                    <div id="rekap_rubrikasi-summary" class="mt-2 min-h-[22px]">
+                        ${selectedRekapRubriks.length === 0 ? `
+                            <span class="inline-flex items-center gap-1 font-semibold text-rose-500 text-[11px]">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Belum ada rubrikasi yang dipilih (Pilih minimal 1)
+                            </span>
+                        ` : `
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1">
+                                    ${selectedRekapRubriks.length} Rubrikasi Terpilih:
+                                </span>
+                                ${selectedRekapRubriks.map(r => `
+                                    <span class="inline-flex items-center gap-1 font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded-full text-[10.5px]">
+                                        <span>${r}</span>
+                                        <button type="button" onclick="event.stopPropagation(); window.toggleRubrikasiOption('${r}', 'rekap_rubrikasi')" class="text-indigo-400 hover:text-rose-500 ml-0.5 cursor-pointer">
+                                            <i class="fa-solid fa-xmark text-[10px]"></i>
+                                        </button>
+                                    </span>
+                                `).join('')}
+                            </div>
+                        `}
+                    </div>
+                    <input type="hidden" id="rekap_rubrikasi" value="${escapeHtml(rekapRubrikVal)}">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan Dokumentasi / Bukti Dukung</label>
+                        <input type="url" id="tautan_dokumentasi" value="${escapeHtml(item?.tautan_dokumentasi || '')}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-mono text-indigo-600 dark:text-indigo-400" placeholder="https://drive.google.com/...">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tautan Konten / Publikasi</label>
+                        <input type="url" id="tautan_konten" value="${escapeHtml(item?.tautan_konten || '')}" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs font-mono text-indigo-600 dark:text-indigo-400" placeholder="https://instagram.com/...">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Keterangan / Output Kegiatan</label>
+                    <textarea id="keterangan" rows="2" class="w-full px-4 py-2 bg-white dark:bg-slate-750 border border-slate-205 rounded-lg text-xs" placeholder="Catatan singkat output atau rincian tugas yang telah diselesaikan (opsional)...">${escapeHtml(item?.keterangan || '')}</textarea>
+                </div>
+
+                <div class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs">
+                    <span class="font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">Status &amp; Progres</span>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        <i class="fa-solid fa-check-double text-[9px]"></i> Selesai (100%)
+                    </span>
+                </div>
+            </div>
+        `;
     }
     return '';
 }
 
+window.getTodayWIBDateStr = function() {
+    const d = typeof getNowWIB === 'function' ? getNowWIB() : new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+};
+
+window.getStrictLoggedInTeamMemberName = function(user = currentUser) {
+    if (!user) return 'Anggota Tim';
+    const rawUserName = String(user.name || user.nama || '').trim();
+    const rawUsername = String(user.username || '').trim();
+    const teamList = (typeof db !== 'undefined' && Array.isArray(db.team)) ? db.team : [];
+
+    if (teamList.length > 0) {
+        const cleanStr = (s) => {
+            if (!s || typeof s !== 'string') return '';
+            return s
+                .replace(/\b(S\.Tr\.Stat|S\.Tr|S\.Stat|S\.Si|S\.E|S\.Kom|S\.Sos|S\.T|S\.P|A\.Md|M\.Si|M\.M|M\.Stat|Dr|Drs|Dra)\b\.?/gi, '')
+                .replace(/\(.*?\)/g, '')
+                .replace(/[^a-zA-Z0-9\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+        };
+
+        const members = teamList
+            .filter(m => m && m.nama && String(m.nama).trim())
+            .map(m => ({
+                rawName: String(m.nama).trim(),
+                normKey: cleanStr(String(m.nama).trim())
+            }));
+
+        const cleanName = cleanStr(rawUserName);
+        const cleanUname = cleanStr(rawUsername);
+        const aliases = (typeof BPS_HUMAS_ALIASES !== 'undefined') ? BPS_HUMAS_ALIASES : {};
+        const aliasTarget = aliases[cleanUname] || aliases[cleanName] || '';
+
+        let found = members.find(m =>
+            (cleanName && m.normKey === cleanName) ||
+            (cleanUname && m.normKey === cleanUname) ||
+            (aliasTarget && (m.normKey === aliasTarget || m.normKey.includes(aliasTarget) || aliasTarget.includes(m.normKey)))
+        );
+        if (!found && typeof resolveMemberFromPic === 'function') {
+            found = resolveMemberFromPic(rawUserName, members) || resolveMemberFromPic(rawUsername, members);
+        }
+        if (found) return found.rawName;
+    }
+
+    return rawUserName || rawUsername || 'Anggota Tim';
+};
+
+window.canTimModifyRekapKegiatan = function(item, user = currentUser) {
+    if (!item || !user || user.role !== 'tim') return false;
+    if (item.sumber_input && item.sumber_input !== 'mandiri_tim') return false;
+    const uname = String(user.username || '').toLowerCase().trim();
+    if (item.created_by && uname && String(item.created_by).toLowerCase().trim() === uname) {
+        return true;
+    }
+    if (typeof isTaskForCurrentUser === 'function' && isTaskForCurrentUser(item)) {
+        return true;
+    }
+    const strictName = window.getStrictLoggedInTeamMemberName(user).toLowerCase().trim();
+    if (item.petugas && strictName && String(item.petugas).toLowerCase().trim() === strictName) {
+        return true;
+    }
+    return false;
+};
+
+window.editRekapKegiatanItem = function(id) {
+    const list = (typeof db !== 'undefined' && Array.isArray(db.rekapKegiatan)) ? db.rekapKegiatan : [];
+    const item = list.find(i => i && String(i.id) === String(id));
+    if (!item) {
+        showToast('Data catatan tugas tidak ditemukan.', 'error');
+        return;
+    }
+    if (!window.canTimModifyRekapKegiatan(item)) {
+        showToast('Anda hanya dapat mengubah catatan tugas selesai milik Anda sendiri.', 'warning');
+        return;
+    }
+    openModal('rekap_kegiatan', item);
+};
+
 // Modal Form Operations
 function openModal(type, item = null, options = {}) {
+    if (type === 'rekap_kegiatan' && (!currentUser || currentUser.role !== 'tim')) {
+        showToast('Fitur pencatatan tugas selesai mandiri hanya tersedia untuk role Tim.', 'warning');
+        return;
+    }
+
     currentModalType = type;
     currentEditItem = item;
     isSubmitting = false;
@@ -2424,8 +2644,8 @@ function openModal(type, item = null, options = {}) {
     let title = '';
     let bodyHTML = '';
 
-    if (item !== null) {
-        // Edit mode: show manual edit form directly
+    if (item !== null || type === 'rekap_kegiatan') {
+        // Edit mode (or direct manual form for rekap_kegiatan): show form directly
         const titleMap = {
             'content': 'Edit Rencana Konten',
             'assignment': 'Edit Assignment Tugas',
@@ -2435,6 +2655,7 @@ function openModal(type, item = null, options = {}) {
             'mc': 'Edit Agenda MC',
             'brs_rilis': 'Edit Kegiatan BRS',
             'hari_besar': 'Edit Kalender Ucapan',
+            'rekap_kegiatan': item ? 'Edit Catatan Tugas Selesai' : 'Catat Tugas Selesai Sebelumnya',
             'team': 'Edit Anggota Tim',
             'user_manager': 'Ubah Akun Pengguna',
             'repository': 'Edit Dokumen Pedoman / Template',
@@ -2539,7 +2760,7 @@ function openModal(type, item = null, options = {}) {
         'konsep'
     ]);
 
-    if (type !== 'repository' && item !== null && currentUser && currentUser.role === 'tim') {
+    if (type !== 'repository' && type !== 'rekap_kegiatan' && item !== null && currentUser && currentUser.role === 'tim') {
         const modalInputs = modal.querySelectorAll('input, select, textarea');
         modalInputs.forEach(input => {
             const id = input.id;
@@ -2607,7 +2828,7 @@ window.renderManualForm = function(type) {
     }
 
     // Enforce Tim Humas restrictions if they click manual form
-    if (type !== 'repository' && currentUser && currentUser.role === 'tim') {
+    if (type !== 'repository' && type !== 'rekap_kegiatan' && currentUser && currentUser.role === 'tim') {
         const timAllowedFieldIds = new Set([
             'status',
             'progres',
@@ -3260,6 +3481,17 @@ function validateFormInput(type, data) {
     if (type === 'user_manager' && (!data.nama || !data.username)) return 'Kolom bertanda bintang (*) wajib diisi.';
     if (type === 'assignment' && (!data.tugas || !data.deskripsi || !data.tanggal_penugasan || !data.deadline || !data.assigned_to)) return 'Kolom bertanda bintang (*) wajib diisi.';
     if (type === 'repository' && (!data.nama_dokumen || !data.link_cloud)) return 'Nama Dokumen dan Tautan Cloud Storage wajib diisi.';
+    if (type === 'rekap_kegiatan') {
+        if (!data.kegiatan || !String(data.kegiatan).trim()) return 'Nama / Uraian Kegiatan wajib diisi.';
+        if (!data.tanggal || !/^\d{4}-\d{2}-\d{2}$/.test(String(data.tanggal).trim())) return 'Tanggal Selesai / Pelaksanaan wajib diisi dengan format tanggal yang valid.';
+        const todayStr = (typeof window.getTodayWIBDateStr === 'function') ? window.getTodayWIBDateStr() : new Date().toISOString().split('T')[0];
+        if (String(data.tanggal).trim() > todayStr) return 'Tanggal kegiatan tidak boleh melebihi hari ini karena fitur ini khusus tugas yang sudah selesai sebelumnya.';
+        if (!data.rubrikasi || !String(data.rubrikasi).trim()) return 'Silakan pilih minimal 1 Kategori Rubrikasi Tugas.';
+        const dokUrl = String(data.tautan_dokumentasi || '').trim();
+        const kontenUrl = String(data.tautan_konten || '').trim();
+        if (dokUrl && !/^https?:\/\//i.test(dokUrl)) return 'Tautan Dokumentasi harus diawali http:// atau https://';
+        if (kontenUrl && !/^https?:\/\//i.test(kontenUrl)) return 'Tautan Konten harus diawali http:// atau https://';
+    }
     return null;
 }
 
@@ -3468,6 +3700,37 @@ async function saveData(event) {
         item.link_cloud = document.getElementById('repo_link').value;
         item.deskripsi = document.getElementById('repo_deskripsi').value;
         item.status = document.getElementById('repo_status').value;
+    } else if (currentModalType === 'rekap_kegiatan') {
+        if (!currentUser || currentUser.role !== 'tim') {
+            showToast('Fitur pencatatan tugas selesai mandiri hanya tersedia untuk role Tim.', 'warning');
+            return;
+        }
+        const nowWIB = typeof getNowWIB === 'function' ? getNowWIB() : new Date();
+        const pad2 = n => String(n).padStart(2, '0');
+        const nowTs = `${nowWIB.getFullYear()}-${pad2(nowWIB.getMonth() + 1)}-${pad2(nowWIB.getDate())} ${pad2(nowWIB.getHours())}:${pad2(nowWIB.getMinutes())}:${pad2(nowWIB.getSeconds())}`;
+
+        const lockedPic = (typeof window.getStrictLoggedInTeamMemberName === 'function')
+            ? window.getStrictLoggedInTeamMemberName(currentUser)
+            : (currentUser?.name || currentUser?.nama || currentUser?.username || 'Anggota Tim');
+        const tglSelesai = String(document.getElementById('tanggal')?.value || '').trim();
+
+        item.kegiatan = String(document.getElementById('kegiatan')?.value || '').trim();
+        item.tanggal = tglSelesai;
+        item.deadline = tglSelesai;
+        item.rubrikasi = String(document.getElementById('rekap_rubrikasi')?.value || '').trim();
+        item.jenis_kegiatan = 'Catatan Mandiri';
+        item.jenis = 'Catatan Mandiri';
+        item.petugas = lockedPic;
+        item.status = 'Selesai';
+        item.progress = 100;
+        item.progres = 100;
+        item.tautan_dokumentasi = String(document.getElementById('tautan_dokumentasi')?.value || '').trim();
+        item.tautan_konten = String(document.getElementById('tautan_konten')?.value || '').trim();
+        item.keterangan = String(document.getElementById('keterangan')?.value || '').trim();
+        item.sumber_input = 'mandiri_tim';
+        item.created_by = currentEditItem?.created_by || currentUser?.username || '';
+        item.created_at = currentEditItem?.created_at || nowTs;
+        item.updated_at = nowTs;
     }
 
     const err = validateFormInput(currentModalType, item);
@@ -3487,6 +3750,7 @@ async function saveData(event) {
         'mc': 'mc',
         'brs_rilis': 'brs_rilis',
         'hari_besar': 'hari_besar',
+        'rekap_kegiatan': 'rekap_kegiatan',
         'team': 'team',
         'user_manager': 'users',
         'assignment': 'assignments',
@@ -3532,31 +3796,33 @@ async function saveData(event) {
         }
     }
 
-    // Notification Triggers - kirim ke pegawai yang ditugaskan
-    if (action === 'add' && item.petugas) {
-        // Cari username dari nama pegawai
-        const petugasUser = db.users.find(u => u.nama === item.petugas);
-        const targetUsername = petugasUser ? petugasUser.username : item.petugas;
-        addNotification(
-            'Penugasan Baru Untukmu',
-            `Kamu ditugaskan pada kegiatan: ${item.judul || item.kegiatan || item.hari_besar || 'Baru'}.`,
-            targetUsername
-        );
-    } else if (action === 'add' && (item.assignedTo || item.pembuat_konten || item.assigned_to)) {
-        const petugasNama = item.assignedTo || item.pembuat_konten || item.assigned_to;
-        const petugasUser = db.users.find(u => u.nama === petugasNama);
-        const targetUsername = petugasUser ? petugasUser.username : petugasNama;
-        addNotification(
-            'Tugas Baru Untukmu',
-            `Kamu ditugaskan: ${item.judul || item.kegiatan || item.hari_besar || item.tugas || 'Baru'}.`,
-            targetUsername
-        );
-    } else if (action === 'update' && item.status && currentEditItem?.status !== item.status) {
-        addNotification(
-            'Pembaruan Status Tugas',
-            `Status "${item.judul || item.kegiatan}" diubah menjadi: ${item.status}.`,
-            'koordinator'
-        );
+    // Notification Triggers - kirim ke pegawai yang ditugaskan (kecuali catatan mandiri tugas selesai)
+    if (currentModalType !== 'rekap_kegiatan') {
+        if (action === 'add' && item.petugas) {
+            // Cari username dari nama pegawai
+            const petugasUser = db.users.find(u => u.nama === item.petugas);
+            const targetUsername = petugasUser ? petugasUser.username : item.petugas;
+            addNotification(
+                'Penugasan Baru Untukmu',
+                `Kamu ditugaskan pada kegiatan: ${item.judul || item.kegiatan || item.hari_besar || 'Baru'}.`,
+                targetUsername
+            );
+        } else if (action === 'add' && (item.assignedTo || item.pembuat_konten || item.assigned_to)) {
+            const petugasNama = item.assignedTo || item.pembuat_konten || item.assigned_to;
+            const petugasUser = db.users.find(u => u.nama === petugasNama);
+            const targetUsername = petugasUser ? petugasUser.username : petugasNama;
+            addNotification(
+                'Tugas Baru Untukmu',
+                `Kamu ditugaskan: ${item.judul || item.kegiatan || item.hari_besar || item.tugas || 'Baru'}.`,
+                targetUsername
+            );
+        } else if (action === 'update' && item.status && currentEditItem?.status !== item.status) {
+            addNotification(
+                'Pembaruan Status Tugas',
+                `Status "${item.judul || item.kegiatan}" diubah menjadi: ${item.status}.`,
+                'koordinator'
+            );
+        }
     }
 
     // Audit Log Trigger
@@ -3568,6 +3834,7 @@ async function saveData(event) {
         'mc': 'Penugasan MC',
         'brs_rilis': 'Dokumen BRS',
         'hari_besar': 'Ucapan Hari Besar',
+        'rekap_kegiatan': 'Catatan Tugas Selesai (Mandiri)',
         'team': 'Profil Anggota Tim',
         'assignment': 'Assignment Tugas',
         'user_manager': 'Akun Pengguna',
@@ -3635,10 +3902,18 @@ async function saveData(event) {
     }
 
     const savedModalType = currentModalType;
+    const savedYear = (savedModalType === 'rekap_kegiatan' && item.tanggal) ? Number(String(item.tanggal).slice(0, 4)) : null;
     setSubmitLoading(false);
     closeModal();
     if (savedModalType === 'user_manager') {
         showToast('Username dan password berhasil diperbarui');
+    } else if (savedModalType === 'rekap_kegiatan') {
+        const activeFilterYear = window.rekapKegiatanFilter ? window.rekapKegiatanFilter.year : null;
+        if (savedYear && activeFilterYear && activeFilterYear !== 'all' && Number(activeFilterYear) !== savedYear) {
+            showToast(`Catatan tugas selesai disimpan! Ubah filter Tahun ke ${savedYear} atau Semua Tahun untuk melihatnya di tabel.`, 'info', 5500);
+        } else {
+            showToast('Catatan tugas selesai berhasil disimpan!');
+        }
     } else {
         showToast('Data berhasil disimpan!');
     }
@@ -3655,6 +3930,7 @@ function deleteItem(type, id) {
         'mc': 'mc',
         'brs_rilis': 'brs_rilis',
         'hari_besar': 'hari_besar',
+        'rekap_kegiatan': 'rekap_kegiatan',
         'team': 'team',
         'tickets': 'tickets',
         'assets': 'assets',
@@ -3669,7 +3945,17 @@ function deleteItem(type, id) {
     const varName = SHEET_TO_VAR[sheetName] || type;
 
     // Get item description before deleting
-    const item = db[varName]?.find(i => Number(i.id) === Number(id));
+    const item = db[varName]?.find(i => String(i.id) === String(id));
+    if (type === 'rekap_kegiatan') {
+        if (!item) {
+            showToast('Data catatan tugas tidak ditemukan.', 'error');
+            return;
+        }
+        if (typeof window.canTimModifyRekapKegiatan === 'function' && !window.canTimModifyRekapKegiatan(item)) {
+            showToast('Anda hanya dapat menghapus catatan tugas selesai milik Anda sendiri.', 'warning');
+            return;
+        }
+    }
     const itemDesc = item ? (item.judul || item.kegiatan || item.nama || item.hari_besar || item.media || `ID ${id}`) : `ID ${id}`;
 
     // Proteksi akun administrator utama dan akun yang sedang digunakan
@@ -3680,11 +3966,12 @@ function deleteItem(type, id) {
         }
     }
 
+    const deletePayloadId = item ? item.id : (Number.isNaN(Number(id)) ? id : Number(id));
     showConfirmModal(
-        `Data "<strong>${itemDesc}</strong>" akan dihapus secara permanen dari database dan tidak dapat dikembalikan.`,
+        `Data "<strong>${escapeHtml(itemDesc)}</strong>" akan dihapus secara permanen dari database dan tidak dapat dikembalikan.`,
         () => {
             logActivity('Hapus Data', `Menghapus item dari ${sheetName}: "${itemDesc}".`);
-            sendDataToServer('delete', sheetName, { id: Number(id) }).catch(err => {
+            sendDataToServer('delete', sheetName, { id: deletePayloadId }).catch(err => {
                 console.error('Delete sync error:', err);
             });
 

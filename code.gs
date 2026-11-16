@@ -34,7 +34,7 @@ function doGet(e) {
     mc: getSheetData(sheet, 'mc', ["id", "tanggal", "bulan", "kegiatan", "lokasi", "jam_mulai", "jenis", "level", "petugas", "keterangan", "status"]),
     brsRilis: getSheetData(sheet, 'brs_rilis', ["id", "tanggal_rilis", "judul", "pic_poster_info", "pic_doc_ruang", "pic_doc_yt_zoom", "highlight"]),
     hariBesar: getSheetData(sheet, 'hari_besar', ["id", "tanggal", "hari_besar", "data_pendukung", "pembuat_konten", "status"]),
-    rekapKegiatan: getSheetData(sheet, 'rekap_kegiatan', ["id", "deadline", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status"]),
+    rekapKegiatan: getSheetData(sheet, 'rekap_kegiatan', ["id", "tanggal", "deadline", "rubrikasi", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status", "tautan_dokumentasi", "tautan_konten", "keterangan", "sumber_input", "created_by", "created_at", "updated_at"]),
     notifications: getSheetData(sheet, 'notifications', ["id", "user_role", "title", "message", "timestamp", "is_read"]),
     auditTrail: getSheetData(sheet, 'audit_trail', ["id", "user", "action", "details", "timestamp"]),
     masterData: getSheetData(sheet, 'master_data', ["id", "kategori", "kode", "nilai", "keterangan"]),
@@ -154,6 +154,26 @@ function doPost(e) {
     });
   }
 
+  // Normalisasi & Auto-Heal kolom tambahan untuk rekap_kegiatan
+  if (normalizedSheetName === 'rekap_kegiatan' && data.item) {
+    if (!data.item.tanggal && data.item.deadline) data.item.tanggal = data.item.deadline;
+    if (!data.item.deadline && data.item.tanggal) data.item.deadline = data.item.tanggal;
+    data.item.jenis_kegiatan = data.item.jenis_kegiatan || data.item.jenis || "Catatan Mandiri";
+    data.item.status = data.item.status || "Selesai";
+    if (data.item.status === "Selesai" && (data.item.progress === undefined || data.item.progress === "")) {
+      data.item.progress = 100;
+    }
+
+    const rekapExtraCols = ["tanggal", "deadline", "rubrikasi", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status", "tautan_dokumentasi", "tautan_konten", "keterangan", "sumber_input", "created_by", "created_at", "updated_at"];
+    rekapExtraCols.forEach(col => {
+      if (currentHeaders.indexOf(col) === -1) {
+        const nextCol = currentHeaders.length + 1;
+        ws.getRange(1, nextCol).setValue(col);
+        currentHeaders.push(col);
+      }
+    });
+  }
+
   function getCellValue(item, header) {
     if (!item) return "";
     let val = item[header];
@@ -193,7 +213,13 @@ function doPost(e) {
       return item.media_post || item.media || "";
     }
     if (h === 'jenis_konten' || h === 'posttype' || h === 'jenis') {
-      return item.jenis_konten || item.postType || item.jenis || "";
+      return item.jenis_konten || item.postType || item.jenis || item.jenis_kegiatan || "";
+    }
+    if (h === 'jenis_kegiatan') {
+      return item.jenis_kegiatan || item.jenis || "";
+    }
+    if (h === 'progress' || h === 'progres') {
+      return item.progress !== undefined && item.progress !== "" ? item.progress : (item.progres !== undefined && item.progres !== "" ? item.progres : "");
     }
     if (h === 'tanggal_posting') {
       return item.tanggal_posting || item.jadwal || item.tanggal || "";
@@ -566,6 +592,19 @@ function getSheetData(sheet, sheetName, defaultHeaders) {
       }
     }
 
+    if (sheetName === 'rekap_kegiatan' || sheetName === 'rekapKegiatan') {
+      const tglVal = obj.tanggal || obj.deadline || "";
+      obj.tanggal = tglVal;
+      obj.deadline = obj.deadline || tglVal;
+      const jenisVal = obj.jenis_kegiatan || obj.jenis || "Catatan Mandiri";
+      obj.jenis_kegiatan = jenisVal;
+      obj.jenis = jenisVal;
+      obj.status = obj.status || "Selesai";
+      if (obj.status === "Selesai" && (obj.progress === undefined || obj.progress === "")) {
+        obj.progress = 100;
+      }
+    }
+
     if (sheetName === 'Daftar_Kontak') {
       const kontakId = String(obj['ID Kontak'] || obj.id_kontak || obj.id || '').trim();
       obj['ID Kontak'] = kontakId;
@@ -657,8 +696,8 @@ function getHeadersForSheet(name) {
     'brsRilis': ["id", "tanggal_rilis", "judul", "pic_poster_info", "pic_doc_ruang", "pic_doc_yt_zoom", "highlight"],
     'hari_besar': ["id", "tanggal", "hari_besar", "kategori", "jenis_media", "pembuat_konten", "status", "tautan_konten", "data_pendukung", "keterangan", "hubungkan_content_planner"],
     'hariBesar': ["id", "tanggal", "hari_besar", "kategori", "jenis_media", "pembuat_konten", "status", "tautan_konten", "data_pendukung", "keterangan", "hubungkan_content_planner"],
-    'rekap_kegiatan': ["id", "deadline", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status"],
-    'rekapKegiatan': ["id", "deadline", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status"],
+    'rekap_kegiatan': ["id", "tanggal", "deadline", "rubrikasi", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status", "tautan_dokumentasi", "tautan_konten", "keterangan", "sumber_input", "created_by", "created_at", "updated_at"],
+    'rekapKegiatan': ["id", "tanggal", "deadline", "rubrikasi", "kegiatan", "jenis_kegiatan", "petugas", "progress", "status", "tautan_dokumentasi", "tautan_konten", "keterangan", "sumber_input", "created_by", "created_at", "updated_at"],
     'notifications': ["id", "user_role", "title", "message", "timestamp", "is_read"],
     'audit_trail': ["id", "user", "action", "details", "timestamp"],
     'auditTrail': ["id", "user", "action", "details", "timestamp"],
