@@ -14505,6 +14505,1409 @@ function renderResetCredentialsPage(container) {
 }
 window.renderResetCredentialsPage = renderResetCredentialsPage;
 
+// ===================================================================
+// FORUM DISKUSI (KRITIK & SARAN + FORUM DISKUSI INTERAKTIF)
+// ===================================================================
+
+const FORUM_CATEGORIES = [
+    { id: 'Kritik', label: 'Kritik', section: 'kritik_saran', icon: 'fa-solid fa-triangle-exclamation', textClass: 'text-rose-600 dark:text-rose-400', tintClass: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/70' },
+    { id: 'Saran', label: 'Saran', section: 'kritik_saran', icon: 'fa-solid fa-lightbulb', textClass: 'text-emerald-600 dark:text-emerald-400', tintClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/70' },
+    { id: 'Pertanyaan', label: 'Pertanyaan', section: 'diskusi', icon: 'fa-solid fa-circle-question', textClass: 'text-sky-600 dark:text-sky-400', tintClass: 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800/70' },
+    { id: 'Diskusi', label: 'Diskusi', section: 'diskusi', icon: 'fa-solid fa-comments', textClass: 'text-indigo-600 dark:text-indigo-400', tintClass: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/70' }
+];
+
+const FORUM_SECTIONS = {
+    kritik_saran: {
+        id: 'kritik_saran',
+        label: 'Kritik dan Saran',
+        shortLabel: 'Kritik & Saran',
+        icon: 'fa-solid fa-bullhorn',
+        accentClass: 'text-emerald-600 dark:text-emerald-400',
+        subtitle: 'Wadah khusus penyampaian kritik konstruktif dan saran perbaikan layanan SIM Humas.',
+        categories: ['Kritik', 'Saran'],
+        defaultCategory: 'Saran',
+        ctaLabel: 'Kirim Kritik / Saran',
+        firstCtaLabel: 'Kirim Masukan Pertama',
+        searchPlaceholder: 'Cari judul masukan, kritik, saran, atau penulis...',
+        emptyTitle: 'Belum ada kritik atau saran yang sesuai',
+        emptyDescription: 'Jadilah yang pertama menyampaikan kritik konstruktif atau saran perbaikan layanan.',
+        backLabel: 'Kembali ke Kritik dan Saran',
+        modalCreateTitle: 'Kirim Kritik atau Saran',
+        modalEditTitle: 'Edit Kritik / Saran',
+        modalSubtitle: 'Pilih kategori Kritik atau Saran dan sampaikan masukan secara konstruktif.',
+        modalTitlePlaceholder: 'Contoh: Usulan penambahan filter rekap bulanan atau kritik alur layanan...',
+        modalBodyPlaceholder: 'Tuliskan detail kritik atau saran perbaikan Anda di sini...',
+        modalSubmitCreate: 'Kirim Masukan'
+    },
+    diskusi: {
+        id: 'diskusi',
+        label: 'Forum Diskusi',
+        shortLabel: 'Forum Diskusi',
+        icon: 'fa-solid fa-comments',
+        accentClass: 'text-indigo-600 dark:text-indigo-400',
+        subtitle: 'Ruang tanya jawab dan diskusi terbuka seputar kehumasan bagi seluruh pengguna SIM Humas.',
+        categories: ['Pertanyaan', 'Diskusi'],
+        defaultCategory: 'Diskusi',
+        ctaLabel: 'Buat Topik Diskusi',
+        firstCtaLabel: 'Buat Topik Pertama',
+        searchPlaceholder: 'Cari pertanyaan, topik diskusi, atau penulis...',
+        emptyTitle: 'Belum ada pertanyaan atau topik diskusi yang sesuai',
+        emptyDescription: 'Jadilah yang pertama mengajukan pertanyaan atau membuka topik diskusi baru.',
+        backLabel: 'Kembali ke Forum Diskusi',
+        modalCreateTitle: 'Buat Pertanyaan / Topik Diskusi',
+        modalEditTitle: 'Edit Topik Diskusi',
+        modalSubtitle: 'Pilih kategori Pertanyaan atau Diskusi untuk memulai pembahasan bersama.',
+        modalTitlePlaceholder: 'Contoh: Bagaimana alur koordinasi peliputan kegiatan eksternal?',
+        modalBodyPlaceholder: 'Tuliskan pertanyaan atau detail topik diskusi yang ingin dibahas...',
+        modalSubmitCreate: 'Terbitkan Topik'
+    }
+};
+
+let activeForumSection = 'kritik_saran';
+
+const forumSectionStates = {
+    kritik_saran: { category: 'Semua', search: '', timeRange: 'all', sortBy: 'latest', activeTopicId: null },
+    diskusi: { category: 'Semua', search: '', timeRange: 'all', sortBy: 'latest', activeTopicId: null }
+};
+
+let forumInlineReplyTargetId = null;
+let forumEditingCommentId = null;
+
+function getForumSectionMeta(sectionId) {
+    return FORUM_SECTIONS[sectionId] || FORUM_SECTIONS.diskusi;
+}
+
+function getForumSectionForCategory(cat) {
+    const clean = String(cat || '').trim().toLowerCase();
+    if (clean === 'kritik' || clean === 'saran') return 'kritik_saran';
+    return 'diskusi';
+}
+
+function getActiveForumFilterState() {
+    if (!forumSectionStates[activeForumSection]) {
+        forumSectionStates[activeForumSection] = { category: 'Semua', search: '', timeRange: 'all', sortBy: 'latest', activeTopicId: null };
+    }
+    return forumSectionStates[activeForumSection];
+}
+
+function getForumCategoryMeta(cat) {
+    const clean = String(cat || 'Diskusi').trim().toLowerCase();
+    return FORUM_CATEGORIES.find(c => c.id.toLowerCase() === clean) || FORUM_CATEGORIES[3];
+}
+
+function getForumRoleName(role) {
+    if (typeof getRoleLabel === 'function') return getRoleLabel(role);
+    const map = {
+        admin: 'Administrator Sistem',
+        kepala: 'Kepala BPS',
+        koordinator: 'Ketua Tim Humas',
+        tim: 'Tim Humas',
+        pemohon: 'Pegawai/Pemohon',
+        kabkot: 'BPS Kabupaten/Kota'
+    };
+    return map[String(role || '').toLowerCase()] || role || 'Pengguna';
+}
+
+function formatForumDateTime(isoStr) {
+    if (!isoStr) return '-';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return String(isoStr);
+    try {
+        const diffMs = Date.now() - d.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'Baru saja';
+        if (diffMins < 60) return `${diffMins} menit lalu`;
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours} jam lalu`;
+        return d.toLocaleDateString('id-ID', {
+            timeZone: 'Asia/Jakarta',
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        }) + ' · ' + d.toLocaleTimeString('id-ID', {
+            timeZone: 'Asia/Jakarta',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }) + ' WIB';
+    } catch (_) {
+        return String(isoStr);
+    }
+}
+
+function formatForumFullTimestamp(isoStr) {
+    if (!isoStr) return '-';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return String(isoStr);
+    try {
+        return d.toLocaleDateString('id-ID', {
+            timeZone: 'Asia/Jakarta',
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        }) + ', ' + d.toLocaleTimeString('id-ID', {
+            timeZone: 'Asia/Jakarta',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }) + ' WIB';
+    } catch (_) {
+        return String(isoStr);
+    }
+}
+
+function getCurrentForumActor() {
+    if (typeof currentUser === 'undefined' || !currentUser) {
+        return { username: '', nama: '', role: '', isAdmin: false };
+    }
+    const role = String(currentUser.role || '').trim().toLowerCase();
+    return {
+        username: String(currentUser.username || '').trim().toLowerCase(),
+        nama: String(currentUser.nama || currentUser.name || currentUser.username || 'Pengguna').trim(),
+        role,
+        isAdmin: role === 'admin'
+    };
+}
+
+function getVisibleForumTopicsAndComments() {
+    const actor = getCurrentForumActor();
+    const rawTopics = Array.isArray(db.forumDiskusi) ? db.forumDiskusi : [];
+    const rawComments = Array.isArray(db.forumKomentar) ? db.forumKomentar : [];
+
+    const topics = rawTopics.filter(t => actor.isAdmin || t.status_moderasi !== 'Disembunyikan');
+    const topicIds = new Set(topics.map(t => String(t.id)));
+    const comments = rawComments.filter(c => topicIds.has(String(c.topic_id)) && (actor.isAdmin || c.status_moderasi !== 'Disembunyikan'));
+
+    return { topics, comments };
+}
+
+function getSectionForumTopics(topics, sectionId) {
+    return (Array.isArray(topics) ? topics : []).filter(t => getForumSectionForCategory(t.kategori) === sectionId);
+}
+
+function getFilteredForumTopics(sectionTopics, comments, filterState) {
+    const actor = getCurrentForumActor();
+    const state = filterState || getActiveForumFilterState();
+    const q = String(state.search || '').trim().toLowerCase();
+    const cat = state.category || 'Semua';
+    const timeRange = state.timeRange || 'all';
+    const sortBy = state.sortBy || 'latest';
+
+    const commentsByTopic = new Map();
+    comments.forEach(c => {
+        const key = String(c.topic_id);
+        commentsByTopic.set(key, (commentsByTopic.get(key) || 0) + 1);
+    });
+
+    const nowMs = Date.now();
+    let list = sectionTopics.filter(t => {
+        if (cat === 'Disematkan') {
+            if (!t.is_pinned) return false;
+        } else if (cat === 'Diikuti') {
+            if (!actor.username || !(t.followers_users || []).includes(actor.username)) return false;
+        } else if (cat !== 'Semua') {
+            if (String(t.kategori || '').toLowerCase() !== cat.toLowerCase()) return false;
+        }
+
+        if (timeRange !== 'all') {
+            const ts = new Date(t.created_at || t.updated_at).getTime();
+            if (!Number.isNaN(ts)) {
+                const ageDays = (nowMs - ts) / (1000 * 60 * 60 * 24);
+                if (timeRange === 'today' && ageDays > 1) return false;
+                if (timeRange === '7d' && ageDays > 7) return false;
+                if (timeRange === '30d' && ageDays > 30) return false;
+            }
+        }
+
+        if (q) {
+            const haystack = `${t.judul} ${t.isi} ${t.kategori} ${t.author_nama} ${t.author_username}`.toLowerCase();
+            if (!haystack.includes(q)) return false;
+        }
+
+        return true;
+    });
+
+    list.sort((a, b) => {
+        if (a.is_pinned !== b.is_pinned) {
+            return a.is_pinned ? -1 : 1;
+        }
+        if (sortBy === 'oldest') {
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        }
+        if (sortBy === 'likes') {
+            const diff = (b.likes_users || []).length - (a.likes_users || []).length;
+            if (diff !== 0) return diff;
+        }
+        if (sortBy === 'active') {
+            const cA = commentsByTopic.get(String(a.id)) || 0;
+            const cB = commentsByTopic.get(String(b.id)) || 0;
+            if (cB !== cA) return cB - cA;
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    return { list, commentsByTopic };
+}
+
+function buildForumSectionSwitcherHtml(allVisibleTopics) {
+    const kritikCount = getSectionForumTopics(allVisibleTopics, 'kritik_saran').length;
+    const diskusiCount = getSectionForumTopics(allVisibleTopics, 'diskusi').length;
+    const sections = [
+        { meta: FORUM_SECTIONS.kritik_saran, count: kritikCount, badgeSub: 'Kritik · Saran' },
+        { meta: FORUM_SECTIONS.diskusi, count: diskusiCount, badgeSub: 'Pertanyaan · Diskusi' }
+    ];
+
+    return `
+        <div role="tablist" aria-label="Bagian Forum Diskusi"
+            class="inline-flex flex-wrap sm:flex-nowrap w-full sm:w-auto items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-700/80 mb-5">
+            ${sections.map(({ meta, count }) => {
+                const isActive = activeForumSection === meta.id;
+                const sectionState = forumSectionStates[meta.id];
+                const hasSavedThread = Boolean(sectionState && sectionState.activeTopicId);
+                return `
+                    <button type="button" role="tab" aria-selected="${isActive ? 'true' : 'false'}"
+                        onclick="window.switchForumSection('${meta.id}')"
+                        class="flex-1 sm:flex-initial min-h-[44px] sm:min-h-0 px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap shrink-0 flex items-center justify-center gap-2 transition-colors cursor-pointer ${isActive
+                            ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs border border-slate-200/70 dark:border-slate-700'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}">
+                        <i class="${meta.icon} text-[11px] ${isActive ? meta.accentClass : ''}"></i>
+                        <span>${escapeHtml(meta.label)}</span>
+                        <span class="tabular-nums text-[11px] font-extrabold px-1.5 py-0.5 rounded-md ${isActive
+                            ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
+                            : 'bg-slate-200/70 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}">${count}</span>
+                        ${(!isActive && hasSavedThread) ? `<span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" title="Pembahasan terbuka tersimpan"></span>` : ''}
+                    </button>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+function renderForumDiskusi(container) {
+    if (!container) return;
+    if (!window._activeForumTopicId) {
+        getActiveForumFilterState().activeTopicId = null;
+    }
+    container.innerHTML = `<div id="forum-diskusi-root" class="max-w-5xl mx-auto pb-12"></div>`;
+    drawForumDiskusiView();
+
+    const now = Date.now();
+    if (typeof window.refreshForumFromApi === 'function' && (now - (window._lastForumSyncMs || 0) > 4000)) {
+        window._lastForumSyncMs = now;
+        window.refreshForumFromApi(false).catch(() => {});
+    }
+}
+
+function drawForumDiskusiView() {
+    const root = document.getElementById('forum-diskusi-root');
+    if (!root) return;
+
+    const { topics, comments } = getVisibleForumTopicsAndComments();
+    const activeId = window._activeForumTopicId
+        ? String(window._activeForumTopicId)
+        : (getActiveForumFilterState().activeTopicId ? String(getActiveForumFilterState().activeTopicId) : null);
+
+    if (activeId) {
+        const activeTopic = topics.find(t => String(t.id).toLowerCase() === activeId.toLowerCase());
+        if (activeTopic) {
+            const topicSection = getForumSectionForCategory(activeTopic.kategori);
+            activeForumSection = topicSection;
+            forumSectionStates[topicSection].activeTopicId = String(activeTopic.id);
+            window._activeForumTopicId = String(activeTopic.id);
+            root.innerHTML = buildForumTopicDetailHtml(activeTopic, comments, topics);
+            return;
+        }
+        window._activeForumTopicId = null;
+        getActiveForumFilterState().activeTopicId = null;
+    }
+
+    root.innerHTML = buildForumFeedHtml(topics, comments);
+}
+
+function buildForumFeedHtml(allVisibleTopics, comments) {
+    const actor = getCurrentForumActor();
+    const sectionMeta = getForumSectionMeta(activeForumSection);
+    const filterState = getActiveForumFilterState();
+    const sectionTopics = getSectionForumTopics(allVisibleTopics, activeForumSection);
+    const { list, commentsByTopic } = getFilteredForumTopics(sectionTopics, comments, filterState);
+
+    const totalSectionTopics = sectionTopics.length;
+    const primaryCat = sectionMeta.categories[0];
+    const secondaryCat = sectionMeta.categories[1];
+    const primaryCount = sectionTopics.filter(t => String(t.kategori || '').toLowerCase() === primaryCat.toLowerCase()).length;
+    const secondaryCount = sectionTopics.filter(t => String(t.kategori || '').toLowerCase() === secondaryCat.toLowerCase()).length;
+    const pinnedCount = sectionTopics.filter(t => t.is_pinned).length;
+    const followedCount = actor.username
+        ? sectionTopics.filter(t => (t.followers_users || []).includes(actor.username)).length
+        : 0;
+
+    const sectionCategories = FORUM_CATEGORIES.filter(c => sectionMeta.categories.includes(c.id));
+    const categoryTabs = [
+        { id: 'Semua', label: 'Semua' },
+        ...sectionCategories.map(c => ({ id: c.id, label: c.label })),
+        { id: 'Disematkan', label: 'Disematkan' },
+        { id: 'Diikuti', label: 'Diikuti' }
+    ];
+
+    const hasActiveFilter = Boolean(filterState.search || filterState.category !== 'Semua' || filterState.timeRange !== 'all');
+
+    return `
+        <!-- Header Halaman Forum Diskusi -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <div>
+                <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">${escapeHtml(sectionMeta.label)}</h1>
+                <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    ${escapeHtml(sectionMeta.subtitle)}
+                </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button type="button" onclick="window.handleManualForumRefresh()" title="Muat Ulang"
+                    class="min-h-[44px] sm:min-h-0 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer">
+                    <i class="fa-solid fa-rotate text-[11px]"></i>
+                    <span class="hidden sm:inline">Muat Ulang</span>
+                </button>
+                <button type="button" onclick="window.openForumTopicModal(null, '${sectionMeta.id}')"
+                    class="min-h-[44px] sm:min-h-0 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer">
+                    <i class="fa-solid fa-plus text-[11px]"></i>
+                    <span>${escapeHtml(sectionMeta.ctaLabel)}</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigasi Pemisah Dua Bagian: Kritik dan Saran vs Forum Diskusi -->
+        ${buildForumSectionSwitcherHtml(allVisibleTopics)}
+
+        <!-- Ringkasan Statistik Bagian Aktif -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-xl px-4 py-3">
+                <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Total ${escapeHtml(sectionMeta.shortLabel)}</p>
+                <p class="text-xl font-extrabold text-slate-900 dark:text-white tabular-nums mt-0.5">${totalSectionTopics}</p>
+            </div>
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-xl px-4 py-3">
+                <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">${escapeHtml(primaryCat)} &amp; ${escapeHtml(secondaryCat)}</p>
+                <p class="text-xl font-extrabold ${sectionMeta.id === 'kritik_saran' ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400'} tabular-nums mt-0.5">
+                    <span>${primaryCount}</span>
+                    <span class="text-xs font-semibold text-slate-400 dark:text-slate-500 mx-0.5">/</span>
+                    <span>${secondaryCount}</span>
+                </p>
+            </div>
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-xl px-4 py-3">
+                <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Disematkan</p>
+                <p class="text-xl font-extrabold text-amber-600 dark:text-amber-400 tabular-nums mt-0.5">${pinnedCount}</p>
+            </div>
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-xl px-4 py-3">
+                <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Diikuti</p>
+                <p class="text-xl font-extrabold text-sky-600 dark:text-sky-400 tabular-nums mt-0.5">${followedCount}</p>
+            </div>
+        </div>
+
+        <!-- Bar Pencarian, Filter Kategori Bagian & Filter Waktu -->
+        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-3.5 sm:p-4 mb-5 space-y-3">
+            <div class="flex flex-wrap items-center gap-1.5">
+                ${categoryTabs.map(tab => {
+                    const active = filterState.category === tab.id;
+                    return `
+                        <button type="button" onclick="window.setForumCategoryFilter('${escapeHtml(tab.id)}')"
+                            class="min-h-[40px] sm:min-h-0 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer ${active
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700'}">
+                            ${escapeHtml(tab.label)}
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1 border-t border-slate-100 dark:border-slate-700/70">
+                <div class="sm:col-span-6 relative">
+                    <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    <input type="text" id="forum-search-input" value="${escapeHtml(filterState.search || '')}"
+                        oninput="window.setForumSearchQuery(this.value)"
+                        placeholder="${escapeHtml(sectionMeta.searchPlaceholder)}"
+                        class="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/70 dark:bg-slate-900/60 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500">
+                </div>
+                <div class="sm:col-span-3">
+                    <select id="forum-time-filter" onchange="window.setForumTimeFilter(this.value)"
+                        class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/70 dark:bg-slate-900/60 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 cursor-pointer">
+                        <option value="all" ${filterState.timeRange === 'all' ? 'selected' : ''}>Semua Waktu</option>
+                        <option value="today" ${filterState.timeRange === 'today' ? 'selected' : ''}>Hari Ini (24 Jam)</option>
+                        <option value="7d" ${filterState.timeRange === '7d' ? 'selected' : ''}>7 Hari Terakhir</option>
+                        <option value="30d" ${filterState.timeRange === '30d' ? 'selected' : ''}>30 Hari Terakhir</option>
+                    </select>
+                </div>
+                <div class="sm:col-span-3">
+                    <select id="forum-sort-filter" onchange="window.setForumSortFilter(this.value)"
+                        class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/70 dark:bg-slate-900/60 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 cursor-pointer">
+                        <option value="latest" ${filterState.sortBy === 'latest' ? 'selected' : ''}>Urutkan: Terbaru</option>
+                        <option value="oldest" ${filterState.sortBy === 'oldest' ? 'selected' : ''}>Urutkan: Terlama</option>
+                        <option value="likes" ${filterState.sortBy === 'likes' ? 'selected' : ''}>Paling Disukai</option>
+                        <option value="active" ${filterState.sortBy === 'active' ? 'selected' : ''}>Komentar Terbanyak</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Daftar Postingan Bagian Aktif -->
+        ${list.length === 0 ? `
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-10 text-center">
+                <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                    <i class="${sectionMeta.icon} text-xl"></i>
+                </div>
+                <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100">${escapeHtml(sectionMeta.emptyTitle)}</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+                    ${hasActiveFilter
+                        ? 'Coba ubah kata kunci pencarian atau filter kategori/waktu yang dipilih.'
+                        : escapeHtml(sectionMeta.emptyDescription)}
+                </p>
+                <button type="button" onclick="window.openForumTopicModal(null, '${sectionMeta.id}')"
+                    class="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors cursor-pointer">
+                    <i class="fa-solid fa-plus text-[11px]"></i> ${escapeHtml(sectionMeta.firstCtaLabel)}
+                </button>
+            </div>
+        ` : `
+            <div class="space-y-3">
+                ${list.map(topic => buildForumTopicCardHtml(topic, commentsByTopic.get(String(topic.id)) || 0, actor)).join('')}
+            </div>
+        `}
+    `;
+}
+
+function buildForumTopicCardHtml(topic, commentCount, actor) {
+    const catMeta = getForumCategoryMeta(topic.kategori);
+    const likesArr = Array.isArray(topic.likes_users) ? topic.likes_users : [];
+    const followersArr = Array.isArray(topic.followers_users) ? topic.followers_users : [];
+    const isLiked = Boolean(actor.username && likesArr.includes(actor.username));
+    const isFollowing = Boolean(actor.username && followersArr.includes(actor.username));
+    const isOwner = Boolean(actor.username && topic.author_username === actor.username);
+    const canModify = isOwner || actor.isAdmin;
+    const isEdited = Boolean(topic.updated_at && topic.created_at && topic.updated_at !== topic.created_at);
+    const isHidden = topic.status_moderasi === 'Disembunyikan';
+    const encId = encodeURIComponent(String(topic.id));
+
+    return `
+        <article class="bg-white dark:bg-slate-800 border ${topic.is_pinned ? 'border-amber-300/90 dark:border-amber-700/70' : 'border-slate-200 dark:border-slate-700/80'} ${isHidden ? 'opacity-75' : ''} rounded-2xl p-4 sm:p-5 transition-colors hover:border-slate-300 dark:hover:border-slate-600">
+            <!-- Metadata Terpadu -->
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-9 h-9 rounded-full ${getAvatarBg(topic.author_nama)} text-white text-xs font-bold flex items-center justify-center shrink-0">
+                        ${escapeHtml(getPicInitials(topic.author_nama))}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+                            <span class="font-bold text-slate-900 dark:text-white truncate">${escapeHtml(topic.author_nama)}</span>
+                            <span class="text-slate-300 dark:text-slate-600">·</span>
+                            <span class="text-slate-500 dark:text-slate-400 font-medium">${escapeHtml(getForumRoleName(topic.author_role))}</span>
+                            <span class="text-slate-300 dark:text-slate-600">·</span>
+                            <span class="text-slate-500 dark:text-slate-400" title="${escapeHtml(formatForumFullTimestamp(topic.created_at))}">${escapeHtml(formatForumDateTime(topic.created_at))}</span>
+                            ${isEdited ? `<span class="text-slate-400 dark:text-slate-500 text-[11px]">(diedit)</span>` : ''}
+                        </div>
+                        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[11px] font-semibold">
+                            <span class="inline-flex items-center gap-1 ${catMeta.textClass}">
+                                <i class="${catMeta.icon} text-[10px]"></i>
+                                <span>${escapeHtml(catMeta.label)}</span>
+                            </span>
+                            ${topic.is_pinned ? `
+                                <span class="text-slate-300 dark:text-slate-600">·</span>
+                                <span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                    <i class="fa-solid fa-thumbtack text-[10px]"></i>
+                                    <span>Disematkan</span>
+                                </span>
+                            ` : ''}
+                            ${isHidden ? `
+                                <span class="text-slate-300 dark:text-slate-600">·</span>
+                                <span class="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400">
+                                    <i class="fa-solid fa-eye-slash text-[10px]"></i>
+                                    <span>Disembunyikan (Moderasi)</span>
+                                </span>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                ${(canModify || actor.isAdmin) ? `
+                    <div class="flex items-center gap-1 shrink-0">
+                        ${actor.isAdmin ? `
+                            <button type="button" onclick="window.toggleForumTopicPin(decodeURIComponent('${encId}'))"
+                                title="${topic.is_pinned ? 'Lepas Semat Topik' : 'Sematkan Topik'}"
+                                class="w-8 h-8 rounded-lg flex items-center justify-center text-xs transition-colors cursor-pointer ${topic.is_pinned ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/50 dark:text-amber-400' : 'text-slate-400 hover:text-amber-600 hover:bg-slate-100 dark:hover:bg-slate-700'}">
+                                <i class="fa-solid fa-thumbtack"></i>
+                            </button>
+                            <button type="button" onclick="window.handleForumModerateTopicClick(decodeURIComponent('${encId}'), '${isHidden ? 'Aktif' : 'Disembunyikan'}')"
+                                title="${isHidden ? 'Tampilkan Kembali Topik' : 'Sembunyikan Topik (Moderasi)'}"
+                                class="w-8 h-8 rounded-lg flex items-center justify-center text-xs transition-colors cursor-pointer ${isHidden ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400' : 'text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700'}">
+                                <i class="fa-solid ${isHidden ? 'fa-eye' : 'fa-shield-halved'}"></i>
+                            </button>
+                        ` : ''}
+                        ${canModify ? `
+                            <button type="button" onclick="window.openForumTopicModal(decodeURIComponent('${encId}'))"
+                                title="Edit Topik"
+                                class="w-8 h-8 rounded-lg flex items-center justify-center text-xs text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button type="button" onclick="window.confirmDeleteForumTopic(decodeURIComponent('${encId}'))"
+                                title="Hapus Topik"
+                                class="w-8 h-8 rounded-lg flex items-center justify-center text-xs text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            </div>
+
+            <!-- Judul & Ringkasan Pembahasan -->
+            <div class="mt-3 cursor-pointer group" onclick="window.openForumTopicDetail(decodeURIComponent('${encId}'))">
+                <h2 class="text-base font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-snug">
+                    ${escapeHtml(topic.judul)}
+                </h2>
+                <p class="text-xs sm:text-[13px] text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed line-clamp-3 whitespace-pre-line break-words">
+                    ${escapeHtml(topic.isi)}
+                </p>
+            </div>
+
+            <!-- Bar Interaksi -->
+            <div class="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-700/70 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" onclick="window.toggleForumTopicLike(decodeURIComponent('${encId}'))"
+                        class="min-h-[36px] sm:min-h-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${isLiked
+                            ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/70'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/70 border border-transparent'}">
+                        <i class="${isLiked ? 'fa-solid' : 'fa-regular'} fa-heart text-[11px]"></i>
+                        <span class="tabular-nums">${likesArr.length}</span>
+                        <span>Suka</span>
+                    </button>
+
+                    <button type="button" onclick="window.openForumTopicDetail(decodeURIComponent('${encId}'))"
+                        class="min-h-[36px] sm:min-h-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-colors cursor-pointer">
+                        <i class="fa-regular fa-comment-dots text-[11px]"></i>
+                        <span class="tabular-nums">${commentCount}</span>
+                        <span>Komentar</span>
+                    </button>
+
+                    <button type="button" onclick="window.toggleForumTopicFollow(decodeURIComponent('${encId}'))"
+                        title="${isFollowing ? 'Berhenti mengikuti notifikasi topik ini' : 'Ikuti topik untuk menerima notifikasi balasan'}"
+                        class="min-h-[36px] sm:min-h-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${isFollowing
+                            ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/70'
+                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/70 border border-transparent'}">
+                        <i class="${isFollowing ? 'fa-solid fa-bell' : 'fa-regular fa-bell'} text-[11px]"></i>
+                        <span>${isFollowing ? 'Diikuti' : 'Ikuti'}</span>
+                    </button>
+                </div>
+
+                <button type="button" onclick="window.openForumTopicDetail(decodeURIComponent('${encId}'))"
+                    class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 inline-flex items-center gap-1 cursor-pointer">
+                    <span>Baca Detail</span>
+                    <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                </button>
+            </div>
+        </article>
+    `;
+}
+
+function buildForumTopicDetailHtml(topic, allComments, allVisibleTopics = []) {
+    const actor = getCurrentForumActor();
+    const catMeta = getForumCategoryMeta(topic.kategori);
+    const topicSectionId = getForumSectionForCategory(topic.kategori);
+    const sectionMeta = getForumSectionMeta(topicSectionId);
+    const likesArr = Array.isArray(topic.likes_users) ? topic.likes_users : [];
+    const followersArr = Array.isArray(topic.followers_users) ? topic.followers_users : [];
+    const isLiked = Boolean(actor.username && likesArr.includes(actor.username));
+    const isFollowing = Boolean(actor.username && followersArr.includes(actor.username));
+    const isOwner = Boolean(actor.username && topic.author_username === actor.username);
+    const canModify = isOwner || actor.isAdmin;
+    const isEdited = Boolean(topic.updated_at && topic.created_at && topic.updated_at !== topic.created_at);
+    const isHidden = topic.status_moderasi === 'Disembunyikan';
+    const encId = encodeURIComponent(String(topic.id));
+
+    const topicComments = allComments
+        .filter(c => String(c.topic_id) === String(topic.id))
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    const commentMap = new Map(topicComments.map(c => [String(c.id), c]));
+    const childrenMap = new Map();
+    const rootComments = [];
+
+    topicComments.forEach(c => {
+        const pid = String(c.parent_id || '').trim();
+        if (pid && commentMap.has(pid)) {
+            if (!childrenMap.has(pid)) childrenMap.set(pid, []);
+            childrenMap.get(pid).push(c);
+        } else {
+            rootComments.push(c);
+        }
+    });
+
+    const renderCommentBranch = (comment, depth = 0) => {
+        const cLikes = Array.isArray(comment.likes_users) ? comment.likes_users : [];
+        const cLiked = Boolean(actor.username && cLikes.includes(actor.username));
+        const cOwner = Boolean(actor.username && comment.author_username === actor.username);
+        const cCanModify = cOwner || actor.isAdmin;
+        const cEdited = Boolean(comment.updated_at && comment.created_at && comment.updated_at !== comment.created_at);
+        const cHidden = comment.status_moderasi === 'Disembunyikan';
+        const encCId = encodeURIComponent(String(comment.id));
+        const isReplyingHere = forumInlineReplyTargetId === String(comment.id);
+        const isEditingHere = forumEditingCommentId === String(comment.id);
+        const childReplies = childrenMap.get(String(comment.id)) || [];
+
+        return `
+            <div class="${depth > 0 ? 'ml-3 sm:ml-6 pl-3.5 border-l border-slate-200 dark:border-slate-700 mt-3' : 'pt-4 first:pt-0'}">
+                <div class="rounded-xl p-3.5 ${depth === 0 ? 'bg-slate-50/70 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700/70' : 'bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700/60'} ${cHidden ? 'opacity-70' : ''}">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-7 h-7 rounded-full ${getAvatarBg(comment.author_nama)} text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                                ${escapeHtml(getPicInitials(comment.author_nama))}
+                            </div>
+                            <div class="min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+                                <span class="font-bold text-slate-900 dark:text-white">${escapeHtml(comment.author_nama)}</span>
+                                <span class="text-slate-300 dark:text-slate-600">·</span>
+                                <span class="text-[11px] text-slate-500 dark:text-slate-400">${escapeHtml(getForumRoleName(comment.author_role))}</span>
+                                <span class="text-slate-300 dark:text-slate-600">·</span>
+                                <span class="text-[11px] text-slate-500 dark:text-slate-400" title="${escapeHtml(formatForumFullTimestamp(comment.created_at))}">${escapeHtml(formatForumDateTime(comment.created_at))}</span>
+                                ${cEdited ? `<span class="text-[11px] text-slate-400">(diedit)</span>` : ''}
+                                ${cHidden ? `<span class="text-[11px] text-rose-600 dark:text-rose-400 font-semibold">· Disembunyikan</span>` : ''}
+                            </div>
+                        </div>
+
+                        ${(cCanModify || actor.isAdmin) ? `
+                            <div class="flex items-center gap-1 shrink-0">
+                                ${actor.isAdmin ? `
+                                    <button type="button" onclick="window.toggleForumCommentModeration(decodeURIComponent('${encCId}'), '${cHidden ? 'Aktif' : 'Disembunyikan'}')"
+                                        title="${cHidden ? 'Tampilkan Komentar' : 'Sembunyikan Komentar (Moderasi)'}"
+                                        class="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                                        <i class="fa-solid ${cHidden ? 'fa-eye' : 'fa-shield-halved'}"></i>
+                                    </button>
+                                ` : ''}
+                                ${cCanModify ? `
+                                    <button type="button" onclick="window.startEditForumComment(decodeURIComponent('${encCId}'))"
+                                        title="Edit Komentar"
+                                        class="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                    <button type="button" onclick="window.confirmDeleteForumComment(decodeURIComponent('${encCId}'))"
+                                        title="Hapus Komentar"
+                                        class="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    ${comment.reply_to_nama ? `
+                        <p class="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold mt-2">
+                            <i class="fa-solid fa-reply text-[10px] mr-1"></i>Membalas ${escapeHtml(comment.reply_to_nama)}
+                        </p>
+                    ` : ''}
+
+                    ${isEditingHere ? `
+                        <form onsubmit="window.submitEditForumComment(event, decodeURIComponent('${encCId}'))" class="mt-2.5 space-y-2">
+                            <textarea id="forum-edit-comment-input" rows="3" required
+                                class="w-full px-3 py-2 text-xs rounded-xl border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30">${escapeHtml(comment.isi)}</textarea>
+                            <div class="flex items-center justify-end gap-2">
+                                <button type="button" onclick="window.cancelEditForumComment()"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
+                                    Batal
+                                </button>
+                                <button type="submit" id="forum-edit-comment-submit"
+                                    class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer">
+                                    Simpan Perubahan
+                                </button>
+                            </div>
+                        </form>
+                    ` : `
+                        <p class="text-xs sm:text-[13px] text-slate-700 dark:text-slate-200 mt-2 leading-relaxed whitespace-pre-line break-words">${escapeHtml(comment.isi)}</p>
+                    `}
+
+                    <div class="flex items-center gap-3 mt-2.5">
+                        <button type="button" onclick="window.toggleForumCommentLike(decodeURIComponent('${encCId}'))"
+                            class="inline-flex items-center gap-1 text-[11px] font-semibold transition-colors cursor-pointer ${cLiked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400 hover:text-rose-600'}">
+                            <i class="${cLiked ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+                            <span class="tabular-nums">${cLikes.length}</span>
+                            <span>Suka</span>
+                        </button>
+                        <button type="button" onclick="window.toggleInlineForumReply(decodeURIComponent('${encCId}'))"
+                            class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer">
+                            <i class="fa-solid fa-reply"></i>
+                            <span>Balas</span>
+                        </button>
+                    </div>
+
+                    ${isReplyingHere ? `
+                        <form onsubmit="window.submitForumComment(event, decodeURIComponent('${encId}'), decodeURIComponent('${encCId}'))" class="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                            <textarea id="forum-reply-input-${escapeHtml(comment.id)}" rows="2" required
+                                placeholder="Tulis balasan untuk ${escapeHtml(comment.author_nama)}..."
+                                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"></textarea>
+                            <div class="flex items-center justify-end gap-2">
+                                <button type="button" onclick="window.toggleInlineForumReply(null)"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
+                                    Batal
+                                </button>
+                                <button type="submit" id="forum-reply-submit-${escapeHtml(comment.id)}"
+                                    class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white inline-flex items-center gap-1.5 cursor-pointer">
+                                    <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                                    <span>Kirim Balasan</span>
+                                </button>
+                            </div>
+                        </form>
+                    ` : ''}
+                </div>
+
+                ${childReplies.length > 0 ? `
+                    <div class="space-y-2">
+                        ${childReplies.map(child => renderCommentBranch(child, Math.min(depth + 1, 4))).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    };
+
+    return `
+        ${buildForumSectionSwitcherHtml(allVisibleTopics)}
+
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <button type="button" onclick="window.closeForumTopicDetail()"
+                class="min-h-[40px] sm:min-h-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                <i class="fa-solid fa-arrow-left text-[11px]"></i>
+                <span>${escapeHtml(sectionMeta.backLabel)}</span>
+            </button>
+        </div>
+
+        <!-- Kartu Topik Lengkap -->
+        <article class="bg-white dark:bg-slate-800 border ${topic.is_pinned ? 'border-amber-300/90 dark:border-amber-700/70' : 'border-slate-200 dark:border-slate-700/80'} rounded-2xl p-5 sm:p-6 mb-5">
+            ${isHidden ? `
+                <div class="mb-4 px-3.5 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/70 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                    <i class="fa-solid fa-shield-halved mt-0.5 shrink-0"></i>
+                    <div>
+                        <p class="font-bold">Topik ini sedang disembunyikan oleh Administrator</p>
+                        ${topic.moderation_note ? `<p class="mt-0.5 opacity-90">${escapeHtml(topic.moderation_note)}</p>` : ''}
+                    </div>
+                </div>
+            ` : ''}
+
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-full ${getAvatarBg(topic.author_nama)} text-white text-xs font-bold flex items-center justify-center shrink-0">
+                        ${escapeHtml(getPicInitials(topic.author_nama))}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+                            <span class="font-bold text-slate-900 dark:text-white">${escapeHtml(topic.author_nama)}</span>
+                            <span class="text-slate-300 dark:text-slate-600">·</span>
+                            <span class="text-slate-500 dark:text-slate-400 font-medium">${escapeHtml(getForumRoleName(topic.author_role))}</span>
+                            <span class="text-slate-300 dark:text-slate-600">·</span>
+                            <span class="text-slate-500 dark:text-slate-400">${escapeHtml(formatForumFullTimestamp(topic.created_at))}</span>
+                            ${isEdited ? `<span class="text-slate-400 text-[11px]">(diedit)</span>` : ''}
+                        </div>
+                        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[11px] font-semibold">
+                            <span class="text-slate-500 dark:text-slate-400">${escapeHtml(sectionMeta.label)}</span>
+                            <span class="text-slate-300 dark:text-slate-600">·</span>
+                            <span class="inline-flex items-center gap-1 ${catMeta.textClass}">
+                                <i class="${catMeta.icon} text-[10px]"></i>
+                                <span>${escapeHtml(catMeta.label)}</span>
+                            </span>
+                            ${topic.is_pinned ? `
+                                <span class="text-slate-300 dark:text-slate-600">·</span>
+                                <span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                    <i class="fa-solid fa-thumbtack text-[10px]"></i>
+                                    <span>Disematkan</span>
+                                </span>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                ${(canModify || actor.isAdmin) ? `
+                    <div class="flex items-center gap-1 shrink-0">
+                        ${actor.isAdmin ? `
+                            <button type="button" onclick="window.toggleForumTopicPin(decodeURIComponent('${encId}'))"
+                                title="${topic.is_pinned ? 'Lepas Semat' : 'Sematkan Topik'}"
+                                class="w-8 h-8 rounded-lg flex items-center justify-center text-xs transition-colors cursor-pointer ${topic.is_pinned ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/50 dark:text-amber-400' : 'text-slate-400 hover:text-amber-600 hover:bg-slate-100 dark:hover:bg-slate-700'}">
+                                <i class="fa-solid fa-thumbtack"></i>
+                            </button>
+                            <button type="button" onclick="window.handleForumModerateTopicClick(decodeURIComponent('${encId}'), '${isHidden ? 'Aktif' : 'Disembunyikan'}')"
+                                title="${isHidden ? 'Tampilkan Kembali' : 'Moderasi / Sembunyikan'}"
+                                class="w-8 h-8 rounded-lg flex items-center justify-center text-xs transition-colors cursor-pointer ${isHidden ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400' : 'text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700'}">
+                                <i class="fa-solid ${isHidden ? 'fa-eye' : 'fa-shield-halved'}"></i>
+                            </button>
+                        ` : ''}
+                        ${canModify ? `
+                            <button type="button" onclick="window.openForumTopicModal(decodeURIComponent('${encId}'))"
+                                title="Edit Topik"
+                                class="w-8 h-8 rounded-lg flex items-center justify-center text-xs text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button type="button" onclick="window.confirmDeleteForumTopic(decodeURIComponent('${encId}'))"
+                                title="Hapus Topik"
+                                class="w-8 h-8 rounded-lg flex items-center justify-center text-xs text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            </div>
+
+            <h1 class="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white mt-4 leading-snug">
+                ${escapeHtml(topic.judul)}
+            </h1>
+
+            <div class="mt-3 text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line break-words">
+                ${escapeHtml(topic.isi)}
+            </div>
+
+            <div class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-700/70 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" onclick="window.toggleForumTopicLike(decodeURIComponent('${encId}'))"
+                        class="min-h-[38px] sm:min-h-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${isLiked
+                            ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/70'
+                            : 'bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'}">
+                        <i class="${isLiked ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+                        <span class="tabular-nums">${likesArr.length}</span>
+                        <span>Dukung / Suka</span>
+                    </button>
+
+                    <button type="button" onclick="window.toggleForumTopicFollow(decodeURIComponent('${encId}'))"
+                        class="min-h-[38px] sm:min-h-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${isFollowing
+                            ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/70'
+                            : 'bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'}">
+                        <i class="${isFollowing ? 'fa-solid fa-bell' : 'fa-regular fa-bell'}"></i>
+                        <span>${isFollowing ? 'Mengikuti Notifikasi' : 'Ikuti Diskusi'}</span>
+                        <span class="tabular-nums opacity-75">(${followersArr.length})</span>
+                    </button>
+                </div>
+
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
+                    ${topicComments.length} Komentar & Balasan
+                </span>
+            </div>
+        </article>
+
+        <!-- Bagian Komentar & Balasan -->
+        <section class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-5 sm:p-6">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-3">Tanggapan & Komentar (${topicComments.length})</h3>
+
+            <form onsubmit="window.submitForumComment(event, decodeURIComponent('${encId}'), '')" class="mb-5">
+                <textarea id="forum-main-comment-input" rows="3" required
+                    placeholder="Tulis komentar, tanggapan, atau masukan Anda di sini..."
+                    class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/70 dark:bg-slate-900/60 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"></textarea>
+                <div class="mt-2.5 flex items-center justify-between gap-2">
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500">
+                        Pengguna yang mengikuti topik akan mendapat notifikasi komentar baru.
+                    </p>
+                    <button type="submit" id="forum-main-comment-submit"
+                        class="min-h-[40px] sm:min-h-0 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer shrink-0">
+                        <i class="fa-solid fa-paper-plane text-[11px]"></i>
+                        <span>Kirim Komentar</span>
+                    </button>
+                </div>
+            </form>
+
+            ${rootComments.length === 0 ? `
+                <div class="py-8 text-center border-t border-slate-100 dark:border-slate-700/70">
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Belum ada komentar. Jadilah yang pertama memberikan tanggapan.</p>
+                </div>
+            ` : `
+                <div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-700/70">
+                    ${rootComments.map(c => renderCommentBranch(c, 0)).join('')}
+                </div>
+            `}
+        </section>
+    `;
+}
+
+// Section Switcher, Filter & Navigation Handlers
+window.switchForumSection = function(sectionId) {
+    if (!FORUM_SECTIONS[sectionId]) return;
+    activeForumSection = sectionId;
+    const nextState = getActiveForumFilterState();
+    window._activeForumTopicId = nextState.activeTopicId ? String(nextState.activeTopicId) : null;
+    forumInlineReplyTargetId = null;
+    forumEditingCommentId = null;
+    drawForumDiskusiView();
+    const contentDiv = document.getElementById('app-content');
+    if (contentDiv) contentDiv.scrollTop = 0;
+};
+
+window.setForumCategoryFilter = function(category) {
+    getActiveForumFilterState().category = category || 'Semua';
+    drawForumDiskusiView();
+};
+
+window.setForumSearchQuery = function(query) {
+    getActiveForumFilterState().search = String(query || '');
+    const activeInput = document.getElementById('forum-search-input');
+    const wasFocused = document.activeElement === activeInput;
+    const cursorPos = activeInput ? activeInput.selectionStart : null;
+    drawForumDiskusiView();
+    if (wasFocused) {
+        const nextInput = document.getElementById('forum-search-input');
+        if (nextInput) {
+            nextInput.focus();
+            if (cursorPos !== null) {
+                try { nextInput.setSelectionRange(cursorPos, cursorPos); } catch (_) {}
+            }
+        }
+    }
+};
+
+window.setForumTimeFilter = function(val) {
+    getActiveForumFilterState().timeRange = val || 'all';
+    drawForumDiskusiView();
+};
+
+window.setForumSortFilter = function(val) {
+    getActiveForumFilterState().sortBy = val || 'latest';
+    drawForumDiskusiView();
+};
+
+window.handleManualForumRefresh = async function() {
+    if (typeof window.refreshForumFromApi !== 'function') return;
+    try {
+        await window.refreshForumFromApi(true);
+        if (typeof showToast === 'function') showToast('Daftar diskusi diperbarui.', 'success', 2000);
+    } catch (err) {
+        if (typeof showToast === 'function') showToast(err.message || 'Gagal memperbarui forum.', 'error');
+    }
+};
+
+window.openForumTopicDetail = function(topicId) {
+    const idStr = String(topicId || '');
+    const matched = Array.isArray(db.forumDiskusi)
+        ? db.forumDiskusi.find(t => String(t.id).toLowerCase() === idStr.toLowerCase())
+        : null;
+    if (matched) {
+        const sec = getForumSectionForCategory(matched.kategori);
+        activeForumSection = sec;
+        forumSectionStates[sec].activeTopicId = String(matched.id);
+        window._activeForumTopicId = String(matched.id);
+    } else {
+        getActiveForumFilterState().activeTopicId = idStr;
+        window._activeForumTopicId = idStr;
+    }
+    forumInlineReplyTargetId = null;
+    forumEditingCommentId = null;
+    drawForumDiskusiView();
+    const contentDiv = document.getElementById('app-content');
+    if (contentDiv) contentDiv.scrollTop = 0;
+};
+
+window.closeForumTopicDetail = function() {
+    getActiveForumFilterState().activeTopicId = null;
+    window._activeForumTopicId = null;
+    forumInlineReplyTargetId = null;
+    forumEditingCommentId = null;
+    drawForumDiskusiView();
+};
+
+// Create / Edit Topic Modal (Adapts categories and labels to active section)
+window.openForumTopicModal = function(topicId = null, sectionOverride = null) {
+    const existingModal = document.getElementById('forum-topic-modal');
+    if (existingModal) existingModal.remove();
+
+    const topic = topicId && Array.isArray(db.forumDiskusi)
+        ? db.forumDiskusi.find(t => String(t.id) === String(topicId))
+        : null;
+    const isEdit = Boolean(topic);
+    const targetSectionId = isEdit
+        ? getForumSectionForCategory(topic.kategori)
+        : (FORUM_SECTIONS[sectionOverride] ? sectionOverride : activeForumSection);
+    const sectionMeta = getForumSectionMeta(targetSectionId);
+    const availableCategories = FORUM_CATEGORIES.filter(c => sectionMeta.categories.includes(c.id));
+
+    const sectionFilterCat = (forumSectionStates[targetSectionId] && forumSectionStates[targetSectionId].category) || '';
+    const defaultCreateCat = sectionMeta.categories.includes(sectionFilterCat)
+        ? sectionFilterCat
+        : sectionMeta.defaultCategory;
+    const currentCat = topic ? topic.kategori : defaultCreateCat;
+
+    const modal = document.createElement('div');
+    modal.id = 'forum-topic-modal';
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4';
+    modal.innerHTML = `
+        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                <div>
+                    <h3 class="text-base font-extrabold text-slate-900 dark:text-white">${escapeHtml(isEdit ? sectionMeta.modalEditTitle : sectionMeta.modalCreateTitle)}</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${escapeHtml(sectionMeta.modalSubtitle)}</p>
+                </div>
+                <button type="button" onclick="document.getElementById('forum-topic-modal')?.remove()"
+                    class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="forum-topic-form" class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5">Kategori (${escapeHtml(sectionMeta.label)})</label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        ${availableCategories.map(c => `
+                            <label class="cursor-pointer">
+                                <input type="radio" name="forum-topic-kategori" value="${escapeHtml(c.id)}" class="peer sr-only" ${currentCat === c.id ? 'checked' : ''}>
+                                <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 peer-checked:border-indigo-500 peer-checked:bg-indigo-50 dark:peer-checked:bg-indigo-950/50 text-xs font-semibold text-slate-700 dark:text-slate-200 peer-checked:text-indigo-700 dark:peer-checked:text-indigo-300 flex items-center justify-center gap-2 transition-colors">
+                                    <i class="${c.icon} text-xs ${c.textClass}"></i>
+                                    <span>${escapeHtml(c.label)}</span>
+                                </div>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div>
+                    <label for="forum-topic-judul" class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5">${targetSectionId === 'kritik_saran' ? 'Judul Kritik / Saran' : 'Judul Topik / Pertanyaan'}</label>
+                    <input type="text" id="forum-topic-judul" required minlength="3" maxlength="180"
+                        value="${escapeHtml(topic ? topic.judul : '')}"
+                        placeholder="${escapeHtml(sectionMeta.modalTitlePlaceholder)}"
+                        class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label for="forum-topic-isi" class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5">${targetSectionId === 'kritik_saran' ? 'Detail Kritik / Saran' : 'Isi Pembahasan'}</label>
+                    <textarea id="forum-topic-isi" rows="5" required minlength="5" maxlength="5000"
+                        placeholder="${escapeHtml(sectionMeta.modalBodyPlaceholder)}"
+                        class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                    <button type="button" onclick="document.getElementById('forum-topic-modal')?.remove()"
+                        class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="submit" id="forum-topic-submit-btn"
+                        class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white inline-flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-paper-plane text-[11px]"></i>
+                        <span>${escapeHtml(isEdit ? 'Simpan Perubahan' : sectionMeta.modalSubmitCreate)}</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    const isiEl = document.getElementById('forum-topic-isi');
+    if (isiEl && topic) isiEl.value = topic.isi || '';
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+
+    const form = document.getElementById('forum-topic-form');
+    if (form) {
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('forum-topic-submit-btn');
+            const selectedCat = form.querySelector('input[name="forum-topic-kategori"]:checked')?.value || sectionMeta.defaultCategory;
+            const judul = (document.getElementById('forum-topic-judul')?.value || '').trim();
+            const isi = (document.getElementById('forum-topic-isi')?.value || '').trim();
+
+            if (judul.length < 3) {
+                if (typeof showToast === 'function') showToast('Judul minimal 3 karakter.', 'warning');
+                return;
+            }
+            if (isi.length < 5) {
+                if (typeof showToast === 'function') showToast('Isi pembahasan minimal 5 karakter.', 'warning');
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Menyimpan...</span>';
+            }
+
+            try {
+                const action = isEdit ? 'update_topic' : 'create_topic';
+                const res = await window.forumApiAction(action, {
+                    ...(isEdit ? { id: topic.id } : {}),
+                    kategori: selectedCat,
+                    judul,
+                    isi
+                });
+                modal.remove();
+                if (!isEdit && res && res.item && res.item.id) {
+                    const sec = getForumSectionForCategory(res.item.kategori || selectedCat);
+                    activeForumSection = sec;
+                    forumSectionStates[sec].activeTopicId = String(res.item.id);
+                    window._activeForumTopicId = String(res.item.id);
+                    drawForumDiskusiView();
+                }
+                if (typeof showToast === 'function') {
+                    showToast(res.message || (isEdit ? 'Topik diperbarui.' : 'Topik diterbitkan.'), 'success');
+                }
+            } catch (err) {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = `<i class="fa-solid fa-paper-plane text-[11px]"></i> <span>${escapeHtml(isEdit ? 'Simpan Perubahan' : sectionMeta.modalSubmitCreate)}</span>`;
+                }
+                if (typeof showToast === 'function') showToast(err.message || 'Gagal menyimpan topik.', 'error');
+            }
+        };
+    }
+};
+
+window.confirmDeleteForumTopic = function(topicId) {
+    const fn = async () => {
+        try {
+            const res = await window.forumApiAction('delete_topic', { id: topicId });
+            if (window._activeForumTopicId === String(topicId)) {
+                window._activeForumTopicId = null;
+            }
+            Object.keys(forumSectionStates).forEach(secKey => {
+                if (forumSectionStates[secKey].activeTopicId === String(topicId)) {
+                    forumSectionStates[secKey].activeTopicId = null;
+                }
+            });
+            drawForumDiskusiView();
+            if (typeof showToast === 'function') showToast(res.message || 'Topik diskusi dihapus.', 'success');
+        } catch (err) {
+            if (typeof showToast === 'function') showToast(err.message || 'Gagal menghapus topik.', 'error');
+        }
+    };
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal('Topik beserta seluruh komentar dan balasannya akan dihapus permanen. Lanjutkan?', fn, {
+            title: 'Hapus Topik Diskusi',
+            confirmText: 'Ya, Hapus',
+            type: 'danger'
+        });
+    } else {
+        fn();
+    }
+};
+
+window.toggleForumTopicLike = async function(topicId) {
+    try {
+        await window.forumApiAction('toggle_like_topic', { id: topicId });
+    } catch (err) {
+        if (typeof showToast === 'function') showToast(err.message || 'Gagal memproses dukungan.', 'error');
+    }
+};
+
+window.toggleForumTopicFollow = async function(topicId) {
+    try {
+        const res = await window.forumApiAction('toggle_follow_topic', { id: topicId });
+        if (typeof showToast === 'function' && res.message) {
+            showToast(res.message, 'info', 2500);
+        }
+    } catch (err) {
+        if (typeof showToast === 'function') showToast(err.message || 'Gagal mengubah langganan notifikasi.', 'error');
+    }
+};
+
+window.toggleForumTopicPin = async function(topicId) {
+    try {
+        const res = await window.forumApiAction('toggle_pin_topic', { id: topicId });
+        if (typeof showToast === 'function' && res.message) showToast(res.message, 'success', 2500);
+    } catch (err) {
+        if (typeof showToast === 'function') showToast(err.message || 'Gagal menyematkan topik.', 'error');
+    }
+};
+
+window.handleForumModerateTopicClick = function(topicId, targetStatus) {
+    if (targetStatus === 'Aktif') {
+        window.forumApiAction('moderate_topic', { id: topicId, status_moderasi: 'Aktif', moderation_note: '' })
+            .then(res => {
+                if (typeof showToast === 'function') showToast(res.message || 'Topik ditampilkan kembali.', 'success');
+            })
+            .catch(err => {
+                if (typeof showToast === 'function') showToast(err.message || 'Gagal memulihkan topik.', 'error');
+            });
+        return;
+    }
+
+    const existingModal = document.getElementById('forum-moderate-modal');
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'forum-moderate-modal';
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4';
+    modal.innerHTML = `
+        <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">Moderasi Topik Diskusi</h3>
+                <button type="button" onclick="document.getElementById('forum-moderate-modal')?.remove()"
+                    class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white flex items-center justify-center cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="forum-moderate-form" class="p-5 space-y-3">
+                <p class="text-xs text-slate-600 dark:text-slate-300">
+                    Topik yang disembunyikan tidak akan tampil untuk pengguna non-administrator.
+                </p>
+                <div>
+                    <label for="forum-moderate-note" class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">Alasan Moderasi (Opsional)</label>
+                    <input type="text" id="forum-moderate-note" maxlength="250"
+                        placeholder="Contoh: Konten tidak sesuai ketentuan forum"
+                        class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/30">
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('forum-moderate-modal')?.remove()"
+                        class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="submit" id="forum-moderate-submit"
+                        class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white cursor-pointer">
+                        Sembunyikan Topik
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    document.getElementById('forum-moderate-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const note = (document.getElementById('forum-moderate-note')?.value || '').trim();
+        const btn = document.getElementById('forum-moderate-submit');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Memproses...';
+        }
+        try {
+            const res = await window.forumApiAction('moderate_topic', {
+                id: topicId,
+                status_moderasi: 'Disembunyikan',
+                moderation_note: note
+            });
+            modal.remove();
+            if (typeof showToast === 'function') showToast(res.message || 'Topik dimoderasi.', 'success');
+        } catch (err) {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Sembunyikan Topik';
+            }
+            if (typeof showToast === 'function') showToast(err.message || 'Gagal memoderasi topik.', 'error');
+        }
+    };
+};
+
+// Comment & Reply Handlers
+window.toggleInlineForumReply = function(commentId) {
+    forumInlineReplyTargetId = (commentId && forumInlineReplyTargetId !== String(commentId)) ? String(commentId) : null;
+    forumEditingCommentId = null;
+    drawForumDiskusiView();
+    if (forumInlineReplyTargetId) {
+        const el = document.getElementById(`forum-reply-input-${forumInlineReplyTargetId}`);
+        if (el) el.focus();
+    }
+};
+
+window.startEditForumComment = function(commentId) {
+    forumEditingCommentId = String(commentId || '');
+    forumInlineReplyTargetId = null;
+    drawForumDiskusiView();
+    const el = document.getElementById('forum-edit-comment-input');
+    if (el) el.focus();
+};
+
+window.cancelEditForumComment = function() {
+    forumEditingCommentId = null;
+    drawForumDiskusiView();
+};
+
+window.submitForumComment = async function(event, topicId, parentId = '') {
+    if (event) event.preventDefault();
+    const inputId = parentId ? `forum-reply-input-${parentId}` : 'forum-main-comment-input';
+    const btnId = parentId ? `forum-reply-submit-${parentId}` : 'forum-main-comment-submit';
+    const input = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    const isi = (input ? input.value : '').trim();
+
+    if (isi.length < 2) {
+        if (typeof showToast === 'function') showToast('Komentar minimal 2 karakter.', 'warning');
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> <span>Mengirim...</span>';
+    }
+
+    try {
+        const res = await window.forumApiAction('create_comment', {
+            topic_id: topicId,
+            parent_id: parentId || '',
+            isi
+        });
+        forumInlineReplyTargetId = null;
+        if (input) input.value = '';
+        drawForumDiskusiView();
+        if (typeof showToast === 'function') showToast(res.message || 'Komentar terkirim.', 'success', 2500);
+    } catch (err) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-paper-plane text-[10px]"></i> <span>${parentId ? 'Kirim Balasan' : 'Kirim Komentar'}</span>`;
+        }
+        if (typeof showToast === 'function') showToast(err.message || 'Gagal mengirim komentar.', 'error');
+    }
+};
+
+window.submitEditForumComment = async function(event, commentId) {
+    if (event) event.preventDefault();
+    const input = document.getElementById('forum-edit-comment-input');
+    const btn = document.getElementById('forum-edit-comment-submit');
+    const isi = (input ? input.value : '').trim();
+    if (isi.length < 2) {
+        if (typeof showToast === 'function') showToast('Komentar minimal 2 karakter.', 'warning');
+        return;
+    }
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
+    }
+    try {
+        const res = await window.forumApiAction('update_comment', { id: commentId, isi });
+        forumEditingCommentId = null;
+        drawForumDiskusiView();
+        if (typeof showToast === 'function') showToast(res.message || 'Komentar diperbarui.', 'success', 2500);
+    } catch (err) {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Simpan Perubahan';
+        }
+        if (typeof showToast === 'function') showToast(err.message || 'Gagal memperbarui komentar.', 'error');
+    }
+};
+
+window.confirmDeleteForumComment = function(commentId) {
+    const fn = async () => {
+        try {
+            const res = await window.forumApiAction('delete_comment', { id: commentId });
+            drawForumDiskusiView();
+            if (typeof showToast === 'function') showToast(res.message || 'Komentar dihapus.', 'success', 2500);
+        } catch (err) {
+            if (typeof showToast === 'function') showToast(err.message || 'Gagal menghapus komentar.', 'error');
+        }
+    };
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal('Hapus komentar ini beserta balasan di bawahnya (jika ada)?', fn, {
+            title: 'Hapus Komentar',
+            confirmText: 'Ya, Hapus',
+            type: 'danger'
+        });
+    } else {
+        fn();
+    }
+};
+
+window.toggleForumCommentLike = async function(commentId) {
+    try {
+        await window.forumApiAction('toggle_like_comment', { id: commentId });
+    } catch (err) {
+        if (typeof showToast === 'function') showToast(err.message || 'Gagal menyukai komentar.', 'error');
+    }
+};
+
+window.toggleForumCommentModeration = async function(commentId, targetStatus) {
+    try {
+        const res = await window.forumApiAction('moderate_comment', {
+            id: commentId,
+            status_moderasi: targetStatus
+        });
+        if (typeof showToast === 'function' && res.message) showToast(res.message, 'success', 2500);
+    } catch (err) {
+        if (typeof showToast === 'function') showToast(err.message || 'Gagal memoderasi komentar.', 'error');
+    }
+};
+
+window.renderForumDiskusi = renderForumDiskusi;
+window.drawForumDiskusiView = drawForumDiskusiView;
+
 // Expose granular draw and render functions for non-destructive background synchronization
 if (typeof window !== 'undefined') {
     if (typeof drawPlannerBoard === 'function') window.drawPlannerBoard = drawPlannerBoard;
@@ -14524,4 +15927,6 @@ if (typeof window !== 'undefined') {
     if (typeof renderRekapKegiatan === 'function') window.renderRekapKegiatan = renderRekapKegiatan;
     if (typeof renderIntegratedCalendar === 'function') window.renderIntegratedCalendar = renderIntegratedCalendar;
     if (typeof renderDashboard === 'function') window.renderDashboard = renderDashboard;
+    if (typeof renderForumDiskusi === 'function') window.renderForumDiskusi = renderForumDiskusi;
+    if (typeof drawForumDiskusiView === 'function') window.drawForumDiskusiView = drawForumDiskusiView;
 }

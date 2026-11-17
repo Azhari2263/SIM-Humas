@@ -1189,6 +1189,11 @@
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-users w-5 text-sm"></i> Direktori Tim
                 </button>
+                <button onclick="router('forum'); closeMobileSidebar();" id="mobile-nav-forum"
+                    data-roles="admin,kepala,koordinator,tim,pemohon,kabkot"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-comments w-5 text-sm text-indigo-500"></i> Forum Diskusi
+                </button>
                 <button onclick="router('user_management'); closeMobileSidebar();" id="mobile-nav-user_management" data-roles="admin"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-3 min-h-[44px] text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-users-gear w-5 text-sm text-indigo-500"></i> Manajemen Akun/User
@@ -1330,6 +1335,10 @@
                 <button onclick="router('team')" id="nav-team" data-roles="admin,kepala,koordinator,kabkot"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
                     <i class="fa-solid fa-users w-5 text-sm shrink-0"></i> <span class="sidebar-text">Direktori Tim</span>
+                </button>
+                <button onclick="router('forum')" id="nav-forum" data-roles="admin,kepala,koordinator,tim,pemohon,kabkot"
+                    class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">
+                    <i class="fa-solid fa-comments w-5 text-sm shrink-0 text-indigo-500"></i> <span class="sidebar-text">Forum Diskusi</span>
                 </button>
                 <button onclick="router('user_management')" id="nav-user_management" data-roles="admin"
                     class="sidebar-link w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl text-slate-500 transition-all">

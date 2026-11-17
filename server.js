@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -23,6 +24,10 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const TMP_USERS_FILE = path.join('/tmp', 'users.json');
 const DAFTAR_KONTAK_FILE = path.join(DATA_DIR, 'daftar_kontak.json');
 const TMP_DAFTAR_KONTAK_FILE = path.join('/tmp', 'daftar_kontak.json');
+const FORUM_DISKUSI_FILE = path.join(DATA_DIR, 'forum_diskusi.json');
+const TMP_FORUM_DISKUSI_FILE = path.join('/tmp', 'forum_diskusi.json');
+const FORUM_KOMENTAR_FILE = path.join(DATA_DIR, 'forum_komentar.json');
+const TMP_FORUM_KOMENTAR_FILE = path.join('/tmp', 'forum_komentar.json');
 
 // Safe cross-version JSON loading (compatible with Node 18, 20, 22+)
 let bundledMonitoringData = [];
@@ -74,7 +79,7 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
   }
 
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-matched-path, x-forwarded-uri');
   
   // Standard Web Security Headers
@@ -176,7 +181,9 @@ const initialDb = {
       status: 'Aktif'
     }
   ],
-  daftarKontak: []
+  daftarKontak: [],
+  forumDiskusi: [],
+  forumKomentar: []
 };
 
 // In-Memory Database store with disk persistence for monitoring
@@ -553,6 +560,276 @@ async function refreshDaftarKontakFromSheets(options = {}) {
   return refreshKontakInFlight;
 }
 
+// =============================================================
+// FORUM DISKUSI & KOMENTAR (SHEETS: Forum_Diskusi, Forum_Komentar)
+// =============================================================
+const FORUM_ALLOWED_CATEGORIES = ['Kritik', 'Saran', 'Pertanyaan', 'Diskusi'];
+const FORUM_ALL_ROLES = ['admin', 'kepala', 'koordinator', 'tim', 'pemohon', 'kabkot'];
+
+function getNowWibIsoString() {
+  try {
+    const parts = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).formatToParts(new Date());
+    const map = {};
+    parts.forEach(p => { map[p.type] = p.value; });
+    return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}:${map.second}+07:00`;
+  } catch (_) {
+    return new Date().toISOString();
+  }
+}
+
+function parseStringArrayField(val) {
+  if (Array.isArray(val)) {
+    return Array.from(new Set(val.map(v => String(v || '').trim().toLowerCase()).filter(Boolean)));
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return Array.from(new Set(parsed.map(v => String(v || '').trim().toLowerCase()).filter(Boolean)));
+        }
+      } catch (_) {}
+    }
+    return Array.from(new Set(trimmed.split(',').map(v => v.trim().toLowerCase()).filter(Boolean)));
+  }
+  return [];
+}
+
+function generateForumTopicId() {
+  return `FRM-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+}
+
+function generateForumCommentId() {
+  return `CMT-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+}
+
+function normalizeForumTopicItem(raw = {}, existing = null) {
+  const nowTs = getNowWibIsoString();
+  const idVal = String(raw.id ?? (existing && existing.id) ?? generateForumTopicId()).trim() || generateForumTopicId();
+  const rawCat = String(raw.kategori ?? (existing && existing.kategori) ?? 'Diskusi').trim();
+  const matchedCat = FORUM_ALLOWED_CATEGORIES.find(c => c.toLowerCase() === rawCat.toLowerCase()) || 'Diskusi';
+  const authorUsername = String(raw.author_username ?? (existing && existing.author_username) ?? '').trim().toLowerCase();
+  const authorNama = String(raw.author_nama ?? (existing && existing.author_nama) ?? authorUsername ?? 'Pengguna').trim();
+  const authorRole = String(raw.author_role ?? (existing && existing.author_role) ?? 'tim').trim().toLowerCase();
+  const likesUsers = parseStringArrayField(raw.likes_users !== undefined ? raw.likes_users : (existing && existing.likes_users));
+  let followersUsers = parseStringArrayField(raw.followers_users !== undefined ? raw.followers_users : (existing && existing.followers_users));
+  if (authorUsername && !existing && !followersUsers.includes(authorUsername)) {
+    followersUsers.push(authorUsername);
+  }
+  const isPinned = raw.is_pinned !== undefined
+    ? (raw.is_pinned === true || String(raw.is_pinned).toLowerCase() === 'true' || String(raw.is_pinned).toLowerCase() === 'ya')
+    : Boolean(existing && existing.is_pinned);
+  const statusModerasi = String(raw.status_moderasi ?? (existing && existing.status_moderasi) ?? 'Aktif').trim() === 'Disembunyikan'
+    ? 'Disembunyikan'
+    : 'Aktif';
+
+  return {
+    id: idVal,
+    judul: String(raw.judul ?? (existing && existing.judul) ?? '').trim(),
+    isi: String(raw.isi ?? (existing && existing.isi) ?? '').trim(),
+    kategori: matchedCat,
+    author_username: authorUsername,
+    author_nama: authorNama,
+    author_role: authorRole,
+    is_pinned: isPinned,
+    status_moderasi: statusModerasi,
+    moderation_note: String(raw.moderation_note ?? (existing && existing.moderation_note) ?? '').trim(),
+    likes_users: likesUsers,
+    followers_users: followersUsers,
+    created_at: String(raw.created_at ?? (existing && existing.created_at) ?? nowTs).trim() || nowTs,
+    updated_at: String(raw.updated_at ?? nowTs).trim() || nowTs
+  };
+}
+
+function normalizeForumCommentItem(raw = {}, existing = null) {
+  const nowTs = getNowWibIsoString();
+  const idVal = String(raw.id ?? (existing && existing.id) ?? generateForumCommentId()).trim() || generateForumCommentId();
+  const authorUsername = String(raw.author_username ?? (existing && existing.author_username) ?? '').trim().toLowerCase();
+  const authorNama = String(raw.author_nama ?? (existing && existing.author_nama) ?? authorUsername ?? 'Pengguna').trim();
+  const authorRole = String(raw.author_role ?? (existing && existing.author_role) ?? 'tim').trim().toLowerCase();
+  const statusModerasi = String(raw.status_moderasi ?? (existing && existing.status_moderasi) ?? 'Aktif').trim() === 'Disembunyikan'
+    ? 'Disembunyikan'
+    : 'Aktif';
+
+  return {
+    id: idVal,
+    topic_id: String(raw.topic_id ?? (existing && existing.topic_id) ?? '').trim(),
+    parent_id: String(raw.parent_id ?? (existing && existing.parent_id) ?? '').trim(),
+    reply_to_nama: String(raw.reply_to_nama ?? (existing && existing.reply_to_nama) ?? '').trim(),
+    isi: String(raw.isi ?? (existing && existing.isi) ?? '').trim(),
+    author_username: authorUsername,
+    author_nama: authorNama,
+    author_role: authorRole,
+    likes_users: parseStringArrayField(raw.likes_users !== undefined ? raw.likes_users : (existing && existing.likes_users)),
+    status_moderasi: statusModerasi,
+    created_at: String(raw.created_at ?? (existing && existing.created_at) ?? nowTs).trim() || nowTs,
+    updated_at: String(raw.updated_at ?? nowTs).trim() || nowTs
+  };
+}
+
+function loadNewestJsonCache(diskPath, tmpPath) {
+  let candidate = null;
+  try {
+    const hasTmp = fs.existsSync(tmpPath);
+    const hasDisk = fs.existsSync(diskPath);
+    if (hasTmp && hasDisk) {
+      candidate = fs.statSync(tmpPath).mtimeMs > fs.statSync(diskPath).mtimeMs ? tmpPath : diskPath;
+    } else if (hasTmp) {
+      candidate = tmpPath;
+    } else if (hasDisk) {
+      candidate = diskPath;
+    }
+  } catch (_) {
+    candidate = fs.existsSync(tmpPath) ? tmpPath : (fs.existsSync(diskPath) ? diskPath : null);
+  }
+  if (!candidate) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+    return Array.isArray(parsed) ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+const cachedTopics = loadNewestJsonCache(FORUM_DISKUSI_FILE, TMP_FORUM_DISKUSI_FILE);
+if (cachedTopics) {
+  database.forumDiskusi = cachedTopics.map(t => normalizeForumTopicItem(t, t));
+  console.log(`[DB] Restored forum_diskusi cache (${database.forumDiskusi.length} topics).`);
+}
+const cachedComments = loadNewestJsonCache(FORUM_KOMENTAR_FILE, TMP_FORUM_KOMENTAR_FILE);
+if (cachedComments) {
+  database.forumKomentar = cachedComments.map(c => normalizeForumCommentItem(c, c));
+  console.log(`[DB] Restored forum_komentar cache (${database.forumKomentar.length} comments).`);
+}
+
+function persistForumData() {
+  const topicsJson = JSON.stringify(database.forumDiskusi || [], null, 2);
+  const commentsJson = JSON.stringify(database.forumKomentar || [], null, 2);
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (_) {}
+    }
+    fs.writeFileSync(FORUM_DISKUSI_FILE, topicsJson, 'utf8');
+    fs.writeFileSync(FORUM_KOMENTAR_FILE, commentsJson, 'utf8');
+    if (fs.existsSync(TMP_FORUM_DISKUSI_FILE)) {
+      try { fs.writeFileSync(TMP_FORUM_DISKUSI_FILE, topicsJson, 'utf8'); } catch (_) {}
+    }
+    if (fs.existsSync(TMP_FORUM_KOMENTAR_FILE)) {
+      try { fs.writeFileSync(TMP_FORUM_KOMENTAR_FILE, commentsJson, 'utf8'); } catch (_) {}
+    }
+  } catch (_) {
+    try { fs.writeFileSync(TMP_FORUM_DISKUSI_FILE, topicsJson, 'utf8'); } catch (e1) {}
+    try { fs.writeFileSync(TMP_FORUM_KOMENTAR_FILE, commentsJson, 'utf8'); } catch (e2) {}
+  }
+}
+
+async function syncForumRecordToGoogleSheets(sheetName, action, item) {
+  if (!GOOGLE_SHEETS_API_URL || !item) return false;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25000);
+  try {
+    const payloadItem = action === 'delete'
+      ? { id: String(item.id) }
+      : {
+          ...item,
+          id: String(item.id),
+          likes_users: Array.isArray(item.likes_users) ? JSON.stringify(item.likes_users) : (item.likes_users || '[]'),
+          ...(item.followers_users !== undefined ? { followers_users: Array.isArray(item.followers_users) ? JSON.stringify(item.followers_users) : (item.followers_users || '[]') } : {}),
+          ...(item.is_pinned !== undefined ? { is_pinned: item.is_pinned ? 'true' : 'false' } : {})
+        };
+    const resp = await fetch(GOOGLE_SHEETS_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      redirect: 'follow',
+      signal: controller.signal,
+      body: JSON.stringify({ action, sheet: sheetName, item: payloadItem })
+    });
+    if (!resp.ok) return false;
+    const json = await resp.json().catch(() => null);
+    return Boolean(json && json.success === true);
+  } catch (err) {
+    if (err && err.name !== 'AbortError') {
+      console.warn(`[DB] Failed to sync ${sheetName} ${action} to Google Sheets:`, err.message);
+    }
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+let hasRefreshedForumFromSheets = false;
+let refreshForumInFlight = null;
+let refreshForumInFlightStartedAt = 0;
+let lastForumRefreshAttemptAt = 0;
+
+async function refreshForumFromSheets(options = {}) {
+  const force = Boolean(options && options.force);
+  const now = Date.now();
+  if (!GOOGLE_SHEETS_API_URL) return { topics: database.forumDiskusi, comments: database.forumKomentar };
+  if (refreshForumInFlight && (!force || (now - refreshForumInFlightStartedAt) < 2000)) {
+    return refreshForumInFlight;
+  }
+  if (!force && lastForumRefreshAttemptAt && (now - lastForumRefreshAttemptAt) < 60000) {
+    return { topics: database.forumDiskusi, comments: database.forumKomentar };
+  }
+
+  refreshForumInFlightStartedAt = now;
+  lastForumRefreshAttemptAt = now;
+
+  const currentPromise = (async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    try {
+      const separator = GOOGLE_SHEETS_API_URL.includes('?') ? '&' : '?';
+      const resp = await fetch(`${GOOGLE_SHEETS_API_URL}${separator}sheet=forum`, {
+        signal: controller.signal,
+        redirect: 'follow',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (resp.ok) {
+        const data = await resp.json().catch(() => null);
+        hasRefreshedForumFromSheets = true;
+        if (data && Array.isArray(data.forumDiskusi)) {
+          // Only overwrite if remote has items OR local is empty (safe when GAS hasn't been redeployed yet)
+          if (data.forumDiskusi.length > 0 || (database.forumDiskusi || []).length === 0) {
+            database.forumDiskusi = data.forumDiskusi.filter(t => t && t.judul).map(t => normalizeForumTopicItem(t, t));
+          }
+          if (Array.isArray(data.forumKomentar) && (data.forumKomentar.length > 0 || (database.forumKomentar || []).length === 0)) {
+            database.forumKomentar = data.forumKomentar.filter(c => c && c.topic_id).map(c => normalizeForumCommentItem(c, c));
+          }
+          persistForumData();
+        }
+      }
+    } catch (err) {
+      if (err && err.name === 'AbortError') {
+        console.log('[DB] Refresh Forum from Google Sheets timed out; using cached local forum data.');
+      } else {
+        console.warn('[DB] Refresh Forum from Google Sheets failed:', err && err.message ? err.message : err);
+      }
+    } finally {
+      clearTimeout(timer);
+      if (refreshForumInFlight === currentPromise) {
+        refreshForumInFlight = null;
+      }
+    }
+    return { topics: database.forumDiskusi, comments: database.forumKomentar };
+  })();
+
+  refreshForumInFlight = currentPromise;
+  return currentPromise;
+}
+
 // Synchronize user updates to Google Sheets database (Sheet: 'users' - Kolom B: username, Kolom C: password, Kolom D: nama, Kolom E: role, Kolom F: bidang)
 async function syncUserToGoogleSheets(action, userItem) {
   if (!GOOGLE_SHEETS_API_URL || !userItem) return false;
@@ -630,7 +907,13 @@ const SHEET_TO_PROP = {
   'daftar_kontak': 'daftarKontak',
   'daftarKontak': 'daftarKontak',
   'kontak_partner': 'daftarKontak',
-  'kontakPartner': 'daftarKontak'
+  'kontakPartner': 'daftarKontak',
+  'Forum_Diskusi': 'forumDiskusi',
+  'forum_diskusi': 'forumDiskusi',
+  'forumDiskusi': 'forumDiskusi',
+  'Forum_Komentar': 'forumKomentar',
+  'forum_komentar': 'forumKomentar',
+  'forumKomentar': 'forumKomentar'
 };
 
 // Background sync of users from Google Sheets (Authoritative source: Sheet users Kolom B: username, Kolom C: password)
@@ -710,8 +993,7 @@ async function refreshUsersFromSheets(options = {}) {
   return currentPromise;
 }
 
-// Perform initial background sync
-refreshUsersFromSheets().catch(() => {});
+// Background sync is triggered after the HTTP server starts listening so port 3000 binds immediately
 
 // Cryptographic Session Token & RBAC Security Engine (HMAC SHA-256)
 const JWT_SECRET = process.env.SESSION_SECRET || 'sim-humas-bps-kalbar-secret-key-2026';
@@ -1688,6 +1970,565 @@ app.delete(['/api/kontak-partner/:id', '/kontak-partner/:id'], async (req, res) 
 });
 
 // =============================================================
+// FORUM DISKUSI (WADAH KRITIK & SARAN) APIs
+// =============================================================
+function getForumSessionFromRequest(req) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7).trim()
+    : ((req.body && req.body.token) || (req.query && req.query.token) || '');
+  if (!token) return { token: '', session: null };
+  const session = verifySessionToken(token);
+  return { token, session };
+}
+
+function getFilteredForumForRole(role) {
+  const isAdmin = String(role || '').toLowerCase().trim() === 'admin';
+  const topics = (database.forumDiskusi || []).map(t => normalizeForumTopicItem(t, t));
+  const comments = (database.forumKomentar || []).map(c => normalizeForumCommentItem(c, c));
+
+  if (isAdmin) {
+    return { topics, comments };
+  }
+  const activeTopicIds = new Set();
+  const visibleTopics = topics.filter(t => {
+    const visible = t.status_moderasi !== 'Disembunyikan';
+    if (visible) activeTopicIds.add(t.id);
+    return visible;
+  });
+  const visibleComments = comments
+    .filter(c => activeTopicIds.has(c.topic_id))
+    .filter(c => c.status_moderasi !== 'Disembunyikan');
+  return { topics: visibleTopics, comments: visibleComments };
+}
+
+app.get(['/api/forum', '/forum'], async (req, res, next) => {
+  try {
+    const acceptHeader = String(req.headers.accept || '');
+    if (req.path === '/forum' && acceptHeader.includes('text/html') && !req.headers.authorization && !req.xhr) {
+      return next();
+    }
+    const forceRefresh = Boolean(req.query && req.query.refresh === '1');
+    if (forceRefresh) {
+      await refreshForumFromSheets({ force: true }).catch(() => {});
+    } else if (!hasRefreshedForumFromSheets) {
+      if ((database.forumDiskusi || []).length > 0) {
+        refreshForumFromSheets({ force: false }).catch(() => {});
+      } else {
+        await refreshForumFromSheets({ force: false }).catch(() => {});
+      }
+    }
+    const { token, session } = getForumSessionFromRequest(req);
+    if (token && !session) {
+      return res.status(401).json({ success: false, error: 'Sesi tidak valid atau kedaluwarsa. Silakan login kembali.' });
+    }
+    const role = session ? session.role : '';
+    const data = getFilteredForumForRole(role);
+    return res.json({
+      success: true,
+      topics: data.topics,
+      comments: data.comments
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || 'Gagal memuat Forum Diskusi.' });
+  }
+});
+
+async function handleForumMutation(req, res) {
+  try {
+    const { token, session } = getForumSessionFromRequest(req);
+    if (!token || !session) {
+      return res.status(401).json({ success: false, error: 'Autentikasi diperlukan. Silakan login terlebih dahulu.' });
+    }
+    const actorUsername = String(session.username || '').trim().toLowerCase();
+    const actorNama = String(session.name || session.nama || session.username || '').trim();
+    const actorRole = String(session.role || '').trim().toLowerCase();
+    if (!actorUsername || !FORUM_ALL_ROLES.includes(actorRole)) {
+      return res.status(403).json({ success: false, error: 'Peran pengguna tidak diizinkan mengakses Forum Diskusi.' });
+    }
+    const isAdmin = actorRole === 'admin';
+
+    const body = req.body || {};
+    const action = String(body.action || '').trim();
+    if (!action) {
+      return res.status(400).json({ success: false, error: 'Aksi forum tidak valid.' });
+    }
+
+    if (!Array.isArray(database.forumDiskusi)) database.forumDiskusi = [];
+    if (!Array.isArray(database.forumKomentar)) database.forumKomentar = [];
+    if (!Array.isArray(database.notifications)) database.notifications = [];
+
+    const nowTs = getNowWibIsoString();
+
+    if (action === 'create_topic') {
+      const judul = String(body.judul || '').trim();
+      const isi = String(body.isi || '').trim();
+      const rawCat = String(body.kategori || 'Diskusi').trim();
+      if (!judul || judul.length < 3) {
+        return res.status(400).json({ success: false, error: 'Judul topik diskusi minimal 3 karakter.' });
+      }
+      if (judul.length > 180) {
+        return res.status(400).json({ success: false, error: 'Judul topik diskusi maksimal 180 karakter.' });
+      }
+      if (!isi || isi.length < 5) {
+        return res.status(400).json({ success: false, error: 'Isi pembahasan diskusi minimal 5 karakter.' });
+      }
+      if (isi.length > 5000) {
+        return res.status(400).json({ success: false, error: 'Isi pembahasan maksimal 5000 karakter.' });
+      }
+      const matchedCat = FORUM_ALLOWED_CATEGORIES.find(c => c.toLowerCase() === rawCat.toLowerCase());
+      if (!matchedCat) {
+        return res.status(400).json({ success: false, error: 'Kategori diskusi tidak valid. Pilih: Kritik, Saran, Pertanyaan, atau Diskusi.' });
+      }
+
+      const topic = normalizeForumTopicItem({
+        id: generateForumTopicId(),
+        judul,
+        isi,
+        kategori: matchedCat,
+        author_username: actorUsername,
+        author_nama: actorNama,
+        author_role: actorRole,
+        is_pinned: false,
+        status_moderasi: 'Aktif',
+        moderation_note: '',
+        likes_users: [],
+        followers_users: [actorUsername],
+        created_at: nowTs,
+        updated_at: nowTs
+      });
+
+      database.forumDiskusi.unshift(topic);
+      persistForumData();
+      const sheetsSynced = await syncForumRecordToGoogleSheets('Forum_Diskusi', 'add', topic);
+      const filtered = getFilteredForumForRole(actorRole);
+      return res.json({ success: true, item: topic, topics: filtered.topics, comments: filtered.comments, sheetsSynced, message: 'Topik diskusi berhasil diterbitkan!' });
+    }
+
+    if (action === 'update_topic') {
+      const topicId = String(body.id || body.topic_id || '').trim();
+      const idx = database.forumDiskusi.findIndex(t => String(t.id) === topicId);
+      if (idx === -1) {
+        return res.status(404).json({ success: false, error: 'Topik diskusi tidak ditemukan.' });
+      }
+      const existing = normalizeForumTopicItem(database.forumDiskusi[idx], database.forumDiskusi[idx]);
+      const isOwner = existing.author_username === actorUsername;
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ success: false, error: 'Anda hanya dapat mengedit topik diskusi milik Anda sendiri.' });
+      }
+
+      const judul = String(body.judul !== undefined ? body.judul : existing.judul).trim();
+      const isi = String(body.isi !== undefined ? body.isi : existing.isi).trim();
+      const rawCat = String(body.kategori !== undefined ? body.kategori : existing.kategori).trim();
+      if (!judul || judul.length < 3 || judul.length > 180) {
+        return res.status(400).json({ success: false, error: 'Judul topik harus antara 3 hingga 180 karakter.' });
+      }
+      if (!isi || isi.length < 5 || isi.length > 5000) {
+        return res.status(400).json({ success: false, error: 'Isi pembahasan harus antara 5 hingga 5000 karakter.' });
+      }
+      const matchedCat = FORUM_ALLOWED_CATEGORIES.find(c => c.toLowerCase() === rawCat.toLowerCase()) || existing.kategori;
+
+      const updated = normalizeForumTopicItem({
+        ...existing,
+        judul,
+        isi,
+        kategori: matchedCat,
+        updated_at: nowTs
+      }, existing);
+      database.forumDiskusi[idx] = updated;
+      persistForumData();
+      const sheetsSynced = await syncForumRecordToGoogleSheets('Forum_Diskusi', 'update', updated);
+      const filtered = getFilteredForumForRole(actorRole);
+      return res.json({ success: true, item: updated, topics: filtered.topics, comments: filtered.comments, sheetsSynced, message: 'Topik diskusi berhasil diperbarui!' });
+    }
+
+    if (action === 'delete_topic') {
+      const topicId = String(body.id || body.topic_id || '').trim();
+      const idx = database.forumDiskusi.findIndex(t => String(t.id) === topicId);
+      if (idx === -1) {
+        return res.status(404).json({ success: false, error: 'Topik diskusi tidak ditemukan.' });
+      }
+      const existing = normalizeForumTopicItem(database.forumDiskusi[idx], database.forumDiskusi[idx]);
+      const isOwner = existing.author_username === actorUsername;
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ success: false, error: 'Anda hanya dapat menghapus topik diskusi milik Anda sendiri.' });
+      }
+
+      const deletedComments = database.forumKomentar.filter(c => String(c.topic_id) === topicId);
+      database.forumDiskusi = database.forumDiskusi.filter(t => String(t.id) !== topicId);
+      database.forumKomentar = database.forumKomentar.filter(c => String(c.topic_id) !== topicId);
+      persistForumData();
+
+      const sheetsSynced = await syncForumRecordToGoogleSheets('Forum_Diskusi', 'delete', { id: topicId });
+      for (const dc of deletedComments) {
+        syncForumRecordToGoogleSheets('Forum_Komentar', 'delete', { id: dc.id }).catch(() => {});
+      }
+      const filtered = getFilteredForumForRole(actorRole);
+      return res.json({ success: true, topics: filtered.topics, comments: filtered.comments, sheetsSynced, message: 'Topik diskusi berhasil dihapus.' });
+    }
+
+    if (action === 'toggle_pin_topic') {
+      if (!isAdmin) {
+        return res.status(403).json({ success: false, error: 'Hanya Administrator yang dapat menyematkan atau melepas pin topik diskusi.' });
+      }
+      const topicId = String(body.id || body.topic_id || '').trim();
+      const idx = database.forumDiskusi.findIndex(t => String(t.id) === topicId);
+      if (idx === -1) {
+        return res.status(404).json({ success: false, error: 'Topik diskusi tidak ditemukan.' });
+      }
+      const existing = normalizeForumTopicItem(database.forumDiskusi[idx], database.forumDiskusi[idx]);
+      const nextPinned = body.is_pinned !== undefined ? Boolean(body.is_pinned) : !existing.is_pinned;
+      const updated = normalizeForumTopicItem({ ...existing, is_pinned: nextPinned }, existing);
+      // Pertahankan updated_at lama agar pin tidak mengubah waktu edit konten
+      updated.updated_at = existing.updated_at;
+      database.forumDiskusi[idx] = updated;
+      persistForumData();
+      const sheetsSynced = await syncForumRecordToGoogleSheets('Forum_Diskusi', 'update', updated);
+      const filtered = getFilteredForumForRole(actorRole);
+      return res.json({
+        success: true,
+        item: updated,
+        topics: filtered.topics,
+        comments: filtered.comments,
+        sheetsSynced,
+        message: nextPinned ? 'Topik berhasil disematkan di urutan teratas.' : 'Semat topik berhasil dilepas.'
+      });
+    }
+
+    if (action === 'moderate_topic') {
+      if (!isAdmin) {
+        return res.status(403).json({ success: false, error: 'Hanya Administrator yang berhak memoderasi topik diskusi.' });
+      }
+      const topicId = String(body.id || body.topic_id || '').trim();
+      const idx = database.forumDiskusi.findIndex(t => String(t.id) === topicId);
+      if (idx === -1) {
+        return res.status(404).json({ success: false, error: 'Topik diskusi tidak ditemukan.' });
+      }
+      const existing = normalizeForumTopicItem(database.forumDiskusi[idx], database.forumDiskusi[idx]);
+      const nextStatus = body.status_moderasi === 'Disembunyikan' ? 'Disembunyikan' : 'Aktif';
+      const note = String(body.moderation_note || (nextStatus === 'Disembunyikan' ? 'Konten dimoderasi oleh Administrator.' : '')).trim();
+      const updated = normalizeForumTopicItem({
+        ...existing,
+        status_moderasi: nextStatus,
+        moderation_note: nextStatus === 'Aktif' ? '' : note
+      }, existing);
+      updated.updated_at = existing.updated_at;
+      database.forumDiskusi[idx] = updated;
+      persistForumData();
+      const sheetsSynced = await syncForumRecordToGoogleSheets('Forum_Diskusi', 'update', updated);
+      const filtered = getFilteredForumForRole(actorRole);
+      return res.json({
+        success: true,
+        item: updated,
+        topics: filtered.topics,
+        comments: filtered.comments,
+        sheetsSynced,
+        message: nextStatus === 'Disembunyikan' ? 'Topik disembunyikan dari publik.' : 'Topik dipulihkan dan kembali tampil.'
+      });
+    }
+
+    if (action === 'toggle_like_topic') {
+      const topicId = String(body.id || body.topic_id || '').trim();
+      const idx = database.forumDiskusi.findIndex(t => String(t.id) === topicId);
+      if (idx === -1) {
+        return res.status(404).json({ success: false, error: 'Topik diskusi tidak ditemukan.' });
+      }
+      const existing = normalizeForumTopicItem(database.forumDiskusi[idx], database.forumDiskusi[idx]);
+      if (existing.status_moderasi === 'Disembunyikan' && !isAdmin) {
+        return res.status(403).json({ success: false, error: 'Topik sedang dimoderasi.' });
+      }
+      const likes = new Set(existing.likes_users || []);
+      let liked = false;
+      if (likes.has(actorUsername)) {
+        likes.delete(actorUsername);
+      } else {
+        likes.add(actorUsername);
+        liked = true;
+      }
+      const updated = normalizeForumTopicItem({ ...existing, likes_users: Array.from(likes) }, existing);
+      updated.updated_at = existing.updated_at;
+      database.forumDiskusi[idx] = updated;
+      persistForumData();
+      const sheetsSynced = await syncForumRecordToGoogleSheets('Forum_Diskusi', 'update', updated);
+      const filtered = getFilteredForumForRole(actorRole);
+      return res.json({ success: true, liked, item: updated, topics: filtered.topics, comments: filtered.comments, sheetsSynced });
+    }
+
+    if (action === 'toggle_follow_topic') {
+      const topicId = String(body.id || body.topic_id || '').trim();
+      const idx = database.forumDiskusi.findIndex(t => String(t.id) === topicId);
+      if (idx === -1) {
+        return res.status(404).json({ success: false, error: 'Topik diskusi tidak ditemukan.' });
+      }
+      const existing = normalizeForumTopicItem(database.forumDiskusi[idx], database.forumDiskusi[idx]);
+      const followers = new Set(existing.followers_users || []);
+      let following = false;
+      if (followers.has(actorUsername)) {
+        followers.delete(actorUsername);
+      } else {
+        followers.add(actorUsername);
+        following = true;
+      }
+      const updated = normalizeForumTopicItem({ ...existing, followers_users: Array.from(followers) }, existing);
+      updated.updated_at = existing.updated_at;
+      database.forumDiskusi[idx] = updated;
+      persistForumData();
+      const sheetsSynced = await syncForumRecordToGoogleSheets('Forum_Diskusi', 'update', updated);
+      const filtered = getFilteredForumForRole(actorRole);
+      return res.json({
+        success: true,
+        following,
+        item: updated,
+        topics: filtered.topics,
+        comments: filtered.comments,
+        sheetsSynced,
+        message: following ? 'Anda mengikuti diskusi ini dan akan menerima notifikasi balasan.' : 'Notifikasi diskusi untuk topik ini dimatikan.'
+      });
+    }
+
+    if (action === 'create_comment') {
+      const topicId = String(body.topic_id || '').trim();
+      const parentId = String(body.parent_id || '').trim();
+      const isi = String(body.isi || '').trim();
+      const topicIdx = database.forumDiskusi.findIndex(t => String(t.id) === topicId);
+      if (topicIdx === -1) {
+        return res.status(404).json({ success: false, error: 'Topik diskusi tidak ditemukan.' });
+      }
+      const topic = normalizeForumTopicItem(database.forumDiskusi[topicIdx], database.forumDiskusi[topicIdx]);
+      if (topic.status_moderasi === 'Disembunyikan' && !isAdmin) {
+        return res.status(403).json({ success: false, error: 'Topik ini sedang disembunyikan oleh Administrator.' });
+      }
+      if (!isi || isi.length < 2) {
+        return res.status(400).json({ success: false, error: 'Isi komentar minimal 2 karakter.' });
+      }
+      if (isi.length > 3000) {
+        return res.status(400).json({ success: false, error: 'Isi komentar maksimal 3000 karakter.' });
+      }
+
+      let parentComment = null;
+      if (parentId) {
+        parentComment = database.forumKomentar.find(c => String(c.id) === parentId && String(c.topic_id) === topicId);
+        if (!parentComment) {
+          return res.status(404).json({ success: false, error: 'Komentar induk yang dibalas tidak ditemukan.' });
+        }
+      }
+
+      const comment = normalizeForumCommentItem({
+        id: generateForumCommentId(),
+        topic_id: topicId,
+        parent_id: parentId,
+        reply_to_nama: parentComment ? parentComment.author_nama : '',
+        isi,
+        author_username: actorUsername,
+        author_nama: actorNama,
+        author_role: actorRole,
+        likes_users: [],
+        status_moderasi: 'Aktif',
+        created_at: nowTs,
+        updated_at: nowTs
+      });
+
+      database.forumKomentar.push(comment);
+
+      // Pastikan pemberi komentar otomatis mengikuti topik tersebut
+      const followers = new Set(topic.followers_users || []);
+      const wasAddedFollower = !followers.has(actorUsername);
+      if (wasAddedFollower) {
+        followers.add(actorUsername);
+        topic.followers_users = Array.from(followers);
+        database.forumDiskusi[topicIdx] = topic;
+        syncForumRecordToGoogleSheets('Forum_Diskusi', 'update', topic).catch(() => {});
+      }
+
+      // Tentukan daftar penerima notifikasi (pengikut diskusi + pemilik komentar induk jika balasan, kecuali pengirim sendiri)
+      const notifySet = new Set();
+      (topic.followers_users || []).forEach(u => {
+        if (u && u !== actorUsername) notifySet.add(u);
+      });
+      if (parentComment && parentComment.author_username && parentComment.author_username !== actorUsername) {
+        notifySet.add(parentComment.author_username);
+      }
+
+      const notifBaseTs = Date.now();
+      const createdNotifications = Array.from(notifySet).map((targetUser, idx) => {
+        const isDirectReply = parentComment && parentComment.author_username === targetUser;
+        const notifObj = {
+          id: notifBaseTs + idx,
+          user_target: targetUser,
+          user_role: targetUser,
+          title: isDirectReply ? 'Balasan Baru di Forum Diskusi' : 'Komentar Baru pada Diskusi Diikuti',
+          message: isDirectReply
+            ? `${actorNama} membalas komentar Anda pada topik "${topic.judul}": "${isi.slice(0, 90)}${isi.length > 90 ? '...' : ''}"`
+            : `${actorNama} berkomentar di topik "${topic.judul}": "${isi.slice(0, 90)}${isi.length > 90 ? '...' : ''}"`,
+          timestamp: nowTs,
+          is_read: false,
+          link_page: 'forum',
+          topic_id: topic.id
+        };
+        database.notifications.push(notifObj);
+        return notifObj;
+      });
+
+      persistForumData();
+      const sheetsSynced = await syncForumRecordToGoogleSheets('Forum_Komentar', 'add', comment);
+      const filtered = getFilteredForumForRole(actorRole);
+      return res.json({
+        success: true,
+        item: comment,
+        topics: filtered.topics,
+        comments: filtered.comments,
+        notifyTargets: Array.from(notifySet),
+        createdNotifications,
+        sheetsSynced,
+        message: parentId ? 'Balasan komentar berhasil dikirim!' : 'Komentar berhasil dikirim!'
+      });
+    }
+
+    if (action === 'update_comment') {
+      const commentId = String(body.id || body.comment_id || '').trim();
+      const idx = database.forumKomentar.findIndex(c => String(c.id) === commentId);
+      if (idx === -1) {
+        return res.status(404).json({ success: false, error: 'Komentar tidak ditemukan.' });
+      }
+      const existing = normalizeForumCommentItem(database.forumKomentar[idx], database.forumKomentar[idx]);
+      const isOwner = existing.author_username === actorUsername;
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ success: false, error: 'Anda hanya dapat mengedit komentar milik Anda sendiri.' });
+      }
+      const isi = String(body.isi || '').trim();
+      if (!isi || isi.length < 2 || isi.length > 3000) {
+        return res.status(400).json({ success: false, error: 'Isi komentar harus antara 2 hingga 3000 karakter.' });
+      }
+      const updated = normalizeForumCommentItem({ ...existing, isi, updated_at: nowTs }, existing);
+      database.forumKomentar[idx] = updated;
+      persistForumData();
+      const sheetsSynced = await syncForumRecordToGoogleSheets('Forum_Komentar', 'update', updated);
+      const filtered = getFilteredForumForRole(actorRole);
+      return res.json({ success: true, item: updated, topics: filtered.topics, comments: filtered.comments, sheetsSynced, message: 'Komentar berhasil diperbarui!' });
+    }
+
+    if (action === 'delete_comment') {
+      const commentId = String(body.id || body.comment_id || '').trim();
+      const idx = database.forumKomentar.findIndex(c => String(c.id) === commentId);
+      if (idx === -1) {
+        return res.status(404).json({ success: false, error: 'Komentar tidak ditemukan.' });
+      }
+      const existing = normalizeForumCommentItem(database.forumKomentar[idx], database.forumKomentar[idx]);
+      const isOwner = existing.author_username === actorUsername;
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ success: false, error: 'Anda hanya dapat menghapus komentar milik Anda sendiri.' });
+      }
+
+      // Kumpulkan ID komentar ini beserta seluruh balasan turunannya agar tidak yatim
+      const idsToDelete = new Set([commentId]);
+      let added = true;
+      while (added) {
+        added = false;
+        for (const c of database.forumKomentar) {
+          if (c.parent_id && idsToDelete.has(String(c.parent_id)) && !idsToDelete.has(String(c.id))) {
+            idsToDelete.add(String(c.id));
+            added = true;
+          }
+        }
+      }
+
+      database.forumKomentar = database.forumKomentar.filter(c => !idsToDelete.has(String(c.id)));
+      persistForumData();
+      const sheetsSynced = await syncForumRecordToGoogleSheets('Forum_Komentar', 'delete', { id: commentId });
+      for (const delId of idsToDelete) {
+        if (delId !== commentId) {
+          syncForumRecordToGoogleSheets('Forum_Komentar', 'delete', { id: delId }).catch(() => {});
+        }
+      }
+      const filtered = getFilteredForumForRole(actorRole);
+      return res.json({ success: true, topics: filtered.topics, comments: filtered.comments, sheetsSynced, message: 'Komentar berhasil dihapus.' });
+    }
+
+    if (action === 'toggle_like_comment') {
+      const commentId = String(body.id || body.comment_id || '').trim();
+      const idx = database.forumKomentar.findIndex(c => String(c.id) === commentId);
+      if (idx === -1) {
+        return res.status(404).json({ success: false, error: 'Komentar tidak ditemukan.' });
+      }
+      const existing = normalizeForumCommentItem(database.forumKomentar[idx], database.forumKomentar[idx]);
+      const likes = new Set(existing.likes_users || []);
+      let liked = false;
+      if (likes.has(actorUsername)) {
+        likes.delete(actorUsername);
+      } else {
+        likes.add(actorUsername);
+        liked = true;
+      }
+      const updated = normalizeForumCommentItem({ ...existing, likes_users: Array.from(likes) }, existing);
+      updated.updated_at = existing.updated_at;
+      database.forumKomentar[idx] = updated;
+      persistForumData();
+      const sheetsSynced = await syncForumRecordToGoogleSheets('Forum_Komentar', 'update', updated);
+      const filtered = getFilteredForumForRole(actorRole);
+      return res.json({ success: true, liked, item: updated, topics: filtered.topics, comments: filtered.comments, sheetsSynced });
+    }
+
+    if (action === 'moderate_comment') {
+      if (!isAdmin) {
+        return res.status(403).json({ success: false, error: 'Hanya Administrator yang berhak memoderasi komentar.' });
+      }
+      const commentId = String(body.id || body.comment_id || '').trim();
+      const idx = database.forumKomentar.findIndex(c => String(c.id) === commentId);
+      if (idx === -1) {
+        return res.status(404).json({ success: false, error: 'Komentar tidak ditemukan.' });
+      }
+      const existing = normalizeForumCommentItem(database.forumKomentar[idx], database.forumKomentar[idx]);
+      const nextStatus = body.status_moderasi === 'Disembunyikan' ? 'Disembunyikan' : 'Aktif';
+      const updated = normalizeForumCommentItem({ ...existing, status_moderasi: nextStatus }, existing);
+      updated.updated_at = existing.updated_at;
+      database.forumKomentar[idx] = updated;
+      persistForumData();
+      const sheetsSynced = await syncForumRecordToGoogleSheets('Forum_Komentar', 'update', updated);
+      const filtered = getFilteredForumForRole(actorRole);
+      return res.json({
+        success: true,
+        item: updated,
+        topics: filtered.topics,
+        comments: filtered.comments,
+        sheetsSynced,
+        message: nextStatus === 'Disembunyikan' ? 'Komentar disembunyikan.' : 'Komentar kembali ditampilkan.'
+      });
+    }
+
+    return res.status(400).json({ success: false, error: `Aksi forum tidak dikenal: ${action}` });
+  } catch (err) {
+    console.error('[Forum API Error]:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Gagal memproses permintaan Forum Diskusi.' });
+  }
+}
+
+app.post(['/api/forum', '/forum'], handleForumMutation);
+app.post(['/api/forum/topics', '/forum/topics'], (req, res) => {
+  req.body = { ...(req.body || {}), action: 'create_topic' };
+  return handleForumMutation(req, res);
+});
+app.put(['/api/forum/topics/:id', '/forum/topics/:id'], (req, res) => {
+  req.body = { ...(req.body || {}), action: (req.body && req.body.action) || 'update_topic', id: req.params.id };
+  return handleForumMutation(req, res);
+});
+app.delete(['/api/forum/topics/:id', '/forum/topics/:id'], (req, res) => {
+  req.body = { ...(req.body || {}), action: 'delete_topic', id: req.params.id };
+  return handleForumMutation(req, res);
+});
+app.post(['/api/forum/comments', '/forum/comments'], (req, res) => {
+  req.body = { ...(req.body || {}), action: 'create_comment' };
+  return handleForumMutation(req, res);
+});
+app.put(['/api/forum/comments/:id', '/forum/comments/:id'], (req, res) => {
+  req.body = { ...(req.body || {}), action: (req.body && req.body.action) || 'update_comment', id: req.params.id };
+  return handleForumMutation(req, res);
+});
+app.delete(['/api/forum/comments/:id', '/forum/comments/:id'], (req, res) => {
+  req.body = { ...(req.body || {}), action: 'delete_comment', id: req.params.id };
+  return handleForumMutation(req, res);
+});
+
+// =============================================================
 // MEDIA MONITORING BPS KALBAR APIs
 // =============================================================
 
@@ -1905,22 +2746,30 @@ app.use((req, res) => {
 });
 
 const DEV_PORT = 3000;
-const ALT_PORT = process.env.PORT && Number(process.env.PORT) !== DEV_PORT ? Number(process.env.PORT) : null;
+const isNginxProxyContainer = fs.existsSync('/etc/nginx/nginx_auth.conf.include');
+const ALT_PORT = (!isNginxProxyContainer && process.env.PORT && Number(process.env.PORT) !== DEV_PORT)
+  ? Number(process.env.PORT)
+  : null;
 
 if (!process.env.VERCEL) {
-  const server3000 = app.listen(DEV_PORT, '0.0.0.0', () => {
-    console.log(`[SIM Humas] Server running on http://0.0.0.0:${DEV_PORT}`);
-  });
+  const server3000 = http.createServer(app);
   server3000.on('error', (err) => {
     console.error(`[SIM Humas] Error on port ${DEV_PORT}:`, err.message);
   });
+  server3000.listen(DEV_PORT, '0.0.0.0', () => {
+    console.log(`[SIM Humas] Server running on http://0.0.0.0:${DEV_PORT}`);
+    setTimeout(() => {
+      refreshUsersFromSheets().catch(() => {});
+    }, 50);
+  });
 
   if (ALT_PORT) {
-    const altServer = app.listen(ALT_PORT, '0.0.0.0', () => {
-      console.log(`[SIM Humas] Server also running on http://0.0.0.0:${ALT_PORT}`);
-    });
+    const altServer = http.createServer(app);
     altServer.on('error', (err) => {
       console.warn(`[SIM Humas] Could not bind alternate port ${ALT_PORT}:`, err.message);
+    });
+    altServer.listen(ALT_PORT, '0.0.0.0', () => {
+      console.log(`[SIM Humas] Server also running on http://0.0.0.0:${ALT_PORT}`);
     });
   }
 }
