@@ -1,4 +1,5 @@
-// Heavy libraries (fast-xml-parser, exceljs) are lazy-loaded when scraping or exporting Excel
+import { XMLParser } from 'fast-xml-parser';
+import ExcelJS from 'exceljs';
 
 export const MEDIA_TARGET = [
   'Antaranews',
@@ -180,7 +181,6 @@ export async function scrapeGoogleNewsBpsKalbar(year = 2026) {
     `"BPS Kalbar"`
   ];
 
-  const { XMLParser } = await import('fast-xml-parser');
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '@_'
@@ -296,7 +296,6 @@ export async function scrapeGoogleNewsBpsKalbar(year = 2026) {
  * - Navy Blue (#1F4E79), soft blue (#D9E1F2), zebra striping (#F2F4F7)
  */
 export async function generateMonitoringWorkbook(articles = [], year = 2026, startMonth = 1, endMonth = (new Date().getMonth() + 1)) {
-  const { default: ExcelJS } = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'SIM Humas BPS Provinsi Kalimantan Barat';
   workbook.created = new Date();
