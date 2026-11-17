@@ -14,9 +14,6 @@
   "bin": {
     "kosong": "./bin/kosong"
   },
-  "engines": {
-    "node": "22.x"
-  },
   "dependencies": {
     "chart.js": "^4.6.1",
     "docx": "^9.15.3",
