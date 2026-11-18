@@ -2960,7 +2960,7 @@ function drawRutinTable() {
     const paginated = filtered.slice(startIndex, endIndex);
 
     body.innerHTML = paginated.map(item => {
-        let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
+        let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-200 dark:border-emerald-700/80' : 'bg-indigo-50 text-indigo-750 border border-indigo-200 dark:bg-indigo-900/60 dark:text-indigo-200 dark:border-indigo-700/80';
 
         let actionButtons = '';
         if (!isKepala) {
@@ -3181,9 +3181,9 @@ function drawAdHocTable() {
         const staffList = typeof window.parseAdHocPicArray === 'function'
             ? window.parseAdHocPicArray(item.petugas)
             : (item.petugas ? item.petugas.split(',').map(s=>s.trim()).filter(Boolean) : []);
-        const staffBadges = staffList.map(st => `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900 rounded font-bold text-[9px]"><i class="fa-solid fa-user-check text-[8px] text-indigo-500"></i> ${escapeHtml(st.trim())}</span>`).join(' ');
+        const staffBadges = staffList.map(st => `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-750 dark:bg-indigo-900/60 dark:text-indigo-200 dark:border-indigo-700/80 rounded font-bold text-[9px]"><i class="fa-solid fa-user-check text-[8px] text-indigo-500 dark:text-indigo-300"></i> ${escapeHtml(st.trim())}</span>`).join(' ');
 
-        let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
+        let statusColor = item.status === 'Selesai' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-200 dark:border-emerald-700/80' : 'bg-indigo-50 text-indigo-750 border border-indigo-200 dark:bg-indigo-900/60 dark:text-indigo-200 dark:border-indigo-700/80';
 
         let actionButtons = '';
         if (!isKepala) {
@@ -3448,15 +3448,15 @@ function drawProtokolerTable() {
 
     list.innerHTML = paginated.map(item => {
         const isDone = item.status === 'Selesai';
-        let statusColor = isDone ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
+        let statusColor = isDone ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-200 dark:border-emerald-700/80' : 'bg-indigo-50 text-indigo-750 border border-indigo-200 dark:bg-indigo-900/60 dark:text-indigo-200 dark:border-indigo-700/80';
 
         let actionsHtml = '';
         if (!isKepala) {
             actionsHtml = `
                 <div class="flex items-center gap-1.5 justify-end md:justify-center border-t dark:border-slate-800 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto" onclick="event.stopPropagation()">
                     <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span>
-                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-950 dark:text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
-                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-350">${item.jenis || 'Internal'}</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-900/60 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-700/80' : 'bg-amber-50 text-amber-750 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-200 dark:border-amber-700/80'}">${item.level}</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-200 border border-slate-200 dark:border-slate-600">${item.jenis || 'Internal'}</span>
                     <button onclick="openModalById('protokoler', ${item.id})" title="Ubah" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
                     ${isUserAdminOrKetua() ? `
                         <button onclick="deleteItem('protokoler', ${item.id})" title="Hapus" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
@@ -3467,8 +3467,8 @@ function drawProtokolerTable() {
             actionsHtml = `
                 <div class="flex items-center gap-1.5 justify-end md:justify-center border-t dark:border-slate-800 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto">
                     <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span>
-                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-950 dark:text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
-                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-350">${item.jenis || 'Internal'}</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-900/60 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-700/80' : 'bg-amber-50 text-amber-750 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-200 dark:border-amber-700/80'}">${item.level}</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-200 border border-slate-200 dark:border-slate-600">${item.jenis || 'Internal'}</span>
                 </div>
             `;
         }
@@ -3695,15 +3695,15 @@ function drawMcTable() {
 
     list.innerHTML = paginated.map(item => {
         const isDone = item.status === 'Selesai';
-        let statusColor = isDone ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-750 dark:bg-indigo-950/40 dark:text-indigo-300';
+        let statusColor = isDone ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-200 dark:border-emerald-700/80' : 'bg-indigo-50 text-indigo-750 border border-indigo-200 dark:bg-indigo-900/60 dark:text-indigo-200 dark:border-indigo-700/80';
 
         let actionsHtml = '';
         if (!isKepala) {
             actionsHtml = `
                 <div class="flex items-center gap-1.5 justify-end md:justify-center border-t dark:border-slate-800 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto" onclick="event.stopPropagation()">
                     <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span>
-                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-955 text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-955 text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
-                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-605 dark:text-slate-350">${item.jenis || 'Internal'}</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-900/60 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-700/80' : 'bg-amber-50 text-amber-750 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-200 dark:border-amber-700/80'}">${item.level}</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-605 dark:text-slate-200 border border-slate-200 dark:border-slate-600">${item.jenis || 'Internal'}</span>
                     <button onclick="openModalById('mc', ${item.id})" title="Ubah" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-655 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-pen text-[10px]"></i></button>
                     ${isUserAdminOrKetua() ? `
                         <button onclick="deleteItem('mc', ${item.id})" title="Hapus" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-650 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-trash text-[10px]"></i></button>
@@ -3714,8 +3714,8 @@ function drawMcTable() {
             actionsHtml = `
                 <div class="flex items-center gap-1.5 justify-end md:justify-center border-t dark:border-slate-800 md:border-none pt-3 md:pt-0 shrink-0 w-full md:w-auto">
                     <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${statusColor}">${item.status || 'Ditugaskan'}</span>
-                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-955 text-indigo-300 border border-indigo-100 dark:border-indigo-900' : 'bg-amber-50 text-amber-750 dark:bg-amber-955 text-amber-300 border border-amber-100 dark:border-amber-900'}">${item.level}</span>
-                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-350">${item.jenis || 'Internal'}</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold ${['Super Formal', 'Formal'].includes(item.level) ? 'bg-indigo-50 text-indigo-750 dark:bg-indigo-900/60 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-700/80' : 'bg-amber-50 text-amber-750 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-200 dark:border-amber-700/80'}">${item.level}</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[9px] font-bold text-slate-600 dark:text-slate-200 border border-slate-200 dark:border-slate-600">${item.jenis || 'Internal'}</span>
                 </div>
             `;
         }
@@ -3971,8 +3971,8 @@ function drawBrsGrid() {
             <div class="${cardBg} rounded-2xl border p-5 flex flex-col justify-between group">
                 <div>
                     <div class="flex justify-between items-start gap-2">
-                        <span class="text-[9px] ${isDone ? 'text-emerald-700 dark:text-emerald-400 font-black' : 'text-slate-450 dark:text-slate-500 font-extrabold'} uppercase tracking-widest"><i class="fa-solid fa-calendar mr-1"></i> ${formatDate(item.tanggal_rilis)}</span>
-                        ${isDone ? '<span class="inline-flex items-center gap-1 text-[8px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded shrink-0"><i class="fa-solid fa-check text-[7px]"></i> Selesai Rilis</span>' : '<span class="inline-flex items-center gap-1 text-[8px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded shrink-0">Terjadwal</span>'}
+                        <span class="text-[9px] ${isDone ? 'text-emerald-700 dark:text-emerald-300 font-black' : 'text-slate-500 dark:text-slate-300 font-extrabold'} uppercase tracking-widest"><i class="fa-solid fa-calendar mr-1"></i> ${formatDate(item.tanggal_rilis)}</span>
+                        ${isDone ? '<span class="inline-flex items-center gap-1 text-[8px] font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/70 border border-emerald-200 dark:border-emerald-700/80 px-2 py-0.5 rounded-full shrink-0"><i class="fa-solid fa-check text-[7px]"></i> Selesai Rilis</span>' : '<span class="inline-flex items-center gap-1 text-[8px] font-bold text-indigo-750 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-900/70 border border-indigo-200 dark:border-indigo-700/80 px-2 py-0.5 rounded-full shrink-0">Terjadwal</span>'}
                     </div>
                     <h4 class="font-extrabold text-slate-855 dark:text-slate-100 text-sm mt-3 leading-snug cursor-pointer hover:text-indigo-655 transition-colors" onclick="showDetailById('brs_rilis', ${item.id})">${item.judul}</h4>
                     
@@ -4186,7 +4186,7 @@ function drawHariBesarTable() {
     body.innerHTML = paginated.map(item => {
         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
         const isDone = item.status === 'Selesai';
-        let statusColor = isDone ? 'bg-emerald-50 text-emerald-850 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-indigo-50 text-indigo-850 dark:bg-indigo-950/40 dark:text-indigo-300';
+        let statusColor = isDone ? 'bg-emerald-50 text-emerald-850 border border-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-200 dark:border-emerald-700/80' : 'bg-indigo-50 text-indigo-850 border border-indigo-200 dark:bg-indigo-900/60 dark:text-indigo-200 dark:border-indigo-700/80';
 
         let actionButtons = '';
         if (!isKepala) {
@@ -4528,21 +4528,21 @@ function getAllIntegratedTasks() {
         const isDone = task.progress === 100 || ['selesai', 'done', 'posted', 'published', 'rilis', 'tayang', 'sudah'].includes(sLower);
 
         let slaStatus = 'Aman';
-        let slaClass = 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border-sky-200 dark:border-sky-800';
+        let slaClass = 'bg-sky-100 text-sky-800 dark:bg-sky-900/65 dark:text-sky-200 border-sky-200 dark:border-sky-700';
         let isTerlambat = false;
         let isMendekati = false;
 
         if (isDone) {
             slaStatus = 'Selesai';
-            slaClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+            slaClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/65 dark:text-emerald-200 border-emerald-200 dark:border-emerald-700';
         } else if (daysRemaining < 0) {
             slaStatus = 'Terlambat';
             isTerlambat = true;
-            slaClass = 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-200 dark:border-rose-800';
+            slaClass = 'bg-rose-100 text-rose-800 dark:bg-rose-900/65 dark:text-rose-200 border-rose-200 dark:border-rose-700';
         } else if (daysRemaining <= 3) {
             slaStatus = 'Mendekati';
             isMendekati = true;
-            slaClass = 'bg-amber-100 text-amber-800 dark:bg-amber-955 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+            slaClass = 'bg-amber-100 text-amber-800 dark:bg-amber-900/65 dark:text-amber-200 border-amber-200 dark:border-amber-700';
         }
 
         tasks.push({
@@ -8695,11 +8695,11 @@ function drawTicketsGrid() {
         const isDone = (t.status === 'Approved' || t.status === 'Selesai');
         let statusBadge = '';
         if (t.status === 'Pending') {
-            statusBadge = `<span class="px-2.5 py-0.5 bg-amber-50 text-amber-750 border border-amber-200 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs"><span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span>Pending</span>`;
+            statusBadge = `<span class="px-2.5 py-0.5 bg-amber-50 dark:bg-amber-900/65 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-700 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs"><span class="w-1.5 h-1.5 bg-amber-500 dark:bg-amber-400 rounded-full animate-ping"></span>Pending</span>`;
         } else if (isDone) {
-            statusBadge = `<span class="px-2.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs"><i class="fa-solid fa-check text-[9px]"></i>${t.status === 'Selesai' ? 'Selesai' : 'Disetujui'}</span>`;
+            statusBadge = `<span class="px-2.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/65 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs"><i class="fa-solid fa-check text-[9px]"></i>${t.status === 'Selesai' ? 'Selesai' : 'Disetujui'}</span>`;
         } else {
-            statusBadge = `<span class="px-2.5 py-0.5 bg-rose-50 text-rose-800 border border-rose-200 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs"><i class="fa-solid fa-times text-[9px]"></i>Ditolak</span>`;
+            statusBadge = `<span class="px-2.5 py-0.5 bg-rose-50 dark:bg-rose-900/65 text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-700 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-xs"><i class="fa-solid fa-times text-[9px]"></i>Ditolak</span>`;
         }
 
         let actions = '';
@@ -10629,40 +10629,40 @@ window.drawAssignmentTable = function() {
         switch (item.status) {
             case 'Belum Mulai':
             case 'Draft':
-                statusBadge = `<span class="px-2.5 py-1 bg-slate-105 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-655">${item.status}</span>`;
+                statusBadge = `<span class="px-2.5 py-1 bg-slate-105 text-slate-700 dark:bg-slate-700/80 dark:text-slate-100 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-500">${item.status}</span>`;
                 break;
             case 'Sedang Dikerjakan':
             case 'In Progress':
             case 'Ditugaskan':
-                statusBadge = `<span class="px-2.5 py-1 bg-blue-50 text-blue-700 dark:bg-blue-955/40 dark:text-blue-300 rounded-full text-[10px] font-bold border border-blue-105 dark:border-blue-900/65">${item.status}</span>`;
+                statusBadge = `<span class="px-2.5 py-1 bg-blue-50 text-blue-700 dark:bg-blue-900/65 dark:text-blue-200 rounded-full text-[10px] font-bold border border-blue-200 dark:border-blue-700">${item.status}</span>`;
                 break;
             case 'Selesai':
             case 'Done':
             case 'Posted':
             case 'Rilis':
-                statusBadge = `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-955/40 dark:text-emerald-300 rounded-full text-[10px] font-bold border border-emerald-105 dark:border-emerald-900/65">${item.status}</span>`;
+                statusBadge = `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/65 dark:text-emerald-200 rounded-full text-[10px] font-bold border border-emerald-200 dark:border-emerald-700">${item.status}</span>`;
                 break;
             case 'Revisi':
-                statusBadge = '<span class="px-2.5 py-1 bg-rose-50 text-rose-700 dark:bg-rose-955/40 dark:text-rose-300 rounded-full text-[10px] font-bold border border-rose-105 dark:border-rose-900/65">Revisi</span>';
+                statusBadge = '<span class="px-2.5 py-1 bg-rose-50 text-rose-700 dark:bg-rose-900/65 dark:text-rose-200 rounded-full text-[10px] font-bold border border-rose-200 dark:border-rose-700">Revisi</span>';
                 break;
             default:
-                statusBadge = `<span class="px-2.5 py-1 bg-slate-50 text-slate-600 rounded-full text-[10px] font-bold">${item.status || '-'}</span>`;
+                statusBadge = `<span class="px-2.5 py-1 bg-slate-100 text-slate-700 dark:bg-slate-700/80 dark:text-slate-100 border border-slate-200 dark:border-slate-500 rounded-full text-[10px] font-bold">${item.status || '-'}</span>`;
         }
 
         // Priority Badge Style
         let priorityBadge = '';
         switch (item.prioritas) {
             case 'Tinggi':
-                priorityBadge = '<span class="px-2 py-0.5 bg-rose-50 text-rose-700 dark:bg-rose-955 dark:text-rose-300 border border-rose-100 dark:border-rose-900 rounded text-[9px] font-extrabold uppercase">Tinggi</span>';
+                priorityBadge = '<span class="px-2 py-0.5 bg-rose-50 text-rose-700 dark:bg-rose-900/65 dark:text-rose-200 border border-rose-200 dark:border-rose-700 rounded text-[9px] font-extrabold uppercase">Tinggi</span>';
                 break;
             case 'Sedang':
-                priorityBadge = '<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-955 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900 rounded text-[9px] font-extrabold uppercase">Sedang</span>';
+                priorityBadge = '<span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/65 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-700 rounded text-[9px] font-extrabold uppercase">Sedang</span>';
                 break;
             case 'Rendah':
-                priorityBadge = '<span class="px-2 py-0.5 bg-slate-50 text-slate-655 dark:bg-slate-700 dark:text-slate-350 border border-slate-200 dark:border-slate-655 rounded text-[9px] font-bold uppercase">Rendah</span>';
+                priorityBadge = '<span class="px-2 py-0.5 bg-slate-100 text-slate-700 dark:bg-slate-700/80 dark:text-slate-200 border border-slate-200 dark:border-slate-500 rounded text-[9px] font-bold uppercase">Rendah</span>';
                 break;
             default:
-                priorityBadge = `<span class="px-2 py-0.5 bg-slate-50 text-slate-655 rounded text-[9px] font-bold">${item.prioritas || '-'}</span>`;
+                priorityBadge = `<span class="px-2 py-0.5 bg-slate-100 text-slate-700 dark:bg-slate-700/80 dark:text-slate-200 border border-slate-200 dark:border-slate-500 rounded text-[9px] font-bold">${item.prioritas || '-'}</span>`;
         }
 
         const actions = `
@@ -11698,7 +11698,7 @@ function drawRepositoryContent() {
                                         <td class="py-3.5 px-4 text-slate-600 dark:text-slate-300 whitespace-nowrap">${item.pic || '-'}</td>
                                         <td class="py-3.5 px-4 text-slate-500 whitespace-nowrap">${formatDate(item.tanggal)}</td>
                                         <td class="py-3.5 px-4 text-center whitespace-nowrap">
-                                            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold ${isArchived ? 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'}">
+                                            <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold border ${isArchived ? 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700/80 dark:text-slate-200 dark:border-slate-500' : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/65 dark:text-emerald-200 dark:border-emerald-700'}">
                                                 ${item.status || 'Aktif'}
                                             </span>
                                         </td>
@@ -12885,12 +12885,12 @@ function drawUserManagementTable() {
     }
 
     const roleBadges = {
-        admin: 'bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 border-rose-200 dark:border-rose-800',
-        kepala: 'bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-        koordinator: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
-        tim: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-        pemohon: 'bg-sky-50 text-sky-700 dark:bg-sky-950/70 dark:text-sky-300 border-sky-200 dark:border-sky-800',
-        kabkot: 'bg-purple-50 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+        admin: 'bg-rose-50 text-rose-700 dark:bg-rose-900/65 dark:text-rose-200 border-rose-200 dark:border-rose-700',
+        kepala: 'bg-amber-50 text-amber-700 dark:bg-amber-900/65 dark:text-amber-200 border-amber-200 dark:border-amber-700',
+        koordinator: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/65 dark:text-indigo-200 border-indigo-200 dark:border-indigo-700',
+        tim: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/65 dark:text-emerald-200 border-emerald-200 dark:border-emerald-700',
+        pemohon: 'bg-sky-50 text-sky-700 dark:bg-sky-900/65 dark:text-sky-200 border-sky-200 dark:border-sky-700',
+        kabkot: 'bg-purple-50 text-purple-700 dark:bg-purple-900/65 dark:text-purple-200 border-purple-200 dark:border-purple-700'
     };
 
     container.innerHTML = `
@@ -12957,20 +12957,20 @@ function drawUserManagementTable() {
                                 </td>
                                 <td class="px-5 py-3.5 whitespace-nowrap">
                                     ${isDefaultPwd ? `
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-bold text-[10.5px]">
-                                            <i class="fa-solid fa-triangle-exclamation text-amber-500 text-xs"></i>
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/65 border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-200 font-bold text-[10.5px]">
+                                            <i class="fa-solid fa-triangle-exclamation text-amber-500 dark:text-amber-300 text-xs"></i>
                                             <span>Default ('password')</span>
                                         </span>
                                     ` : `
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold text-[10.5px]">
-                                            <i class="fa-solid fa-shield-check text-emerald-500 text-xs"></i>
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/65 border border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-200 font-bold text-[10.5px]">
+                                            <i class="fa-solid fa-shield-check text-emerald-500 dark:text-emerald-300 text-xs"></i>
                                             <span>Sandi Kustom (Diubah)</span>
                                         </span>
                                     `}
                                 </td>
                                 <td class="px-5 py-3.5 whitespace-nowrap text-center">
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold uppercase border border-emerald-200 dark:border-emerald-800">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/65 text-emerald-700 dark:text-emerald-200 text-[10px] font-extrabold uppercase border border-emerald-200 dark:border-emerald-700">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
                                         <span>Aktif</span>
                                     </span>
                                 </td>
