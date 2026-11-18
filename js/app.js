@@ -907,25 +907,19 @@ function renderNotificationsUI() {
 
     list.innerHTML = notifWithReadState.slice(0, 8).map(n => {
         const timeAgo = formatTimeAgo(n.timestamp);
-        const isForumNotif = n.link_page === 'forum' || Boolean(n.topic_id) || /forum diskusi/i.test(String(n.title || ''));
         const safeTitle = (typeof escapeHtml === 'function') ? escapeHtml(n.title || '') : String(n.title || '');
         const safeMsg = (typeof escapeHtml === 'function') ? escapeHtml(n.message || '') : String(n.message || '');
-        const safeNotifId = encodeURIComponent(String(n.id || ''));
-        const safeTopicId = encodeURIComponent(String(n.topic_id || ''));
-        const clickAttr = isForumNotif
-            ? `onclick="window.handleForumNotificationClick(decodeURIComponent('${safeNotifId}'), decodeURIComponent('${safeTopicId}'))"`
-            : '';
         return `
-        <div ${clickAttr} class="p-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 rounded-xl transition-all ${isForumNotif ? 'cursor-pointer' : 'cursor-default'} ${!n.isReadLocal ? 'bg-indigo-50/60 dark:bg-indigo-950/30 border-l-2 border-indigo-400' : 'opacity-70'}">
+        <div class="p-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 rounded-xl transition-all cursor-default ${!n.isReadLocal ? 'bg-indigo-50/60 dark:bg-indigo-950/30 border-l-2 border-indigo-400' : 'opacity-70'}">
             <div class="flex items-start gap-2.5">
                 <div class="w-7 h-7 rounded-lg ${!n.isReadLocal ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'} flex items-center justify-center shrink-0 mt-0.5">
-                    <i class="${isForumNotif ? 'fa-solid fa-comments' : 'fa-solid fa-bell'} text-[10px]"></i>
+                    <i class="fa-solid fa-bell text-[10px]"></i>
                 </div>
                 <div class="flex-1 min-w-0">
                     <p class="font-bold text-[10px] text-slate-800 dark:text-slate-200 leading-snug">${safeTitle}</p>
                     <p class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed line-clamp-2">${safeMsg}</p>
                     <span class="text-[8px] text-slate-400 font-medium block mt-1">
-                        <i class="fa-regular fa-clock mr-0.5"></i>${timeAgo}${isForumNotif ? ' · Klik untuk membuka diskusi' : ''}
+                        <i class="fa-regular fa-clock mr-0.5"></i>${timeAgo}
                     </span>
                 </div>
                 ${!n.isReadLocal ? `
@@ -936,22 +930,6 @@ function renderNotificationsUI() {
     `;
     }).join('');
 }
-
-window.handleForumNotificationClick = function(notifId, topicId) {
-    if (notifId) {
-        saveReadNotifId(notifId);
-    }
-    const panel = document.getElementById('notif-panel');
-    if (panel) panel.classList.add('hidden');
-    renderNotificationsUI();
-    if (topicId) {
-        window._activeForumTopicId = topicId;
-        router('forum', { routeAction: 'detail', routeId: topicId });
-    } else {
-        window._activeForumTopicId = null;
-        router('forum');
-    }
-};
 
 function formatTimeAgo(timestamp) {
     if (!timestamp) return '-';
@@ -1037,8 +1015,6 @@ function handleGlobalSearch(query) {
     } else if (currentState === 'team') {
         teamSearch = query;
         drawTeamGrid();
-    } else if (currentState === 'forum' && typeof window.setForumSearchQuery === 'function') {
-        window.setForumSearchQuery(query);
     }
 }
 
@@ -5011,16 +4987,6 @@ function router(page, options = {}) {
         case 'settings': renderSettingsPage(contentDiv); break;
         case 'assignment': renderAssignmentPage(contentDiv); break;
         case 'repository': renderRepository(contentDiv); break;
-        case 'forum':
-            if (options.routeAction === 'detail' && options.routeId) {
-                window._activeForumTopicId = String(options.routeId);
-            } else if (!isSamePage) {
-                window._activeForumTopicId = null;
-            }
-            if (typeof renderForumDiskusi === 'function') {
-                renderForumDiskusi(contentDiv);
-            }
-            break;
         case 'user_management': renderUserManagement(contentDiv); break;
         case 'reset_credentials': renderResetCredentialsPage(contentDiv); break;
     }
@@ -5032,12 +4998,8 @@ function router(page, options = {}) {
         }
     }
 
-    if (options.routeAction && !(page === 'forum' && options.routeAction === 'detail')) {
-        if (page === 'forum' && options.routeAction === 'tambah' && typeof window.openForumTopicModal === 'function') {
-            setTimeout(() => window.openForumTopicModal(null), 50);
-        } else {
-            executeRouteAction(options.routeAction, options.routeId, options.routeModalType || page);
-        }
+    if (options.routeAction) {
+        executeRouteAction(options.routeAction, options.routeId, options.routeModalType || page);
     }
 
     // Restore scroll position if re-rendering same page (after save/delete)

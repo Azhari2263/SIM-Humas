@@ -98,21 +98,16 @@ const PAGE_ROUTES = {
         path: '/reset-akun',
         aliases: ['/reset-akun', '/reset-credentials', '/reset_credentials', '/ganti-password'],
         title: 'Reset Kredensial - SIM Humas BPS Kalbar'
-    },
-    'forum': {
-        path: '/forum',
-        aliases: ['/forum', '/forum-diskusi', '/diskusi', '/kritik-saran'],
-        title: 'Forum Diskusi - SIM Humas BPS Kalbar'
     }
 };
 
 const ROLE_ALLOWED_PAGES = {
-    admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'settings', 'assignment', 'repository', 'forum', 'user_management', 'reset_credentials'],
-    kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository', 'forum'],
-    koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository', 'forum', 'reset_credentials'],
-    tim: ['dashboard', 'calendar', 'assignment', 'rekap_kegiatan', 'monitoring', 'repository', 'forum', 'reset_credentials'],
-    pemohon: ['dashboard', 'tickets', 'forum'],
-    kabkot: ['repository', 'team', 'forum']
+    admin: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'settings', 'assignment', 'repository', 'user_management', 'reset_credentials'],
+    kepala: ['dashboard', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository'],
+    koordinator: ['dashboard', 'planner', 'rekap_rutin', 'ad_hoc', 'protokoler_sep', 'mc_sep', 'brs_rilis', 'hari_besar', 'rekap_kegiatan', 'tickets', 'monitoring', 'team', 'calendar', 'repository', 'reset_credentials'],
+    tim: ['dashboard', 'calendar', 'assignment', 'rekap_kegiatan', 'monitoring', 'repository', 'reset_credentials'],
+    pemohon: ['dashboard', 'tickets'],
+    kabkot: ['repository', 'team']
 };
 
 const TYPE_ROUTE_MAPPING = {
@@ -127,7 +122,6 @@ const TYPE_ROUTE_MAPPING = {
     'team': { page: 'team', basePath: '/tim', dbKey: 'team', title: 'Anggota Tim' },
     'user_manager': { page: 'user_management', basePath: '/manajemen-pengguna', dbKey: 'users', title: 'Akun Pengguna' },
     'repository': { page: 'repository', basePath: '/dokumen', dbKey: 'repository', title: 'Dokumen' },
-    'forum': { page: 'forum', basePath: '/forum', dbKey: 'forumDiskusi', title: 'Forum Diskusi' },
     'tickets': { page: 'tickets', basePath: '/ppid', dbKey: 'tickets', title: 'Permintaan Layanan' },
     'monitoring': { page: 'monitoring', basePath: '/monitoring', dbKey: 'monitoring', title: 'Media Monitoring' }
 };
@@ -316,13 +310,6 @@ function parseRoute(rawPath, rawSearch = '') {
         case 'master_data':
             page = 'settings';
             break;
-        case 'forum':
-        case 'forum-diskusi':
-        case 'diskusi':
-        case 'kritik-saran':
-            page = 'forum';
-            modalType = 'forum';
-            break;
         default:
             return { isValid: false, page: null, action: null, id: null, sub: null, tab: null, rawPath: cleanPath };
     }
@@ -336,9 +323,6 @@ function parseRoute(rawPath, rawSearch = '') {
         action = 'tambah';
     } else if ((second === 'edit' || second === 'detail') && third) {
         action = second;
-        id = third;
-    } else if (page === 'forum' && second === 'topik' && third) {
-        action = 'detail';
         id = third;
     } else if (page === 'monitoring' && ['media', 'topik', 'sentimen', 'lampiran'].includes(second)) {
         tab = second;

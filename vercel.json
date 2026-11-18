@@ -10,19 +10,19 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.js"
+      "destination": "/api/index.js?__path=$1"
     },
     {
       "source": "/download/(.*)",
-      "destination": "/api/index.js"
+      "destination": "/api/index.js?__fullpath=/download/$1"
     },
     {
       "source": "/panduan.docx",
-      "destination": "/api/index.js"
+      "destination": "/api/index.js?__fullpath=/panduan.docx"
     },
     {
       "source": "/docs/Buku_Panduan_Pengguna_SIM-HUMAS_BPS_Kalbar.docx",
-      "destination": "/api/index.js"
+      "destination": "/api/index.js?__fullpath=/docs/Buku_Panduan_Pengguna_SIM-HUMAS_BPS_Kalbar.docx"
     },
     {
       "source": "/(.*)",
@@ -30,3 +30,4 @@
     }
   ]
 }
+
