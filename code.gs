@@ -17,6 +17,15 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify(kontakOnly))
       .setMimeType(ContentService.MimeType.JSON);
   }
+
+  if (requestedSheet === 'forum' || requestedSheet === 'forum_diskusi' || requestedSheet === 'forumdiskusi') {
+    const forumOnly = {
+      forumDiskusi: getSheetData(sheet, 'Forum_Diskusi', ["id", "judul", "isi", "kategori", "author_username", "author_nama", "author_role", "is_pinned", "status_moderasi", "moderation_note", "likes_users", "followers_users", "created_at", "updated_at"]),
+      forumKomentar: getSheetData(sheet, 'Forum_Komentar', ["id", "topic_id", "parent_id", "reply_to_nama", "isi", "author_username", "author_nama", "author_role", "likes_users", "status_moderasi", "created_at", "updated_at"])
+    };
+    return ContentService.createTextOutput(JSON.stringify(forumOnly))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   
   // Ambil atau buat lembar data secara dinamis (Self-Healing Schema Terintegrasi)
   const data = {
@@ -40,7 +49,9 @@ function doGet(e) {
     masterData: getSheetData(sheet, 'master_data', ["id", "kategori", "kode", "nilai", "keterangan"]),
     assignments: getSheetData(sheet, 'assignments', ["id", "petugas", "kegiatan", "peran", "tanggal", "status"]),
     repository: getSheetData(sheet, 'repository', ["id", "nama_dokumen", "kategori", "deskripsi", "tanggal", "pic", "link_cloud", "versi", "status"]),
-    daftarKontak: getSheetData(sheet, 'Daftar_Kontak', ["ID Kontak", "Nama", "Instansi/Media", "No. HP/WA", "Keterangan", "Tanggal Dibuat", "Terakhir Diperbarui"])
+    daftarKontak: getSheetData(sheet, 'Daftar_Kontak', ["ID Kontak", "Nama", "Instansi/Media", "No. HP/WA", "Keterangan", "Tanggal Dibuat", "Terakhir Diperbarui"]),
+    forumDiskusi: getSheetData(sheet, 'Forum_Diskusi', ["id", "judul", "isi", "kategori", "author_username", "author_nama", "author_role", "is_pinned", "status_moderasi", "moderation_note", "likes_users", "followers_users", "created_at", "updated_at"]),
+    forumKomentar: getSheetData(sheet, 'Forum_Komentar', ["id", "topic_id", "parent_id", "reply_to_nama", "isi", "author_username", "author_nama", "author_role", "likes_users", "status_moderasi", "created_at", "updated_at"])
   };
   
   return ContentService.createTextOutput(JSON.stringify(data))
@@ -281,6 +292,13 @@ function doPost(e) {
     if (h === 'hubungkan_kalender') {
       return item.hubungkan_kalender !== false ? "Ya" : "Tidak";
     }
+    if (h === 'likes_users' || h === 'followers_users') {
+      if (Array.isArray(val)) return JSON.stringify(val);
+      return val !== undefined && val !== null ? String(val) : "[]";
+    }
+    if (h === 'is_pinned') {
+      return val === true || String(val).toLowerCase() === 'true' || String(val).toLowerCase() === 'ya' ? 'true' : 'false';
+    }
     return val !== undefined && val !== null ? val : "";
   }
 
@@ -340,6 +358,12 @@ function doPost(e) {
         data.item['No. HP/WA'] = rawHp;
         data.item.no_hp_wa = rawHp;
       }
+    } else if (normalizedSheetName === 'Forum_Diskusi' || normalizedSheetName === 'Forum_Komentar') {
+      const prefix = normalizedSheetName === 'Forum_Diskusi' ? 'FRM-' : 'CMT-';
+      if (!data.item.id) {
+        data.item.id = prefix + new Date().getTime() + "-" + Math.floor(100 + Math.random() * 900);
+      }
+      data.item.id = String(data.item.id);
     } else if (!data.item.id) {
       data.item.id = new Date().getTime();
     }
@@ -624,6 +648,41 @@ function getSheetData(sheet, sheetName, defaultHeaders) {
       obj['Terakhir Diperbarui'] = obj.terakhir_diperbarui;
     }
 
+    if (sheetName === 'Forum_Diskusi' || sheetName === 'forum_diskusi') {
+      obj.id = String(obj.id || '').trim();
+      obj.is_pinned = obj.is_pinned === true || String(obj.is_pinned).toLowerCase() === 'true' || String(obj.is_pinned).toLowerCase() === 'ya';
+      obj.status_moderasi = String(obj.status_moderasi || 'Aktif').trim() || 'Aktif';
+      ['likes_users', 'followers_users'].forEach(arrCol => {
+        if (typeof obj[arrCol] === 'string') {
+          try {
+            const parsed = JSON.parse(obj[arrCol]);
+            obj[arrCol] = Array.isArray(parsed) ? parsed : [];
+          } catch (_) {
+            obj[arrCol] = obj[arrCol].split(',').map(s => s.trim()).filter(Boolean);
+          }
+        } else if (!Array.isArray(obj[arrCol])) {
+          obj[arrCol] = [];
+        }
+      });
+    }
+
+    if (sheetName === 'Forum_Komentar' || sheetName === 'forum_komentar') {
+      obj.id = String(obj.id || '').trim();
+      obj.topic_id = String(obj.topic_id || '').trim();
+      obj.parent_id = String(obj.parent_id || '').trim();
+      obj.status_moderasi = String(obj.status_moderasi || 'Aktif').trim() || 'Aktif';
+      if (typeof obj.likes_users === 'string') {
+        try {
+          const parsed = JSON.parse(obj.likes_users);
+          obj.likes_users = Array.isArray(parsed) ? parsed : [];
+        } catch (_) {
+          obj.likes_users = obj.likes_users.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      } else if (!Array.isArray(obj.likes_users)) {
+        obj.likes_users = [];
+      }
+    }
+
     return obj;
   });
 }
@@ -668,7 +727,13 @@ function resolveSheetName(name) {
     'daftar_kontak': 'Daftar_Kontak',
     'Daftar_Kontak': 'Daftar_Kontak',
     'kontakPartner': 'Daftar_Kontak',
-    'kontak_partner': 'Daftar_Kontak'
+    'kontak_partner': 'Daftar_Kontak',
+    'forumDiskusi': 'Forum_Diskusi',
+    'forum_diskusi': 'Forum_Diskusi',
+    'Forum_Diskusi': 'Forum_Diskusi',
+    'forumKomentar': 'Forum_Komentar',
+    'forum_komentar': 'Forum_Komentar',
+    'Forum_Komentar': 'Forum_Komentar'
   };
   return map[name] || name;
 }
@@ -707,7 +772,13 @@ function getHeadersForSheet(name) {
     'repository': ["id", "nama_dokumen", "kategori", "deskripsi", "tanggal", "pic", "link_cloud", "versi", "status"],
     'Daftar_Kontak': ["ID Kontak", "Nama", "Instansi/Media", "No. HP/WA", "Keterangan", "Tanggal Dibuat", "Terakhir Diperbarui"],
     'daftarKontak': ["ID Kontak", "Nama", "Instansi/Media", "No. HP/WA", "Keterangan", "Tanggal Dibuat", "Terakhir Diperbarui"],
-    'daftar_kontak': ["ID Kontak", "Nama", "Instansi/Media", "No. HP/WA", "Keterangan", "Tanggal Dibuat", "Terakhir Diperbarui"]
+    'daftar_kontak': ["ID Kontak", "Nama", "Instansi/Media", "No. HP/WA", "Keterangan", "Tanggal Dibuat", "Terakhir Diperbarui"],
+    'Forum_Diskusi': ["id", "judul", "isi", "kategori", "author_username", "author_nama", "author_role", "is_pinned", "status_moderasi", "moderation_note", "likes_users", "followers_users", "created_at", "updated_at"],
+    'forumDiskusi': ["id", "judul", "isi", "kategori", "author_username", "author_nama", "author_role", "is_pinned", "status_moderasi", "moderation_note", "likes_users", "followers_users", "created_at", "updated_at"],
+    'forum_diskusi': ["id", "judul", "isi", "kategori", "author_username", "author_nama", "author_role", "is_pinned", "status_moderasi", "moderation_note", "likes_users", "followers_users", "created_at", "updated_at"],
+    'Forum_Komentar': ["id", "topic_id", "parent_id", "reply_to_nama", "isi", "author_username", "author_nama", "author_role", "likes_users", "status_moderasi", "created_at", "updated_at"],
+    'forumKomentar': ["id", "topic_id", "parent_id", "reply_to_nama", "isi", "author_username", "author_nama", "author_role", "likes_users", "status_moderasi", "created_at", "updated_at"],
+    'forum_komentar': ["id", "topic_id", "parent_id", "reply_to_nama", "isi", "author_username", "author_nama", "author_role", "likes_users", "status_moderasi", "created_at", "updated_at"]
   };
   return schemas[name] || null;
 }

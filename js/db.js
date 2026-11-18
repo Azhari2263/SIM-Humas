@@ -57,7 +57,9 @@ let db = {
             status: 'Aktif'
         }
     ],
-    daftarKontak: []
+    daftarKontak: [],
+    forumDiskusi: [],
+    forumKomentar: []
 };
 
 const OFFICIAL_USER_GUIDES = [];
@@ -248,7 +250,8 @@ if (typeof window !== 'undefined') {
 const TABLES = [
     'contentPlanner', 'brsSchedule', 'protocol', 'team', 'tickets', 'assets', 'monitoring',
     'users', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'rekapKegiatan',
-    'auditTrail', 'notifications', 'masterData', 'assignments', 'repository', 'daftarKontak'
+    'auditTrail', 'notifications', 'masterData', 'assignments', 'repository', 'daftarKontak',
+    'forumDiskusi', 'forumKomentar'
 ];
 
 const SHEET_TO_VAR = {
@@ -279,7 +282,13 @@ const SHEET_TO_VAR = {
     'daftar_kontak': 'daftarKontak',
     'daftarKontak': 'daftarKontak',
     'kontak_partner': 'daftarKontak',
-    'kontakPartner': 'daftarKontak'
+    'kontakPartner': 'daftarKontak',
+    'Forum_Diskusi': 'forumDiskusi',
+    'forum_diskusi': 'forumDiskusi',
+    'forumDiskusi': 'forumDiskusi',
+    'Forum_Komentar': 'forumKomentar',
+    'forum_komentar': 'forumKomentar',
+    'forumKomentar': 'forumKomentar'
 };
 
 let isLoading = false;
@@ -438,6 +447,24 @@ function loadLocalFallbacks() {
             .map(normalizeDaftarKontakItem);
     }
     saveLocalFallback('daftarKontak');
+
+    if (!db.forumDiskusi || !Array.isArray(db.forumDiskusi)) {
+        db.forumDiskusi = [];
+    } else {
+        db.forumDiskusi = db.forumDiskusi
+            .filter(t => t && (t.id || t.judul))
+            .map(normalizeForumTopicClient);
+    }
+    saveLocalFallback('forumDiskusi');
+
+    if (!db.forumKomentar || !Array.isArray(db.forumKomentar)) {
+        db.forumKomentar = [];
+    } else {
+        db.forumKomentar = db.forumKomentar
+            .filter(c => c && (c.id || c.isi))
+            .map(normalizeForumCommentClient);
+    }
+    saveLocalFallback('forumKomentar');
 
     if (db.contentPlanner && Array.isArray(db.contentPlanner)) {
         db.contentPlanner.forEach(item => {
@@ -604,6 +631,7 @@ function applySelectiveBackgroundUpdate(changedTables = []) {
         'rekap_kegiatan': ['rekapKegiatan', 'assignments', 'contentPlanner', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'tickets', 'team'],
         'calendar': ['contentPlanner', 'rekapRutin', 'adHoc', 'protokoler', 'mc', 'brsRilis', 'hariBesar', 'assignments', 'tickets'],
         'repository': ['repository', 'daftarKontak'],
+        'forum': ['forumDiskusi', 'forumKomentar'],
         'user_management': ['users'],
         'reset_credentials': ['users'],
         'settings': ['masterData']
@@ -679,6 +707,11 @@ function applySelectiveBackgroundUpdate(changedTables = []) {
             case 'repository':
                 if (typeof window.drawRepositoryContent === 'function') {
                     window.drawRepositoryContent();
+                }
+                break;
+            case 'forum':
+                if (typeof window.drawForumDiskusiView === 'function') {
+                    window.drawForumDiskusiView();
                 }
                 break;
             case 'user_management':
@@ -878,6 +911,37 @@ async function fetchDataFromSheets(silent = false) {
             }
         }
 
+        const hasRemoteForumDiskusi = Array.isArray(data.forumDiskusi) || Array.isArray(data['Forum_Diskusi']) || Array.isArray(data['forum_diskusi']);
+        const hasRemoteForumKomentar = Array.isArray(data.forumKomentar) || Array.isArray(data['Forum_Komentar']) || Array.isArray(data['forum_komentar']);
+        if (!hasRemoteForumDiskusi || !hasRemoteForumKomentar) {
+            let apiForum = null;
+            try {
+                const token = localStorage.getItem('sim_humas_token');
+                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+                const fResp = await fetch('/api/forum', { headers, cache: 'no-cache' });
+                if (fResp.ok) {
+                    const fJson = await fResp.json().catch(() => null);
+                    if (fJson && fJson.success) {
+                        apiForum = fJson;
+                    }
+                }
+            } catch (_) {}
+            if (!hasRemoteForumDiskusi) {
+                if (apiForum && Array.isArray(apiForum.topics)) {
+                    tempDb.forumDiskusi = apiForum.topics;
+                } else if (Array.isArray(db.forumDiskusi) && db.forumDiskusi.length > 0) {
+                    tempDb.forumDiskusi = JSON.parse(JSON.stringify(db.forumDiskusi));
+                }
+            }
+            if (!hasRemoteForumKomentar) {
+                if (apiForum && Array.isArray(apiForum.comments)) {
+                    tempDb.forumKomentar = apiForum.comments;
+                } else if (Array.isArray(db.forumKomentar) && db.forumKomentar.length > 0) {
+                    tempDb.forumKomentar = JSON.parse(JSON.stringify(db.forumKomentar));
+                }
+            }
+        }
+
         // Apply pending local changes from sync queue on top of fetched database
         applySyncQueueToTempDb(tempDb);
 
@@ -904,6 +968,18 @@ async function fetchDataFromSheets(silent = false) {
             tempDb.daftarKontak = tempDb.daftarKontak
                 .filter(k => k && (k['Nama'] || k.nama || k['No. HP/WA'] || k.no_hp_wa))
                 .map(normalizeDaftarKontakItem);
+        }
+
+        if (Array.isArray(tempDb.forumDiskusi)) {
+            tempDb.forumDiskusi = tempDb.forumDiskusi
+                .filter(t => t && (t.id || t.judul))
+                .map(normalizeForumTopicClient);
+        }
+
+        if (Array.isArray(tempDb.forumKomentar)) {
+            tempDb.forumKomentar = tempDb.forumKomentar
+                .filter(c => c && (c.id || c.isi))
+                .map(normalizeForumCommentClient);
         }
 
         // Pastikan tempDb.users murni berasal dari sheet users tanpa akun dummy
@@ -1858,6 +1934,145 @@ async function syncDaftarKontakCrud(action, itemData) {
 }
 if (typeof window !== 'undefined') {
     window.syncDaftarKontakCrud = syncDaftarKontakCrud;
+}
+
+function parseForumListClient(val) {
+    if (Array.isArray(val)) return val.map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
+    if (typeof val === 'string') {
+        const s = val.trim();
+        if (!s) return [];
+        if (s.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(s);
+                if (Array.isArray(parsed)) return parsed.map(v => String(v || '').trim().toLowerCase()).filter(Boolean);
+            } catch (_) {}
+        }
+        return s.split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
+    }
+    return [];
+}
+
+function normalizeForumTopicClient(item) {
+    const src = item || {};
+    const likes = parseForumListClient(src.likes_users);
+    const followers = parseForumListClient(src.followers_users);
+    const authorUsername = String(src.author_username || '').trim().toLowerCase();
+    if (authorUsername && followers.length === 0) {
+        followers.push(authorUsername);
+    }
+    return {
+        id: String(src.id || '').trim(),
+        judul: String(src.judul || '').trim(),
+        isi: String(src.isi || '').trim(),
+        kategori: String(src.kategori || 'Diskusi').trim() || 'Diskusi',
+        author_username: authorUsername,
+        author_nama: String(src.author_nama || src.author_username || 'Pengguna').trim(),
+        author_role: String(src.author_role || '').trim().toLowerCase(),
+        is_pinned: src.is_pinned === true || String(src.is_pinned).toLowerCase() === 'true',
+        status_moderasi: String(src.status_moderasi || 'Aktif').trim() === 'Disembunyikan' ? 'Disembunyikan' : 'Aktif',
+        moderation_note: String(src.moderation_note || '').trim(),
+        likes_users: Array.from(new Set(likes)),
+        followers_users: Array.from(new Set(followers)),
+        created_at: String(src.created_at || '').trim(),
+        updated_at: String(src.updated_at || src.created_at || '').trim()
+    };
+}
+
+function normalizeForumCommentClient(item) {
+    const src = item || {};
+    const likes = parseForumListClient(src.likes_users);
+    return {
+        id: String(src.id || '').trim(),
+        topic_id: String(src.topic_id || '').trim(),
+        parent_id: String(src.parent_id || '').trim(),
+        reply_to_nama: String(src.reply_to_nama || '').trim(),
+        isi: String(src.isi || '').trim(),
+        author_username: String(src.author_username || '').trim().toLowerCase(),
+        author_nama: String(src.author_nama || src.author_username || 'Pengguna').trim(),
+        author_role: String(src.author_role || '').trim().toLowerCase(),
+        likes_users: Array.from(new Set(likes)),
+        status_moderasi: String(src.status_moderasi || 'Aktif').trim() === 'Disembunyikan' ? 'Disembunyikan' : 'Aktif',
+        created_at: String(src.created_at || '').trim(),
+        updated_at: String(src.updated_at || src.created_at || '').trim()
+    };
+}
+
+function applyForumServerSnapshot(topics, comments) {
+    if (Array.isArray(topics)) {
+        db.forumDiskusi = topics.map(normalizeForumTopicClient);
+        saveLocalFallback('forumDiskusi');
+    }
+    if (Array.isArray(comments)) {
+        db.forumKomentar = comments.map(normalizeForumCommentClient);
+        saveLocalFallback('forumKomentar');
+    }
+}
+
+async function refreshForumFromApi(forceRefresh = false) {
+    const token = localStorage.getItem('sim_humas_token') || '';
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const url = forceRefresh ? '/api/forum?refresh=1' : '/api/forum';
+    const resp = await fetch(url, { headers, cache: 'no-cache' });
+    const json = await resp.json().catch(() => null);
+    if (!resp.ok || !json || !json.success) {
+        const msg = (json && json.error) ? json.error : `Gagal memuat Forum Diskusi (HTTP ${resp.status})`;
+        throw new Error(msg);
+    }
+    applyForumServerSnapshot(json.topics, json.comments);
+    if (typeof currentState !== 'undefined' && currentState === 'forum' && typeof window.drawForumDiskusiView === 'function') {
+        window.drawForumDiskusiView();
+    }
+    return { topics: db.forumDiskusi, comments: db.forumKomentar };
+}
+
+async function forumApiAction(action, payload = {}) {
+    const token = localStorage.getItem('sim_humas_token') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const resp = await fetch('/api/forum', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action, ...payload })
+    });
+    const json = await resp.json().catch(() => null);
+    if (!resp.ok || !json || !json.success) {
+        const err = new Error((json && json.error) ? json.error : `Gagal memproses aksi forum (HTTP ${resp.status})`);
+        err.status = resp.status;
+        throw err;
+    }
+
+    applyForumServerSnapshot(json.topics, json.comments);
+
+    if (Array.isArray(json.createdNotifications) && json.createdNotifications.length > 0) {
+        if (!Array.isArray(db.notifications)) db.notifications = [];
+        const existingIds = new Set(db.notifications.map(n => String(n.id)));
+        json.createdNotifications.forEach(notif => {
+            if (notif && !existingIds.has(String(notif.id))) {
+                db.notifications.push(notif);
+                if (typeof sendDataToServer === 'function') {
+                    sendDataToServer('add', 'notifications', notif);
+                }
+            }
+        });
+        saveLocalFallback('notifications');
+        if (typeof renderNotificationsUI === 'function') {
+            renderNotificationsUI();
+        }
+    }
+
+    if (typeof applySelectiveBackgroundUpdate === 'function') {
+        applySelectiveBackgroundUpdate(['forumDiskusi', 'forumKomentar']);
+    }
+
+    return json;
+}
+
+if (typeof window !== 'undefined') {
+    window.normalizeForumTopicClient = normalizeForumTopicClient;
+    window.normalizeForumCommentClient = normalizeForumCommentClient;
+    window.refreshForumFromApi = refreshForumFromApi;
+    window.forumApiAction = forumApiAction;
 }
 
 // Background Sync Queue Worker

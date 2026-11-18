@@ -11873,6 +11873,24 @@ function getWhatsAppUrl(rawPhone) {
     return digits ? `https://wa.me/${digits}` : '';
 }
 
+function getKontakWhatsAppShareUrl(contact) {
+    if (!contact) return '';
+    const digits = contact.waDigits || formatWhatsAppNumber(contact.noHp || contact['No. HP/WA'] || contact.no_hp_wa || contact.no_hp || contact.wa || '');
+    if (!digits) return '';
+    const nama = String(contact.nama || contact['Nama'] || '-').trim() || '-';
+    const instansi = String(contact.instansi || contact['Instansi/Media'] || contact.instansi_media || '-').trim() || '-';
+    const keterangan = String(contact.keterangan !== undefined ? contact.keterangan : (contact['Keterangan'] || '')).trim();
+    const lines = [
+        '*Kontak Partner*',
+        `Nama: ${nama}`,
+        `Instansi/Media: ${instansi}`,
+        `No. WA: +${digits}`,
+        ...(keterangan ? [`Keterangan: ${keterangan}`] : []),
+        `WhatsApp: https://wa.me/${digits}`
+    ];
+    return `https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`;
+}
+
 function validateKontakPhoneNumber(rawPhone) {
     const trimmed = String(rawPhone === null || rawPhone === undefined ? '' : rawPhone).trim();
     if (!trimmed) {
@@ -11901,6 +11919,7 @@ function validateKontakPhoneNumber(rawPhone) {
 
 window.formatWhatsAppNumber = formatWhatsAppNumber;
 window.getWhatsAppUrl = getWhatsAppUrl;
+window.getKontakWhatsAppShareUrl = getKontakWhatsAppShareUrl;
 window.validateKontakPhoneNumber = validateKontakPhoneNumber;
 
 function getKontakInitials(name) {
@@ -11971,7 +11990,8 @@ function getKontakDisplayFields(raw) {
     const formattedUpdated = formatKontakTimestamp(terakhirDiperbarui || tanggalDibuat);
     const waDigits = formatWhatsAppNumber(noHp);
     const waUrl = waDigits ? `https://wa.me/${waDigits}` : '';
-    return { id, nama, instansi, noHp, keterangan, tanggalDibuat, terakhirDiperbarui, formattedUpdated, waDigits, waUrl };
+    const waShareUrl = waDigits ? getKontakWhatsAppShareUrl({ nama, instansi, noHp, keterangan, waDigits }) : '';
+    return { id, nama, instansi, noHp, keterangan, tanggalDibuat, terakhirDiperbarui, formattedUpdated, waDigits, waUrl, waShareUrl };
 }
 
 window.handleKontakSort = function(field) {
@@ -12163,14 +12183,22 @@ function renderKontakPartnerFolderView(contentArea, pagination, canManage) {
                                 <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">
                                     <i class="fa-regular fa-clock mr-1"></i>${escapeHtml(c.formattedUpdated || '-')}
                                 </span>
-                                ${canManage ? `
-                                    <div class="flex items-center gap-1.5 shrink-0">
-                                        <button type="button" onclick="openKontakPartnerModal('${encodedId}')" title="Edit Kontak" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-300 text-[11px] font-bold inline-flex items-center gap-1 transition-all">
-                                            <i class="fa-solid fa-pen text-[10px]"></i> Edit
-                                        </button>
-                                        <button type="button" onclick="confirmDeleteKontakPartner('${encodedId}')" title="Hapus Kontak" class="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-300 text-[11px] font-bold inline-flex items-center gap-1 transition-all">
-                                            <i class="fa-solid fa-trash text-[10px]"></i> Hapus
-                                        </button>
+                                ${(c.waShareUrl || canManage) ? `
+                                    <div class="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
+                                        ${c.waShareUrl ? `
+                                            <a href="${escapeHtml(c.waShareUrl)}" target="_blank" rel="noopener noreferrer" title="Bagikan Kontak via WhatsApp"
+                                               class="px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80 text-[11px] font-bold inline-flex items-center gap-1 transition-all">
+                                                <i class="fa-solid fa-share-nodes text-[10px]"></i> Share
+                                            </a>
+                                        ` : ''}
+                                        ${canManage ? `
+                                            <button type="button" onclick="openKontakPartnerModal('${encodedId}')" title="Edit Kontak" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-300 text-[11px] font-bold inline-flex items-center gap-1 transition-all">
+                                                <i class="fa-solid fa-pen text-[10px]"></i> Edit
+                                            </button>
+                                            <button type="button" onclick="confirmDeleteKontakPartner('${encodedId}')" title="Hapus Kontak" class="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-300 text-[11px] font-bold inline-flex items-center gap-1 transition-all">
+                                                <i class="fa-solid fa-trash text-[10px]"></i> Hapus
+                                            </button>
+                                        ` : ''}
                                     </div>
                                 ` : ''}
                             </div>
@@ -12196,7 +12224,7 @@ function renderKontakPartnerFolderView(contentArea, pagination, canManage) {
                                 </th>
                                 <th class="py-3.5 px-4 whitespace-nowrap">No. HP/WA</th>
                                 <th class="py-3.5 px-4">Keterangan</th>
-                                ${canManage ? '<th class="py-3.5 px-4 text-center w-32">Aksi</th>' : ''}
+                                <th class="py-3.5 px-4 text-center w-40">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60 font-medium">
@@ -12234,18 +12262,25 @@ function renderKontakPartnerFolderView(contentArea, pagination, canManage) {
                                         <td class="py-3.5 px-4 min-w-[200px] max-w-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                                             ${c.keterangan ? escapeHtml(c.keterangan) : '<span class="text-slate-400">-</span>'}
                                         </td>
-                                        ${canManage ? `
-                                            <td class="py-3.5 px-4 text-center whitespace-nowrap">
-                                                <div class="flex items-center justify-center gap-1.5">
+                                        <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                                            <div class="flex items-center justify-center gap-1.5">
+                                                ${c.waShareUrl ? `
+                                                    <a href="${escapeHtml(c.waShareUrl)}" target="_blank" rel="noopener noreferrer" title="Bagikan Kontak via WhatsApp"
+                                                       class="px-2.5 py-1.5 rounded-lg text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200/80 dark:border-emerald-800/80 font-bold text-[11px] inline-flex items-center gap-1 transition-all">
+                                                        <i class="fa-solid fa-share-nodes text-[10px]"></i> Share
+                                                    </a>
+                                                ` : ''}
+                                                ${canManage ? `
                                                     <button type="button" onclick="openKontakPartnerModal('${encodedId}')" title="Edit Kontak" class="px-2.5 py-1.5 rounded-lg text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900 font-bold text-[11px] inline-flex items-center gap-1 transition-all">
                                                         <i class="fa-solid fa-pen text-[10px]"></i> Edit
                                                     </button>
                                                     <button type="button" onclick="confirmDeleteKontakPartner('${encodedId}')" title="Hapus Kontak" class="px-2.5 py-1.5 rounded-lg text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900 font-bold text-[11px] inline-flex items-center gap-1 transition-all">
                                                         <i class="fa-solid fa-trash text-[10px]"></i> Hapus
                                                     </button>
-                                                </div>
-                                            </td>
-                                        ` : ''}
+                                                ` : ''}
+                                                ${(!c.waShareUrl && !canManage) ? '<span class="text-slate-300 dark:text-slate-600">-</span>' : ''}
+                                            </div>
+                                        </td>
                                     </tr>
                                 `;
                             }).join('')}
