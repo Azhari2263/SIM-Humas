@@ -11873,21 +11873,25 @@ function getWhatsAppUrl(rawPhone) {
     return digits ? `https://wa.me/${digits}` : '';
 }
 
-function getKontakWhatsAppShareUrl(contact) {
+function getWhatsAppShareUrl(contact) {
     if (!contact) return '';
-    const digits = contact.waDigits || formatWhatsAppNumber(contact.noHp || contact['No. HP/WA'] || contact.no_hp_wa || contact.no_hp || contact.wa || '');
-    if (!digits) return '';
-    const nama = String(contact.nama || contact['Nama'] || '-').trim() || '-';
-    const instansi = String(contact.instansi || contact['Instansi/Media'] || contact.instansi_media || '-').trim() || '-';
-    const keterangan = String(contact.keterangan !== undefined ? contact.keterangan : (contact['Keterangan'] || '')).trim();
+    const nama = String(contact.nama ?? contact['Nama'] ?? '').trim();
+    const instansi = String(contact.instansi ?? contact.instansi_media ?? contact['Instansi/Media'] ?? '').trim();
+    const noHp = String(contact.noHp ?? contact.no_hp_wa ?? contact.no_hp ?? contact.wa ?? contact['No. HP/WA'] ?? '').trim();
+    const keterangan = String(contact.keterangan ?? contact['Keterangan'] ?? '').trim();
+    const waDigits = formatWhatsAppNumber(noHp);
+    if (!waDigits) return '';
+    const waLink = `https://wa.me/${waDigits}`;
     const lines = [
         '*Kontak Partner*',
-        `Nama: ${nama}`,
-        `Instansi/Media: ${instansi}`,
-        `No. WA: +${digits}`,
-        ...(keterangan ? [`Keterangan: ${keterangan}`] : []),
-        `WhatsApp: https://wa.me/${digits}`
+        `Nama: ${nama || '-'}`,
+        `Instansi/Media: ${instansi || '-'}`,
+        `No. HP/WA: +${waDigits}`,
+        `WhatsApp: ${waLink}`
     ];
+    if (keterangan) {
+        lines.push(`Keterangan: ${keterangan}`);
+    }
     return `https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`;
 }
 
@@ -11919,7 +11923,7 @@ function validateKontakPhoneNumber(rawPhone) {
 
 window.formatWhatsAppNumber = formatWhatsAppNumber;
 window.getWhatsAppUrl = getWhatsAppUrl;
-window.getKontakWhatsAppShareUrl = getKontakWhatsAppShareUrl;
+window.getWhatsAppShareUrl = getWhatsAppShareUrl;
 window.validateKontakPhoneNumber = validateKontakPhoneNumber;
 
 function getKontakInitials(name) {
@@ -11990,7 +11994,7 @@ function getKontakDisplayFields(raw) {
     const formattedUpdated = formatKontakTimestamp(terakhirDiperbarui || tanggalDibuat);
     const waDigits = formatWhatsAppNumber(noHp);
     const waUrl = waDigits ? `https://wa.me/${waDigits}` : '';
-    const waShareUrl = waDigits ? getKontakWhatsAppShareUrl({ nama, instansi, noHp, keterangan, waDigits }) : '';
+    const waShareUrl = waDigits ? getWhatsAppShareUrl({ nama, instansi, noHp, keterangan }) : '';
     return { id, nama, instansi, noHp, keterangan, tanggalDibuat, terakhirDiperbarui, formattedUpdated, waDigits, waUrl, waShareUrl };
 }
 
@@ -12153,16 +12157,23 @@ function renderKontakPartnerFolderView(contentArea, pagination, canManage) {
                                 <!-- Nomor HP / Link WhatsApp -->
                                 <div class="mb-3">
                                     ${c.waUrl ? `
-                                        <a href="${escapeHtml(c.waUrl)}" target="_blank" rel="noopener noreferrer" title="Hubungi ${escapeHtml(c.nama)} via WhatsApp (${escapeHtml(c.waDigits)})"
-                                           class="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 transition-all group/wa">
-                                            <span class="flex items-center gap-2 min-w-0">
-                                                <i class="fa-brands fa-whatsapp text-base text-emerald-600 dark:text-emerald-400 shrink-0"></i>
-                                                <span class="text-xs font-extrabold tracking-wide truncate">${escapeHtml(c.noHp)}</span>
-                                            </span>
-                                            <span class="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 shrink-0">
-                                                Chat <i class="fa-solid fa-arrow-up-right-from-square text-[9px] group-hover/wa:translate-x-0.5 transition-transform"></i>
-                                            </span>
-                                        </a>
+                                        <div class="flex items-stretch gap-2">
+                                            <a href="${escapeHtml(c.waUrl)}" target="_blank" rel="noopener noreferrer" title="Hubungi ${escapeHtml(c.nama)} via WhatsApp (${escapeHtml(c.waDigits)})"
+                                               class="flex-1 min-w-0 flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/70 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 transition-all group/wa">
+                                                <span class="flex items-center gap-2 min-w-0">
+                                                    <i class="fa-brands fa-whatsapp text-base text-emerald-600 dark:text-emerald-400 shrink-0"></i>
+                                                    <span class="text-xs font-extrabold tracking-wide truncate">${escapeHtml(c.noHp)}</span>
+                                                </span>
+                                                <span class="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 shrink-0">
+                                                    Chat <i class="fa-solid fa-arrow-up-right-from-square text-[9px] group-hover/wa:translate-x-0.5 transition-transform"></i>
+                                                </span>
+                                            </a>
+                                            <a href="${escapeHtml(c.waShareUrl)}" target="_blank" rel="noopener noreferrer" title="Bagikan kontak ${escapeHtml(c.nama)} via WhatsApp"
+                                               class="px-3 py-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/70 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 text-[11px] font-bold inline-flex items-center justify-center gap-1.5 transition-all shrink-0">
+                                                <i class="fa-solid fa-share-nodes text-xs"></i>
+                                                <span>Share</span>
+                                            </a>
+                                        </div>
                                     ` : `
                                         <div class="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-400 font-medium">
                                             <i class="fa-solid fa-phone-slash mr-1.5"></i> ${escapeHtml(c.noHp || 'Nomor belum tersedia')}
@@ -12183,22 +12194,14 @@ function renderKontakPartnerFolderView(contentArea, pagination, canManage) {
                                 <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">
                                     <i class="fa-regular fa-clock mr-1"></i>${escapeHtml(c.formattedUpdated || '-')}
                                 </span>
-                                ${(c.waShareUrl || canManage) ? `
-                                    <div class="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
-                                        ${c.waShareUrl ? `
-                                            <a href="${escapeHtml(c.waShareUrl)}" target="_blank" rel="noopener noreferrer" title="Bagikan Kontak via WhatsApp"
-                                               class="px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80 text-[11px] font-bold inline-flex items-center gap-1 transition-all">
-                                                <i class="fa-solid fa-share-nodes text-[10px]"></i> Share
-                                            </a>
-                                        ` : ''}
-                                        ${canManage ? `
-                                            <button type="button" onclick="openKontakPartnerModal('${encodedId}')" title="Edit Kontak" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-300 text-[11px] font-bold inline-flex items-center gap-1 transition-all">
-                                                <i class="fa-solid fa-pen text-[10px]"></i> Edit
-                                            </button>
-                                            <button type="button" onclick="confirmDeleteKontakPartner('${encodedId}')" title="Hapus Kontak" class="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-300 text-[11px] font-bold inline-flex items-center gap-1 transition-all">
-                                                <i class="fa-solid fa-trash text-[10px]"></i> Hapus
-                                            </button>
-                                        ` : ''}
+                                ${canManage ? `
+                                    <div class="flex items-center gap-1.5 shrink-0">
+                                        <button type="button" onclick="openKontakPartnerModal('${encodedId}')" title="Edit Kontak" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-300 text-[11px] font-bold inline-flex items-center gap-1 transition-all">
+                                            <i class="fa-solid fa-pen text-[10px]"></i> Edit
+                                        </button>
+                                        <button type="button" onclick="confirmDeleteKontakPartner('${encodedId}')" title="Hapus Kontak" class="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-300 text-[11px] font-bold inline-flex items-center gap-1 transition-all">
+                                            <i class="fa-solid fa-trash text-[10px]"></i> Hapus
+                                        </button>
                                     </div>
                                 ` : ''}
                             </div>
@@ -12224,7 +12227,7 @@ function renderKontakPartnerFolderView(contentArea, pagination, canManage) {
                                 </th>
                                 <th class="py-3.5 px-4 whitespace-nowrap">No. HP/WA</th>
                                 <th class="py-3.5 px-4">Keterangan</th>
-                                <th class="py-3.5 px-4 text-center w-40">Aksi</th>
+                                ${canManage ? '<th class="py-3.5 px-4 text-center w-32">Aksi</th>' : ''}
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60 font-medium">
@@ -12251,36 +12254,36 @@ function renderKontakPartnerFolderView(contentArea, pagination, canManage) {
                                         </td>
                                         <td class="py-3.5 px-4 whitespace-nowrap">
                                             ${c.waUrl ? `
-                                                <a href="${escapeHtml(c.waUrl)}" target="_blank" rel="noopener noreferrer" title="Chat WhatsApp (${escapeHtml(c.waDigits)})"
-                                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold text-xs transition-all">
-                                                    <i class="fa-brands fa-whatsapp text-sm text-emerald-600 dark:text-emerald-400"></i>
-                                                    <span>${escapeHtml(c.noHp)}</span>
-                                                    <i class="fa-solid fa-arrow-up-right-from-square text-[9px] opacity-75"></i>
-                                                </a>
+                                                <div class="inline-flex items-center gap-1.5">
+                                                    <a href="${escapeHtml(c.waUrl)}" target="_blank" rel="noopener noreferrer" title="Chat WhatsApp (${escapeHtml(c.waDigits)})"
+                                                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold text-xs transition-all">
+                                                        <i class="fa-brands fa-whatsapp text-sm text-emerald-600 dark:text-emerald-400"></i>
+                                                        <span>${escapeHtml(c.noHp)}</span>
+                                                        <i class="fa-solid fa-arrow-up-right-from-square text-[9px] opacity-75"></i>
+                                                    </a>
+                                                    <a href="${escapeHtml(c.waShareUrl)}" target="_blank" rel="noopener noreferrer" title="Bagikan kontak ${escapeHtml(c.nama)} via WhatsApp"
+                                                       class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 hover:bg-teal-100 dark:hover:bg-teal-900 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 font-bold text-[11px] transition-all">
+                                                        <i class="fa-solid fa-share-nodes text-[10px]"></i>
+                                                        <span>Share</span>
+                                                    </a>
+                                                </div>
                                             ` : `<span class="text-slate-400">${escapeHtml(c.noHp || '-')}</span>`}
                                         </td>
                                         <td class="py-3.5 px-4 min-w-[200px] max-w-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                                             ${c.keterangan ? escapeHtml(c.keterangan) : '<span class="text-slate-400">-</span>'}
                                         </td>
-                                        <td class="py-3.5 px-4 text-center whitespace-nowrap">
-                                            <div class="flex items-center justify-center gap-1.5">
-                                                ${c.waShareUrl ? `
-                                                    <a href="${escapeHtml(c.waShareUrl)}" target="_blank" rel="noopener noreferrer" title="Bagikan Kontak via WhatsApp"
-                                                       class="px-2.5 py-1.5 rounded-lg text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200/80 dark:border-emerald-800/80 font-bold text-[11px] inline-flex items-center gap-1 transition-all">
-                                                        <i class="fa-solid fa-share-nodes text-[10px]"></i> Share
-                                                    </a>
-                                                ` : ''}
-                                                ${canManage ? `
+                                        ${canManage ? `
+                                            <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                                                <div class="flex items-center justify-center gap-1.5">
                                                     <button type="button" onclick="openKontakPartnerModal('${encodedId}')" title="Edit Kontak" class="px-2.5 py-1.5 rounded-lg text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900 font-bold text-[11px] inline-flex items-center gap-1 transition-all">
                                                         <i class="fa-solid fa-pen text-[10px]"></i> Edit
                                                     </button>
                                                     <button type="button" onclick="confirmDeleteKontakPartner('${encodedId}')" title="Hapus Kontak" class="px-2.5 py-1.5 rounded-lg text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900 font-bold text-[11px] inline-flex items-center gap-1 transition-all">
                                                         <i class="fa-solid fa-trash text-[10px]"></i> Hapus
                                                     </button>
-                                                ` : ''}
-                                                ${(!c.waShareUrl && !canManage) ? '<span class="text-slate-300 dark:text-slate-600">-</span>' : ''}
-                                            </div>
-                                        </td>
+                                                </div>
+                                            </td>
+                                        ` : ''}
                                     </tr>
                                 `;
                             }).join('')}
