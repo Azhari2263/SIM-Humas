@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
+  "buildCommand": "env -u npm_config_cache_dir -u NPM_CONFIG_CACHE_DIR npm run build",
+  "installCommand": "env -u npm_config_cache_dir -u NPM_CONFIG_CACHE_DIR npm install",
   "functions": {
     "api/**/*.js": {
       "includeFiles": "data/**,public/docs/**,*.docx"
