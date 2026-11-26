@@ -65,19 +65,14 @@ if (typeof window !== 'undefined') {
     window.OFFICIAL_USER_GUIDES = OFFICIAL_USER_GUIDES;
 }
 
-// Helper untuk mengecek apakah dokumen merupakan Buku Panduan yang dihapus
+// Helper untuk mengecek apakah dokumen merupakan Buku Panduan dummy lama yang dihapus
 function isUserGuideDoc(item) {
     if (!item) return false;
-    if ([101, 102, 103].includes(Number(item.id))) return true;
-    const title = String(item.nama_dokumen || '').toLowerCase();
-    const link = String(item.link_cloud || '').toLowerCase();
+    const link = String(item.link_cloud || '').toLowerCase().trim();
     if (
-        title.includes('buku panduan pengguna') ||
-        title.includes('buku panduan khusus administrator') ||
-        title.includes('buku panduan khusus tim pelaksana') ||
-        link.includes('buku-panduan-sim-humas') ||
-        link.includes('buku-panduan-admin-ketua-tim') ||
-        link.includes('buku-panduan-tim-humas')
+        link.includes('drive.google.com/file/d/buku-panduan-sim-humas') ||
+        link.includes('drive.google.com/file/d/buku-panduan-admin-ketua-tim') ||
+        link.includes('drive.google.com/file/d/buku-panduan-tim-humas')
     ) {
         return true;
     }
